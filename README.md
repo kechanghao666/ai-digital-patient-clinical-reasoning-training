@@ -12,7 +12,8 @@
 - [Nexent 配置字段初稿](docs/agent-config-draft.md)
 - [开发进度](docs/progress/2026-11-07.md)
 - [本次验证结果](docs/verification-20261107.md)
-- [官方启动登记待办](docs/official-handoff.md)
+- [官方启动登记与实际链接](docs/official-handoff.md)
+- [下一阶段开发交接](docs/next-stage-handoff.md)
 - [本地与 GitHub 基线同步说明](docs/repository-sync.md)
 - [第三方依赖与 AI 工具披露](docs/third-party-and-ai-disclosure.md)
 - [AgentsHub 课题目录骨架](deliverables/AgentsHub/行业智能体/医疗/AI数字病人临床思维训练/README.md)
@@ -59,6 +60,6 @@ $env:APP_ENV = "development"
 
 ## 官方流程与许可证
 
-报名确认后3个自然日内需完成官方 Fork、目录骨架、过程仓库登记、经核实的小助手管理权限和技术方案提交；每7个自然日至少更新一次过程仓库，30个自然日内提供中期演示。GitHub 仓库不能替代官方 AtomGit Fork 或最终 PR 合入，私有仓库还需落实官方审查访问；本次同步不改变仓库可见性。
+报名确认后3个自然日内需完成官方 Fork、目录骨架、过程仓库登记、经核实的小助手管理权限和技术方案提交；每7个自然日至少更新一次过程仓库，30个自然日内提供中期演示。本仓库现已公开；官方 Fork 主分支已收到5份启动材料，链接见启动登记文档。报名成功日、过程仓库登记和小助手管理员权限待核实。GitHub 公开、Fork材料上传和最终官方PR合入是不同节点。
 
 使用本项目应遵守 [MIT License](LICENSE)。官方来源：[活动公告](https://gitcode.com/org/ModelEngine/discussions/26)、[交付要求](https://atomgit.com/ModelEngine/AgentsHub/blob/main/需求包详情与交付要求.md)。

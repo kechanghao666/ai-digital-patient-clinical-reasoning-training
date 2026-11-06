@@ -19,3 +19,9 @@
 界面探针属于自动化组件流程验证，没有代替真实浏览器、真实Nexent、专业医学审核、正式学生/专家评测、性能或最终干净部署验收。
 
 本次原始输出保存在项目负责人本地审计证据目录，不将含本机路径的全量日志或历史审计快照上传仓库。GitHub Actions实际执行结果可在本仓库Actions查看。
+
+## 实际远端验证
+
+GitHub完整基线提交 `bb3a611bd7fba8b966e5c2ca81ccaaf126928049` 已推送main，实际CI运行 [42285625910](https://github.com/kechanghao666/ai-digital-patient-topic1/actions/runs/42285625910) 已成功结束，tests与dependency-audit均为success。启动分支运行42285204446也已通过。当前文档同步提交需另查同提交CI，不继承旧提交结论。
+
+官方Fork的main及启动分支已由远端核实为 `d21d1d02f06524f486bbb82918a63c2d721a8380`，只增加课题目录内的5份启动材料；官方源main仍为c5a9e48。Fork上传不等于官方源合入或验收。
