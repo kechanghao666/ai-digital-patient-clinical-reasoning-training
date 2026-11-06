@@ -1,5 +1,7 @@
 ﻿from __future__ import annotations
 
+import os
+
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -7,7 +9,7 @@ from .models import ActionRequest, ActionResponse
 from .storage import ConflictError, SessionStore
 
 app = FastAPI(title="AI Digital Patient Topic 1")
-store = SessionStore()
+store = SessionStore(os.getenv("AI_PATIENT_DB", "data/ai_patient.sqlite3"))
 
 
 def owner_from_header(x_owner: str | None) -> str:
@@ -33,15 +35,7 @@ def get_session(session_id: str, x_owner: str | None = Header(default=None)) -> 
     state = store.get(session_id)
     if state is None or state.owner != owner:
         raise HTTPException(status_code=404, detail="会话不存在")
-    return {
-        "session_id": state.session_id,
-        "status": state.status,
-        "round": state.round,
-        "score_status": state.score_status,
-        "score": state.score,
-        "events": [event.model_dump() for event in state.events[-5:]],
-        "error": state.last_error,
-    }
+    return {"session_id": state.session_id, "status": state.status, "round": state.round, "score_status": state.score_status, "score": state.score, "events": [event.model_dump() for event in state.events[-5:]], "error": state.last_error}
 
 
 @app.post("/sessions/{session_id}/actions", response_model=ActionResponse)
@@ -61,4 +55,3 @@ def action(session_id: str, req: ActionRequest, x_owner: str | None = Header(def
 @app.exception_handler(HTTPException)
 async def http_exception_handler(_, exc: HTTPException) -> JSONResponse:
     return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
-
