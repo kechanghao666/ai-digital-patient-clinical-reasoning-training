@@ -85,18 +85,40 @@ class SessionStore:
             )
         return state
 
+    @staticmethod
+    def _state_from_connection(connection: sqlite3.Connection, session_id: str) -> SessionState | None:
+        row = connection.execute("SELECT * FROM sessions WHERE session_id = ?", (session_id,)).fetchone()
+        if row is None:
+            return None
+        facts = [
+            item[0]
+            for item in connection.execute(
+                "SELECT content FROM facts WHERE session_id = ? ORDER BY id",
+                (session_id,),
+            )
+        ]
+        events = [
+            PublicEvent(type=item[0], message=item[1])
+            for item in connection.execute(
+                "SELECT type, message FROM events WHERE session_id = ? ORDER BY id",
+                (session_id,),
+            )
+        ]
+        return SessionState(
+            session_id=row["session_id"],
+            owner=row["owner"],
+            status=row["status"],
+            round=row["round"],
+            facts=facts,
+            events=events,
+            score_status=row["score_status"],
+            score=row["score"],
+            updated_at=datetime.fromisoformat(row["updated_at"]),
+        )
+
     def get(self, session_id: str) -> SessionState | None:
         with self._connect() as connection:
-            row = connection.execute("SELECT * FROM sessions WHERE session_id = ?", (session_id,)).fetchone()
-            if row is None:
-                return None
-            facts = [item[0] for item in connection.execute("SELECT content FROM facts WHERE session_id = ? ORDER BY id", (session_id,))]
-            events = [PublicEvent(type=item[0], message=item[1]) for item in connection.execute("SELECT type, message FROM events WHERE session_id = ? ORDER BY id", (session_id,))]
-            return SessionState(
-                session_id=row["session_id"], owner=row["owner"], status=row["status"], round=row["round"],
-                facts=facts, events=events, score_status=row["score_status"], score=row["score"],
-                updated_at=datetime.fromisoformat(row["updated_at"]),
-            )
+            return self._state_from_connection(connection, session_id)
 
     def apply(self, session_id: str, req: ActionRequest) -> ActionResponse:
         digest = hashlib.sha256(req.model_dump_json().encode()).hexdigest()
@@ -115,7 +137,7 @@ class SessionStore:
             if row["status"] == "sealed":
                 connection.rollback()
                 raise ConflictError("会话已封存，不能继续操作")
-            state = self.get(session_id)
+            state = self._state_from_connection(connection, session_id)
             assert state is not None
             state.round += 1
             if req.action == "ask":
@@ -168,4 +190,3 @@ class SessionStore:
             message = "诊断包含复合、否定、不确定或未覆盖表述，已转人工复核。" if uncertain or composite or negated or value else "诊断内容不足以由量表解释，已转人工复核。"
         state.events.append(PublicEvent(type="diagnosis", message=message))
         return message
-

@@ -32,6 +32,19 @@ def test_composite_negated_and_unknown_diagnoses_need_review():
         assert r.json()["status"] == "active"
 
 
+def test_only_complete_stemi_match_is_scored():
+    sid = session()
+    r = client.post(
+        f"/sessions/{sid}/actions",
+        headers={"X-Owner": "student-1"},
+        json={"request_id": "exact-stemi", "action": "diagnose", "text": "STEMI"},
+    )
+    assert r.status_code == 200
+    assert r.json()["score_status"] == "complete"
+    assert r.json()["score"] == 100
+    assert r.json()["status"] == "sealed"
+
+
 def test_request_replay_and_conflict():
     sid = session()
     payload = {"request_id": "a1", "action": "ask", "text": "胸痛"}
