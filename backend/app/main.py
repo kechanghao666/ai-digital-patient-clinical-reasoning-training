@@ -1,4 +1,4 @@
-from __future__ import annotations
+ï»¿from __future__ import annotations
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse
@@ -12,7 +12,7 @@ store = SessionStore()
 
 def owner_from_header(x_owner: str | None) -> str:
     if not x_owner or not x_owner.strip():
-        raise HTTPException(status_code=401, detail="È±ÉÙ»á»°ËùÓÐÕß")
+        raise HTTPException(status_code=401, detail="ç¼ºå°‘ä¼šè¯æ‰€æœ‰è€…")
     return x_owner.strip()
 
 
@@ -32,7 +32,7 @@ def get_session(session_id: str, x_owner: str | None = Header(default=None)) -> 
     owner = owner_from_header(x_owner)
     state = store.get(session_id)
     if state is None or state.owner != owner:
-        raise HTTPException(status_code=404, detail="»á»°²»´æÔÚ")
+        raise HTTPException(status_code=404, detail="ä¼šè¯ä¸å­˜åœ¨")
     return {
         "session_id": state.session_id,
         "status": state.status,
@@ -49,15 +49,16 @@ def action(session_id: str, req: ActionRequest, x_owner: str | None = Header(def
     owner = owner_from_header(x_owner)
     state = store.get(session_id)
     if state is None or state.owner != owner:
-        raise HTTPException(status_code=404, detail="»á»°²»´æÔÚ")
+        raise HTTPException(status_code=404, detail="ä¼šè¯ä¸å­˜åœ¨")
     try:
         return store.apply(session_id, req)
     except ConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail="»á»°²»´æÔÚ") from exc
+        raise HTTPException(status_code=404, detail="ä¼šè¯ä¸å­˜åœ¨") from exc
 
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(_, exc: HTTPException) -> JSONResponse:
     return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
+

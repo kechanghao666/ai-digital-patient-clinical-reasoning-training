@@ -1,4 +1,4 @@
-import pytest
+ï»¿import pytest
 from fastapi.testclient import TestClient
 from backend.app.main import app
 
@@ -20,7 +20,7 @@ def test_public_projection_hides_internal_fields():
 
 def test_composite_diagnosis_needs_review():
     sid = session()
-    r = client.post(f"/sessions/{sid}/actions", headers={"X-Owner": "student-1"}, json={"request_id": "d1", "action": "diagnose", "text": "STEMI ²¢¶à²¡Ôî"})
+    r = client.post(f"/sessions/{sid}/actions", headers={"X-Owner": "student-1"}, json={"request_id": "d1", "action": "diagnose", "text": "STEMI å¹¶å¤šç—…ç¶"})
     assert r.status_code == 200
     assert r.json()["score_status"] == "needs_review"
     assert r.json()["status"] == "active"
@@ -28,16 +28,17 @@ def test_composite_diagnosis_needs_review():
 
 def test_request_replay_and_conflict():
     sid = session()
-    payload = {"request_id": "a1", "action": "ask", "text": "ĞØÍ´"}
+    payload = {"request_id": "a1", "action": "ask", "text": "èƒ¸ç—›"}
     first = client.post(f"/sessions/{sid}/actions", headers={"X-Owner": "student-1"}, json=payload)
     second = client.post(f"/sessions/{sid}/actions", headers={"X-Owner": "student-1"}, json=payload)
     assert first.json() == second.json()
-    conflict = client.post(f"/sessions/{sid}/actions", headers={"X-Owner": "student-1"}, json={**payload, "text": "¹ıÃô"})
+    conflict = client.post(f"/sessions/{sid}/actions", headers={"X-Owner": "student-1"}, json={**payload, "text": "è¿‡æ•"})
     assert conflict.status_code == 409
 
 
 def test_successful_retry_has_no_error():
     sid = session()
-    ok = client.post(f"/sessions/{sid}/actions", headers={"X-Owner": "student-1"}, json={"request_id": "r1", "action": "ask", "text": "ĞØÍ´"})
+    ok = client.post(f"/sessions/{sid}/actions", headers={"X-Owner": "student-1"}, json={"request_id": "r1", "action": "ask", "text": "èƒ¸ç—›"})
     assert ok.status_code == 200
     assert ok.json()["error"] is None
+

@@ -1,4 +1,4 @@
-from __future__ import annotations
+ï»¿from __future__ import annotations
 
 import hashlib
 import json
@@ -38,17 +38,17 @@ class SessionStore:
             prior = state.replay.get(req.request_id)
             if prior:
                 if prior["digest"] != digest:
-                    raise ConflictError("request_id ÒÑ±»²»Í¬ÇëÇóÕ¼ÓÃ")
+                    raise ConflictError("request_id å·²è¢«ä¸åŒè¯·æ±‚å ç”¨")
                 return ActionResponse.model_validate(deepcopy(prior["response"]))
             if state.status == "sealed":
-                raise ConflictError("»á»°ÒÑ·â´æ£¬²»ÄÜ¼ÌĞø²Ù×÷")
+                raise ConflictError("ä¼šè¯å·²å°å­˜ï¼Œä¸èƒ½ç»§ç»­æ“ä½œ")
             previous_error = state.last_error
             state.last_error = None
             state.round += 1
             if req.action == "ask":
                 message = self._answer(state, req.text)
             elif req.action == "wait":
-                message = "»¼Õß²¡Çé¼ÌĞø¹Û²ì£¬µ±Ç°Î´´¥·¢ĞÂµÄ¹«¿ª±ä»¯¡£"
+                message = "æ‚£è€…ç—…æƒ…ç»§ç»­è§‚å¯Ÿï¼Œå½“å‰æœªè§¦å‘æ–°çš„å…¬å¼€å˜åŒ–ã€‚"
                 state.events.append({"type": "wait", "message": message})
             else:
                 message = self._diagnose(state, req.text)
@@ -69,12 +69,12 @@ class SessionStore:
     @staticmethod
     def _answer(state: SessionState, text: str) -> str:
         normalized = text.strip().lower()
-        if "ĞØÍ´" in normalized or "pain" in normalized:
-            answer = "»¼ÕßËß³ÖĞøĞØÍ´£¬°é³öº¹ºÍ¶ñĞÄ¡£"
-        elif "¹ıÃô" in normalized or "allerg" in normalized:
-            answer = "»¼Õß·ñÈÏÒÑÖªÒ©Îï¹ıÃô¡£"
+        if "èƒ¸ç—›" in normalized or "pain" in normalized:
+            answer = "æ‚£è€…è¯‰æŒç»­èƒ¸ç—›ï¼Œä¼´å‡ºæ±—å’Œæ¶å¿ƒã€‚"
+        elif "è¿‡æ•" in normalized or "allerg" in normalized:
+            answer = "æ‚£è€…å¦è®¤å·²çŸ¥è¯ç‰©è¿‡æ•ã€‚"
         else:
-            answer = "»¼ÕßÔİÎ´Ìá¹©Óë¸ÃÎÊÌâÖ±½Ó¶ÔÓ¦µÄĞÂĞÅÏ¢¡£"
+            answer = "æ‚£è€…æš‚æœªæä¾›ä¸è¯¥é—®é¢˜ç›´æ¥å¯¹åº”çš„æ–°ä¿¡æ¯ã€‚"
         state.facts.append(answer)
         state.events.append({"type": "answer", "message": answer})
         return answer
@@ -82,22 +82,23 @@ class SessionStore:
     @staticmethod
     def _diagnose(state: SessionState, text: str) -> str:
         value = text.strip().lower()
-        positive = "stemi" in value or "¼±ĞÔst¶ÎÌ§¸ßĞÍĞÄ¼¡¹£ËÀ" in value
-        uncertain = any(token in value for token in ("¿ÉÄÜ", "¿¼ÂÇ", "ÒÉËÆ", "ºÏ²¢", "¶à²¡Ôî", "multiple"))
-        composite = any(token in value for token in ("ºÍ", "²¢", "+", "/", "°é"))
+        positive = "stemi" in value or "æ€¥æ€§stæ®µæŠ¬é«˜å‹å¿ƒè‚Œæ¢—æ­»" in value
+        uncertain = any(token in value for token in ("å¯èƒ½", "è€ƒè™‘", "ç–‘ä¼¼", "åˆå¹¶", "å¤šç—…ç¶", "multiple"))
+        composite = any(token in value for token in ("å’Œ", "å¹¶", "+", "/", "ä¼´"))
         if positive and not uncertain and not composite:
             state.score_status = "complete"
             state.score = 100
             state.status = "sealed"
-            message = "Õï¶ÏÓëµ±Ç°Á¿±íÍêÈ«Æ¥Åä£¬ÆÀ·ÖÍê³É¡£"
+            message = "è¯Šæ–­ä¸å½“å‰é‡è¡¨å®Œå…¨åŒ¹é…ï¼Œè¯„åˆ†å®Œæˆã€‚"
         elif positive or uncertain or composite:
             state.score_status = "needs_review"
             state.score = None
-            message = "Õï¶Ï°üº¬¸´ºÏ»ò²»È·¶¨±íÊö£¬ÒÑ×ªÈË¹¤¸´ºË¡£"
+            message = "è¯Šæ–­åŒ…å«å¤åˆæˆ–ä¸ç¡®å®šè¡¨è¿°ï¼Œå·²è½¬äººå·¥å¤æ ¸ã€‚"
         else:
             state.score_status = "complete"
             state.score = 0
             state.status = "sealed"
-            message = "Õï¶ÏÎ´Æ¥ÅäÁ¿±í£¬ÆÀ·ÖÍê³É¡£"
+            message = "è¯Šæ–­æœªåŒ¹é…é‡è¡¨ï¼Œè¯„åˆ†å®Œæˆã€‚"
         state.events.append({"type": "diagnosis", "message": message})
         return message
+

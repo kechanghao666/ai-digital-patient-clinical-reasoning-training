@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Literal
@@ -45,3 +45,4 @@ class ActionResponse(BaseModel):
 
 def new_session(owner: str) -> SessionState:
     return SessionState(session_id=str(uuid4()), owner=owner)
+
