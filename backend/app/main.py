@@ -18,6 +18,7 @@ from .disclosure import classify_and_authorize
 from .integration.feedback import FeedbackUnavailable
 from .integration.nexent_client import NexentError
 from .integration.runtime import IntegrationRuntime
+from .integration.tools import validate_feedback_items
 from .models import (
     ActionKind,
     ActionRequest,
@@ -29,7 +30,7 @@ from .models import (
     SessionState,
     TreatmentRequest,
 )
-from .scoring import score_session
+from .scoring import score_session, student_score_snapshot
 from .teacher_api import build_router as build_teacher_router
 from .state_machine import StateMachine
 from .storage import ConcurrentUpdateError, SessionRepository
@@ -241,6 +242,8 @@ def safe_state(state: SessionState) -> dict[str, Any]:
 
 
 def _nexent_http_error(exc: NexentError) -> HTTPException:
+    if exc.kind == "state_changed":
+        return HTTPException(status_code=409, detail="训练状态已更新，请刷新后重试")
     if exc.kind == "timeout":
         return HTTPException(status_code=504, detail="患者智能体响应超时，本次提问未记录，可用原请求重试")
     if exc.kind == "conflict":
@@ -458,7 +461,7 @@ def feedback(session_id: str, request: SealRequest, owner_id: str = Depends(curr
         raise HTTPException(status_code=409, detail="提交训练后才能生成反馈")
     case = CASE_STORE.get(state.case_id, state.case_version)
     try:
-        return _public_feedback(RUNTIME.feedback_service.get_or_generate(state, case, request.request_id))
+        return _public_feedback(RUNTIME.feedback_service.get_or_generate(state, case, request.request_id), state, case)
     except FeedbackUnavailable as exc:
         status = 504 if exc.kind == "timeout" else 502
         raise HTTPException(status_code=status, detail=str(exc)) from exc
@@ -472,14 +475,17 @@ def get_feedback(session_id: str, owner_id: str = Depends(current_owner)) -> dic
     stored = RUNTIME.feedback_store.get(session_id, owner_id)
     if stored is None:
         raise HTTPException(status_code=404, detail="反馈尚未生成")
-    return _public_feedback(stored)
+    return _public_feedback(stored, state, CASE_STORE.get(state.case_id, state.case_version))
 
 
-def _public_feedback(stored: dict[str, Any]) -> dict[str, Any]:
+def _public_feedback(stored: dict[str, Any], state: SessionState, case: CaseDefinition) -> dict[str, Any]:
+    items = validate_feedback_items(stored["items"], state, case, RUNTIME.knowledge)
+    if isinstance(items, str):
+        raise HTTPException(status_code=409, detail="已存反馈不符合当前五环节与安全规则，请教师复核；原记录保持不变。")
     return {
         "source": stored["source"],
         "basis_status": stored["basis_status"],
-        "items": stored["items"],
+        "items": items,
         "notice": "反馈与教学依据均为未经医学审核的教学草稿，分数以评分快照为准。",
     }
 
@@ -489,5 +495,6 @@ def score(session_id: str, owner_id: str = Depends(current_owner)) -> dict:
     state = get_state(session_id, owner_id)
     if not state.sealed:
         raise HTTPException(status_code=409, detail="提交训练后才能评分")
-    snapshot = state.score_snapshot or score_session(state, CASE_STORE.get(state.case_id, state.case_version))
-    return snapshot.model_dump(mode="json")
+    case = CASE_STORE.get(state.case_id, state.case_version)
+    snapshot = state.score_snapshot or score_session(state, case)
+    return student_score_snapshot(snapshot, case).model_dump(mode="json")

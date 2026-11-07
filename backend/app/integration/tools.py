@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from ..adapters import diagnosis_leak_terms
 from ..case_store import CaseStore
 from ..models import ActionKind, CaseDefinition, Event, SessionState
 from ..storage import SessionRepository
@@ -10,7 +11,7 @@ from .knowledge import KnowledgeStore
 from .turns import Turn, TurnError, TurnStore
 
 MAX_FAILED_CALLS = 3
-MAX_FEEDBACK_ITEMS = 10
+FEEDBACK_STAGES = ("病史采集", "检查选择", "鉴别诊断", "诊断", "治疗")
 MAX_COMMENT = 600
 MAX_IMPROVEMENT = 300
 FORBIDDEN_MARKERS = ("sentinel", "traceback", "api_key", "turn_token", "secret")
@@ -52,7 +53,12 @@ class TrustedToolService:
             raise TurnError("session_missing", "session is not available") from exc
         if state.case_id != turn.case_id or state.case_version != turn.case_version:
             raise TurnError("case_mismatch", "session case no longer matches the turn")
-        case = self.cases.get(turn.case_id, turn.case_version)
+        self.cases.reload()
+        try:
+            case = self.cases.get(turn.case_id, turn.case_version)
+        except KeyError as exc:
+            self.turns.cancel(turn.turn_id, "case_missing")
+            raise TurnError("case_missing", "case version is not available", turn.turn_id) from exc
         if kind == turn_states.PATIENT:
             if state.sealed:
                 self.turns.cancel(turn.turn_id, "session_sealed")
@@ -158,7 +164,11 @@ class TrustedToolService:
                     "treatment": (state.treatment_submission or {}).get("treatment_id"),
                 },
                 "events": events,
-                "note": "分数由系统给定，反馈不得修改分数；证据只能引用 events 中的 event_id。",
+                "note": (
+                    "分数由系统给定，不得修改。五环节各提交一条评语和非空改进建议，"
+                    "引用本环节教学依据；有事件时引用真实event_id，未操作时说明缺失，不编造事件。"
+                    "不公布隐藏参考诊断及其别名。"
+                ),
             }
 
         return self._guard(turn_token, turn_states.FEEDBACK, "get_sealed_review", body)
@@ -200,12 +210,13 @@ def validate_feedback_items(
     items: Any, state: SessionState, case: CaseDefinition, knowledge: KnowledgeStore
 ) -> list[dict[str, Any]] | str:
     """Return normalized items or a model-safe error string. Scores are never accepted."""
-    if not isinstance(items, list) or not 1 <= len(items) <= MAX_FEEDBACK_ITEMS:
-        return f"items must be a list of 1 to {MAX_FEEDBACK_ITEMS} entries"
-    stages = {rubric.stage for rubric in case.rubric}
+    if not isinstance(items, list) or len(items) != len(FEEDBACK_STAGES):
+        return "items must contain exactly one entry for each of the five stages"
+    seen: set[str] = set()
     seal_seq = state.seal_seq if state.seal_seq is not None else len(state.events)
     valid_events = {event.event_id for event in state.events[:seal_seq]}
-    hidden = (case.hidden_diagnosis or "").strip().lower()
+    forbidden = diagnosis_leak_terms(case) | {"".join((case.hidden_diagnosis or "").casefold().split())}
+    forbidden.discard("")
     normalized: list[dict[str, Any]] = []
     for item in items:
         if not isinstance(item, dict):
@@ -215,24 +226,27 @@ def validate_feedback_items(
             return f"unknown fields are not allowed: {sorted(extra)}"
         stage, comment = item.get("stage"), item.get("comment")
         improvement = item.get("improvement", "")
-        if stage not in stages:
-            return "stage must be one of the case rubric stages"
+        if not isinstance(stage, str) or stage not in FEEDBACK_STAGES or stage in seen:
+            return "each of the five stages must appear exactly once"
+        seen.add(stage)
         if not isinstance(comment, str) or not comment.strip() or len(comment) > MAX_COMMENT:
             return f"comment must be 1 to {MAX_COMMENT} characters"
-        if not isinstance(improvement, str) or len(improvement) > MAX_IMPROVEMENT:
-            return f"improvement must be at most {MAX_IMPROVEMENT} characters"
+        if not isinstance(improvement, str) or not improvement.strip() or len(improvement) > MAX_IMPROVEMENT:
+            return f"improvement must be 1 to {MAX_IMPROVEMENT} characters"
         evidence = item.get("evidence_event_ids", [])
         basis = item.get("basis_ids", [])
         if not isinstance(evidence, list) or not all(isinstance(v, str) for v in evidence):
             return "evidence_event_ids must be a list of strings"
-        if not isinstance(basis, list) or not all(isinstance(v, str) for v in basis):
-            return "basis_ids must be a list of strings"
+        if not isinstance(basis, list) or not basis or not all(isinstance(v, str) for v in basis):
+            return "basis_ids must be a non-empty list of strings"
         if any(v not in valid_events for v in evidence):
             return "evidence_event_ids must reference events before sealing"
         if any(knowledge.get(v, case.case_id) is None for v in basis):
             return "basis_ids must reference teaching-basis entries available for this case"
-        lowered = (comment + " " + improvement).lower()
-        if any(marker in lowered for marker in FORBIDDEN_MARKERS) or (hidden and hidden in lowered):
+        if any(stage not in knowledge.get(v, case.case_id).stages for v in basis):
+            return "basis_ids must apply to the feedback stage"
+        lowered = "".join((comment + " " + improvement).casefold().split())
+        if any(marker in lowered for marker in FORBIDDEN_MARKERS) or any(term in lowered for term in forbidden):
             return "text contains content that is not allowed in student feedback"
         normalized.append(
             {
@@ -243,7 +257,7 @@ def validate_feedback_items(
                 "basis_ids": list(dict.fromkeys(basis)),
             }
         )
-    return normalized
+    return sorted(normalized, key=lambda item: FEEDBACK_STAGES.index(item["stage"]))
 
 
 def _event_digest(event: Event, case: CaseDefinition) -> dict[str, Any]:

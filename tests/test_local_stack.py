@@ -24,7 +24,7 @@ from app.case_store import CaseStore
 from app.integration.config import IntegrationSettings
 from app.integration.knowledge import KnowledgeStore
 from app.integration.runtime import IntegrationRuntime
-from app.integration.tools import TrustedToolService
+from app.integration.tools import FEEDBACK_STAGES, TrustedToolService
 from app.integration.turns import TurnStore
 from app.mcp_server import BearerGate, build_mcp
 from app.state_machine import StateMachine
@@ -83,12 +83,13 @@ def build_fake_nexent(mcp_url: str, script: dict):
                         "turn_token": token,
                         "items": [
                             {
-                                "stage": "检查选择",
-                                "comment": "心电图在等待之前开立。",
-                                "improvement": "开立后及时解读。",
+                                "stage": stage,
+                                "comment": "请结合本环节的评分与操作记录复核。",
+                                "improvement": "补充本环节尚缺失的依据并复核操作时间。",
                                 "evidence_event_ids": [ecg_event],
-                                "basis_ids": [basis["results"][0]["basis_id"]],
+                                "basis_ids": ["kb_feedback_principles"],
                             }
+                            for stage in FEEDBACK_STAGES
                         ],
                     },
                 )

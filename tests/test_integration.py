@@ -22,7 +22,7 @@ from app.integration.config import IntegrationSettings
 from app.integration.knowledge import KnowledgeStore
 from app.integration.nexent_client import NexentClient, NexentError
 from app.integration.runtime import IntegrationRuntime
-from app.integration.tools import TrustedToolService
+from app.integration.tools import FEEDBACK_STAGES, TrustedToolService
 from app.integration.turns import FEEDBACK, PATIENT, TurnError, TurnStore
 from app.state_machine import StateMachine
 from app.storage import SessionRepository
@@ -192,7 +192,7 @@ def test_selection_outside_candidates_is_refused_and_falls_back(tmp_path, monkey
     assert env.repository.get(sid, "demo-integration").disclosed_fact_ids == []
 
 
-def test_agent_that_skips_tools_gets_fallback_and_token_dies(tmp_path, monkeypatch):
+def test_agent_that_skips_tools_can_retry_without_recording_and_token_dies(tmp_path, monkeypatch):
     seen = {}
 
     def agent(request, body, service):
@@ -202,11 +202,16 @@ def test_agent_that_skips_tools_gets_fallback_and_token_dies(tmp_path, monkeypat
     env = Env(tmp_path, monkeypatch, agent)
     sid = env.new_session()
     response = env.ask(sid, "有高血压吗", "r1")
-    assert response.status_code == 200
-    # Plausible-looking free text without a recorded selection is not accepted.
-    assert response.json()["answer"].startswith("我不太确定")
+    assert response.status_code == 502
+    assert env.stored_events(sid) == []
     late = env.service.submit_fact_selection(seen["token"], ["f_hx_htn"])
     assert late["ok"] is False and late["error"] == "turn_cancelled"
+    env.agent = select("f_hx_htn")
+    retry = env.ask(sid, "有高血压吗", "r1")
+    assert retry.status_code == 200
+    replay = env.ask(sid, "有高血压吗", "r1")
+    assert replay.json()["event"]["event_id"] == retry.json()["event"]["event_id"]
+    assert len(env.stored_events(sid)) == 1
 
 
 def test_timeout_registers_nothing_and_late_tool_calls_are_rejected(tmp_path, monkeypatch):
@@ -495,12 +500,13 @@ def feedback_agent(items_factory=None, record=None):
             if items_factory
             else [
                 {
-                    "stage": "检查选择",
-                    "comment": "心电图在等待之前开立，符合优先级。",
-                    "improvement": "继续在开立后及时解读结果。",
+                    "stage": stage,
+                    "comment": "请结合已记录的操作与本环节评分复核训练过程。",
+                    "improvement": "回看本环节事件，补充尚未采集或记录的依据。",
                     "evidence_event_ids": [event_ids[1]],
-                    "basis_ids": [basis["results"][0]["basis_id"]],
+                    "basis_ids": ["kb_feedback_principles"],
                 }
+                for stage in FEEDBACK_STAGES
             ]
         )
         if record is not None:
@@ -523,8 +529,8 @@ def test_feedback_chain_is_independent_after_seal_and_idempotent(tmp_path, monke
     assert first.status_code == 200, first.text
     body = first.json()
     assert body["source"] == "nexent"
-    assert body["items"][0]["stage"] == "检查选择"
-    assert results == [{"ok": True, "accepted_items": 1}]
+    assert [item["stage"] for item in body["items"]] == list(FEEDBACK_STAGES)
+    assert results == [{"ok": True, "accepted_items": 5}]
     again = env.client.post(f"/api/sessions/{sid}/feedback", headers=env.headers, json={"request_id": "f2"})
     assert again.json() == body
     fetched = env.client.get(f"/api/sessions/{sid}/feedback", headers=env.headers)
@@ -574,7 +580,10 @@ def test_feedback_validation_rejects_unsafe_items(tmp_path, monkeypatch, mutate)
             "basis_ids": [basis["results"][0]["basis_id"]],
         }
         mutate(item, ids)
-        return [item]
+        return [item if stage == "诊断" else {
+            "stage": stage, "comment": "复核本环节训练记录。", "improvement": "补充可核对的依据。",
+            "evidence_event_ids": [], "basis_ids": ["kb_feedback_principles"],
+        } for stage in FEEDBACK_STAGES]
 
     env = Env(tmp_path, monkeypatch, None)
     env.agent = lambda r, b, s: select("f_pain_character")(r, b, s) if b["agent_name"] == "digital_patient" else feedback_agent(factory, outcome)(r, b, s)

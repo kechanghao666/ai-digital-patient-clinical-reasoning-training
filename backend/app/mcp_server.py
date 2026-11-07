@@ -98,7 +98,7 @@ def build_service(settings: IntegrationSettings) -> TrustedToolService:
     return TrustedToolService(
         TurnStore(settings.integration_db_path),
         SessionRepository(ROOT / "backend" / "data" / "app.db"),
-        CaseStore(ROOT / "cases"),
+        CaseStore(ROOT / "cases", ROOT / "backend" / "data" / "teacher_cases"),
         KnowledgeStore(settings.knowledge_dir),
     )
 

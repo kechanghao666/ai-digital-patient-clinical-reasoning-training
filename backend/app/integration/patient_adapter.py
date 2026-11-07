@@ -59,7 +59,9 @@ class NexentPatientAdapter:
             ids = list((current.submission or {}).get("fact_ids", []))
             return PatientSelection(fact_ids=ids, source="nexent", trace=trace)
         self.turns.cancel(turn.turn_id, "no_selection")
-        return PatientSelection(fact_ids=[], source="nexent_no_selection", trace=trace)
+        if current.cancel_reason == "state_changed":
+            raise NexentError("state_changed", "Session changed during the model run")
+        raise NexentError("protocol", "Nexent did not submit a fact selection")
 
 
 def _build_query(question: str, token: str) -> str:

@@ -69,7 +69,7 @@ def _normalize(text: str) -> str:
     return "".join(text.casefold().split())
 
 
-def _leak_terms(case: CaseDefinition) -> set[str]:
+def diagnosis_leak_terms(case: CaseDefinition) -> set[str]:
     """Diagnosis words that must never appear in patient-visible text, from the case's own config."""
     terms: set[str] = set()
     for rubric in case.rubric:
@@ -93,7 +93,7 @@ def authorized_answer_or_fallback(
     hidden = _normalize(case.hidden_diagnosis or "")
     if hidden and hidden in normalized:
         return fallback, [], True
-    if any(term in normalized for term in _leak_terms(case)):
+    if any(term in normalized for term in diagnosis_leak_terms(case)):
         return fallback, [], True
     if any(marker in normalized for marker in ("sentinel", "内部错误", "traceback", "api_key")):
         return fallback, [], True

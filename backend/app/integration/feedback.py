@@ -10,11 +10,12 @@ from threading import RLock
 from typing import Any, Iterator
 
 from ..models import CaseDefinition, SessionState
+from ..scoring import student_score_snapshot
 from . import turns as turn_states
 from .config import IntegrationSettings
 from .knowledge import KnowledgeStore
 from .nexent_client import NexentClient, NexentError
-from .tools import validate_feedback_items
+from .tools import FEEDBACK_STAGES, validate_feedback_items
 from .turns import TurnStore
 
 
@@ -151,7 +152,9 @@ class FeedbackService:
                 agent_name=self.settings.feedback_agent_name,
                 query=(
                     "【系统回合】训练已封存。请依次调用 get_sealed_review、search_teaching_basis，"
-                    f"再调用 submit_feedback 提交各环节评语与建议。turn_token 为 {token}。"
+                    "再调用 submit_feedback，按病史采集、检查选择、鉴别诊断、诊断、治疗各提交一条评语，"
+                    "每条必须有非空改进建议和本环节basis_ids；不得公布参考诊断或编造事件。"
+                    f"turn_token 为 {token}。"
                 ),
                 metadata={"turn_token": token, "role": "feedback"},
                 audit_metadata={"turn_id": turn.turn_id, "request_id": request_id},
@@ -184,25 +187,23 @@ class FeedbackService:
     def _from_local_rules(self, state: SessionState, case: CaseDefinition):
         snapshot = state.score_snapshot
         assert snapshot is not None
+        snapshot = student_score_snapshot(snapshot, case)
         valid_events = {e.event_id for e in state.events[: state.seal_seq or 0]}
-        stages: list[str] = []
-        for item in snapshot.items:
-            if item.stage not in stages:
-                stages.append(item.stage)
         rubric = {r.item_id: r for r in case.rubric}
         items: list[dict[str, Any]] = []
-        for stage in stages:
+        for stage in FEEDBACK_STAGES:
             stage_items = [i for i in snapshot.items if i.stage == stage]
             got = sum(i.score for i in stage_items)
             total = sum(i.max_score for i in stage_items)
             misses = [i for i in stage_items if not i.hit]
             lines = [f"本环节得分 {got:g}/{total:g}。"]
             for entry in stage_items:
-                desc = rubric[entry.item_id].description if entry.item_id in rubric else entry.item_id
+                desc = ("诊断结论" if stage == "诊断" else rubric[entry.item_id].description) if entry.item_id in rubric else stage
                 lines.append(f"{'已完成' if entry.hit else '未完成'}：{desc}（{entry.reason}）")
-            basis = self.knowledge.search(" ".join(rubric[i.item_id].description for i in misses if i.item_id in rubric) or stage, case.case_id, stage, limit=1)
+            query = " ".join(rubric[i.item_id].description for i in misses if i.item_id in rubric)
+            basis = self.knowledge.search(f"{query} {stage} 反馈 改进建议", case.case_id, stage, limit=1)
             improvement = (
-                "建议：" + "；".join(rubric[i.item_id].description for i in misses if i.item_id in rubric)
+                "；".join(i.improvement or "请复核本环节缺失的操作与依据。" for i in misses)
                 if misses
                 else "保持当前做法，并在回放中复核时间点。"
             )
@@ -216,4 +217,7 @@ class FeedbackService:
                     "basis_ids": [e.basis_id for e in basis],
                 }
             )
-        return items, "local_rules", {"real_platform": False}
+        checked = validate_feedback_items(items, state, case, self.knowledge)
+        if isinstance(checked, str):
+            raise FeedbackUnavailable("invalid_feedback", "本地反馈未通过校验，请联系教师复核")
+        return checked, "local_rules", {"real_platform": False}

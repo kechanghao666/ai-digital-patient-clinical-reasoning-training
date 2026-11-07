@@ -1,0 +1,21 @@
+/* Keep native Streamlit controls and keyboard semantics; style the surrounding workspace. */
+:root { --clinic-ink: #172b46; --clinic-muted: #53657d; --clinic-teal: #087f83; }
+.block-container { max-width: 1440px; padding-top: 2rem; padding-bottom: 3rem; }
+h1, h2, h3 { letter-spacing: -.025em; }
+.clinic-banner { padding: 1.35rem 1.7rem; border-radius: 18px; background: #172b46;
+    border-left: 5px solid #39c5bd; color: #fff; margin-bottom: 1.2rem; }
+.clinic-banner p { margin: 0; line-height: 1.7; color: #dce7f5; }
+.clinic-banner .clinic-eyebrow { color: #8ce4df; font-size: .82rem; letter-spacing: .08em; margin-bottom: .4rem; }
+.clinic-banner strong { display: block; font-size: 1.2rem; margin-bottom: .25rem; }
+[data-testid="stMetric"] { background: #fff; border: 1px solid #dce4ee; border-radius: 12px; padding: .9rem 1.1rem; }
+[data-testid="stSidebar"] { border-right: 1px solid #dce4ee; }
+.stButton button, .stFormSubmitButton button { min-height: 44px; border-radius: 9px; }
+.stButton button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid #087f83; outline-offset: 3px; }
+[data-testid="stChatMessage"] { border: 1px solid #dce4ee; border-radius: 12px; }
+[data-testid="stExpander"] { border-radius: 12px; }
+@media (max-width: 680px) {
+    .block-container { padding: 1rem .9rem 2rem; }
+    .clinic-banner { padding: 1rem; border-radius: 12px; }
+    h1 { font-size: 1.65rem !important; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

@@ -171,7 +171,7 @@ def test_editing_after_publication_creates_a_new_version_and_pins_sessions(tmp_p
     assert saved["version"] == 2 and saved["review_status"] == "draft"
     again = new_case(public_id=public)
     again["title"] = "修订后的标题（再次保存）"
-    assert put(api, again).json()["version"] == 2  # same author keeps editing the open draft
+    assert put(api, again).json()["version"] == 3
 
     old = CaseStore(ROOT / "cases", tmp_path / "teacher_cases")
     assert old.get("TEACH-001", 1).title == "教师新增的腹痛模拟病例"
@@ -180,7 +180,7 @@ def test_editing_after_publication_creates_a_new_version_and_pins_sessions(tmp_p
     assert (session.case_id, session.case_version) == ("TEACH-001", 1)
     # In production the latest published version is what new students get; the draft stays hidden.
     assert old.resolve_for_student(public, include_unpublished=False).version == 1
-    assert old.resolve_for_student(public, include_unpublished=True).version == 2
+    assert old.resolve_for_student(public, include_unpublished=True).version == 3
 
 
 def test_teacher_case_runs_a_full_scored_session(tmp_path, monkeypatch):

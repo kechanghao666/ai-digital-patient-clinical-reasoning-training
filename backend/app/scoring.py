@@ -1,5 +1,6 @@
 import re
 
+from .adapters import diagnosis_leak_terms
 from .models import ActionKind, DiagnosisSpec, ScoreItem, ScoreSnapshot, SessionState
 
 _PUNCTUATION = str.maketrans({",": "，", ":": "：", ";": "；", "?": "？", "(": "（", ")": "）"})
@@ -7,6 +8,21 @@ _PUNCTUATION = str.maketrans({",": "，", ":": "：", ";": "；", "?": "？", "(
 
 def _normalize(text: str) -> str:
     return "".join(text.casefold().split())
+
+
+def student_score_snapshot(snapshot: ScoreSnapshot, case) -> ScoreSnapshot:
+    """Filter feedback text without rewriting sealed scores or historical records."""
+    forbidden = diagnosis_leak_terms(case) | {_normalize(case.hidden_diagnosis or "")}
+    forbidden.discard("")
+    items = []
+    for item in snapshot.items:
+        updates = {}
+        for field, fallback in (("reason", "请结合本次训练证据复核评分。"),
+                                ("improvement", "请根据病史与检查给出明确结论，并请教师复核依据。")):
+            if any(term in _normalize(getattr(item, field)) for term in forbidden):
+                updates[field] = fallback
+        items.append(item.model_copy(update=updates))
+    return snapshot.model_copy(update={"items": items})
 
 
 def _normalize_statement(text: str) -> str:
@@ -93,6 +109,17 @@ def _event_keys(event) -> set[str]:
     return set()
 
 
+def _matching_keys(event, text, case) -> set[str]:
+    candidate = _normalize(text)
+    if not candidate:
+        return set()
+    available = _event_keys(event)
+    parts = [(f.fact_id, f.content) for f in case.facts]
+    parts += [(e.exam_id, e.result or "") for e in case.exams]
+    return {key for key, content in parts if key in available and content
+            and (candidate in _normalize(content) or _normalize(content) in candidate)}
+
+
 def _score_differential(rubric, candidate, events, event_ids, case):
     """Rule-based differential scoring. Returns (score, hit, review, evidence, reason, improvement)."""
     rule = rubric.differential
@@ -111,13 +138,13 @@ def _score_differential(rubric, candidate, events, event_ids, case):
         ("opposing", candidate.get("opposing_evidence", [])),
     ):
         for text in texts:
-            matched = [event for event in cited if _event_supports_text(event, text, case)]
-            keys = set().union(*(_event_keys(event) for event in matched)) if matched else set()
+            matched = [event for event in cited if _matching_keys(event, text, case)]
+            keys = set().union(*(_matching_keys(event, text, case) for event in matched)) if matched else set()
             on_side = keys & (support_keys if role == "supporting" else oppose_keys)
             other_side = keys & (oppose_keys if role == "supporting" else support_keys)
             if on_side:
-                verified[f"correct_{role}"].add(_normalize(text))
-                used_events.update(event.event_id for event in matched if _event_keys(event) & on_side)
+                verified[f"correct_{role}"].update(on_side)
+                used_events.update(event.event_id for event in matched if _matching_keys(event, text, case) & on_side)
             elif other_side:
                 reversed_texts.append(text)
             else:

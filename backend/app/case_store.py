@@ -163,10 +163,7 @@ class CaseStore:
                 if other.public_id == case.public_id and other.case_id != case.case_id:
                     raise CaseStoreError("public_id is already used by another case")
             latest = existing[-1] if existing else None
-            if latest is not None and latest.review_status == ReviewStatus.DRAFT and latest.authored_by == teacher_id:
-                version = latest.version
-            else:
-                version = (latest.version + 1) if latest else 1
+            version = (latest.version + 1) if latest else 1
             stored = case.model_copy(
                 update={
                     "version": version,
