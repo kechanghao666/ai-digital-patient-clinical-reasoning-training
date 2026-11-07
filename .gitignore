@@ -23,7 +23,12 @@ htmlcov/
 /docs/repository-sync-evidence-*/
 /报名依据_*/
 /[0-9][0-9]-*
-!/02-完整技术方案.md
-!/13-实施规格书-交付代码工程agent.md
-!/14-代码工程方案可行性与交接审查_20261106.md
-!/16-正式产品与交付要求补充稿_供开发agent采用.md
+/docs/implementation-*.md
+/docs/next-stage-handoff.md
+/docs/stage-plan-supplement.md
+/docs/official-handoff.md
+/docs/repository-sync.md
+/docs/verification-*.md
+/docs/progress/
+/官方Fork启动材料_*/
+/官方Fork启动材料_*.zip

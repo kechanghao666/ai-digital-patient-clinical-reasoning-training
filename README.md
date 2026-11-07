@@ -1,65 +1,80 @@
 # AI数字病人临床思维训练系统
 
-本项目参与「魔擎开发者激励1期 · 基于 Nexent 的智能体开发」课题1「[教学] AI 数字病人临床思维训练」。AtomGit 参与账号为 `kechanghao`，本仓库为 GitHub 开发过程仓库；最终成果须另按官方流程合入 ModelEngine/AgentsHub。
+基于结构化模拟病例的医学教学训练项目，参与 ModelEngine/Nexent 开发者活动课题1。AtomGit账号：`kechanghao`。
 
-首期实现第一例疑似 STEMI 的本地教学模拟闭环。所有病例和患者资料均为自造模拟内容；首例病例仍是工程夹具，未完成医学审核，不用于真实诊疗。当前不是完整五专科产品，也尚无真实 Nexent 联调通过或官方验收通过的证据。
+**当前版本：本地单病例原型。** 支持疑似STEMI病例的问诊、检查开单与回报、病历、鉴别与诊断提交、模拟治疗、封存评分及回放。病例未经医学审核，保持draft，仅用于工程验证。真实Nexent、教师病例管理、五专科和正式评测尚未完成。
 
-## 开发与交付入口
+> 教学模拟环境，非真实患者，不用于真实诊疗。
 
-- [启动方案与架构](docs/technical-plan.md)
-- [里程碑与责任分工](docs/milestones.md)
-- [官方验收指标及证据清单](docs/acceptance-plan.md)
-- [Nexent 配置字段初稿](docs/agent-config-draft.md)
-- [开发进度](docs/progress/2026-11-07.md)
-- [本次验证结果](docs/verification-20261107.md)
-- [官方启动登记与实际链接](docs/official-handoff.md)
-- [下一阶段开发交接](docs/next-stage-handoff.md)
-- [本地与 GitHub 基线同步说明](docs/repository-sync.md)
-- [第三方依赖与 AI 工具披露](docs/third-party-and-ai-disclosure.md)
-- [AgentsHub 课题目录骨架](deliverables/AgentsHub/行业智能体/医疗/AI数字病人临床思维训练/README.md)
+## 文档
 
-完整设计见[技术方案](02-完整技术方案.md)、[实施规格](13-实施规格书-交付代码工程agent.md)与[正式产品要求](16-正式产品与交付要求补充稿_供开发agent采用.md)。设计目标与已实现功能分别以实现映射和实际证据判定。
+- [技术方案与实施边界](docs/technical-plan.md)
+- [开发计划与官方流程](docs/milestones.md)
+- [验收指标与交付清单](docs/acceptance-plan.md)
+- [Nexent配置字段草案](docs/agent-config-draft.md)
+- [测试说明](docs/testing.md)
+- [第三方资源与AI工具披露](docs/third-party-and-ai-disclosure.md)
+- [更新记录](CHANGELOG.md)
 
-## 本地启动
+## 目录
+
+| 目录 | 内容 |
+|---|---|
+| backend/app | API、病例校验、状态机、存储、评分及适配器 |
+| frontend | Streamlit学生训练界面 |
+| cases | 自造结构化模拟病例 |
+| tests | 核心规则及API回归测试 |
+| docs | 技术、计划、验收、配置、测试及许可文档 |
+| deliverables/AgentsHub | 最终智能体提交目录，当前为骨架 |
+
+## 本地运行
+
+使用Python 3.11及锁定依赖；CI采用Python 3.11。本地开发模式允许自填演示身份，不用于公开部署。
+
+在仓库根目录执行：
 
 ```powershell
-# 在仓库根目录执行；Python 3.11 或以上
 python -m venv .venv
-.\.venv\Scripts\pip install --require-hashes -r requirements.lock
+.\.venv\Scripts\python -m pip install --require-hashes -r requirements.lock
 $env:APP_ENV = "development"
 .\.venv\Scripts\python -m uvicorn app.main:app --app-dir backend --reload
 ```
 
-另开终端启动前端：
+另开终端，在同一目录执行：
 
 ```powershell
 .\.venv\Scripts\streamlit run frontend\app.py
 ```
 
-运行测试：
+浏览器打开Streamlit显示的地址（通常为本机8501端口），后端默认地址为 `http://127.0.0.1:8000`。页面使用 `demo-` 或 `student-` 开头的演示身份；未设置 `APP_ENV=development` 时后端拒绝自填身份。
+
+SQLite当前固定保存在 `backend/data/app.db`。`backend/.env.example`仅列配置，不会自动加载，其中 `DATABASE_URL`、`SHOW_REFERENCE_DIAGNOSIS`尚未接入实现。不要用旧版 `data/ai_patient.sqlite3` 覆盖当前数据库：两者格式及API不同，旧版 `AI_PATIENT_DB` 参数不再适用；旧数据应另存，不直接迁移。
+
+默认 `NEXENT_MODE=simulator`。真实适配器尚未实现，设置 `NEXENT_MODE=nexent` 或填写凭据不会使真实接入自动可用。正式身份认证亦待实现。
+
+## 学生操作
+
+1. 新建病例训练，或从列表恢复自己的已有训练。
+2. 逐项问诊；开立心电图、肌钙蛋白，推进模拟时间后查看结果。
+3. 保存病历，填写鉴别诊断与支持/反对证据，提交诊断。
+4. 按页面明确确认模拟治疗执行。等待和治疗会影响轨迹，请区分计划与实际执行。
+5. 提交并封存训练，查看分项反馈和回放；封存后只读，可另开新训练。
+
+当前检查/治疗选项仍有内部标识，鉴别诊断需引用回放中的事件ID；尚未达到正式学生端体验。部分评分显示待人工复核，不能视为正式成绩。
+
+## 验证与依赖维护
 
 ```powershell
-.\.venv\Scripts\pytest -q
+.\.venv\Scripts\python -m pytest -q
+.\.venv\Scripts\python -m compileall -q backend/app frontend tests
 ```
 
-直接依赖维护在 `backend/requirements.txt`，根 `requirements.txt` 引用该清单；实际部署与CI使用含传递依赖和文件哈希的 `requirements.lock`。更新依赖后重新生成锁文件并运行测试和安全检查：`uv pip compile --python-version 3.11 --universal --generate-hashes backend/requirements.txt -o requirements.lock`。
+直接依赖在 `backend/requirements.txt`，根 `requirements.txt`引用该清单；实际安装及CI使用含传递依赖和哈希的 `requirements.lock`。更新依赖后重新生成锁文件，并运行测试和安全检查；详见[测试说明](docs/testing.md)。
 
-默认使用本地确定性病人适配器。设置 `NEXENT_MODE=nexent` 只会启用真实适配器边界；未配置目标平台凭据时会明确失败，不会伪装成真实联调成功。
+## 交付与许可证
 
-当前 SQLite 固定存放在 `backend/data/app.db`；`backend/.env.example` 是配置清单，不会自动加载，其中 `DATABASE_URL` 尚未接入实现。旧版 `AI_PATIENT_DB` 参数不适用于当前版本。真实适配器仍待实现，填写凭据本身不会让它自动可用。
+过程仓库：[GitHub](https://github.com/kechanghao666/ai-digital-patient-topic1)。官方Fork：[kechanghao/AgentsHub](https://gitcode.com/kechanghao/AgentsHub)，课题目录为 `行业智能体/医疗/AI数字病人临床思维训练/`。
 
-本地演示使用自填身份时，启动后端前显式设置 `APP_ENV=development`；未设置或设置为其他值时，后端拒绝自填 `X-Owner-Id`，正式身份必须由已验证登录凭据注入。
+完整报名提交后可等待统一核验，无需重复报名或催审。报名成功日期、过程登记和小助手权限尚未核实。启动材料上传不代表官方验收；最终须完成真实平台、评测及完整交付，再向官方仓库提交PR并合入。具体节点见[开发计划](docs/milestones.md)。
 
-## 当前实现与待完成
-
-已实现：病例严格校验、开发模式身份门禁、公开出站投影、受控原子披露、检查订单和模拟时钟、延误演进夹具、结构化治疗确认、SQLite 版本冲突控制、持久幂等、封存评分快照、五环节规则评分、回放所需事件、Streamlit 学生流程和本地适配器。
-
-训练恢复使用真实 `session_id` 作为选择值，摘要只作为标签，因此相同病例、相同时间和相同事件数的多次训练仍可分别恢复。恢复后的公开状态会回填学生本人提交的诊断、鉴别候选及支持/反对证据、治疗计划/执行明细；这些投影不包含隐藏答案、事实 ID 或内部调试字段。历史快照目录通过 `pytest.ini` 排除，避免收集同名测试文件造成误判。
-
-待完成：医学审核、真实 Nexent 北向联调及知识库导入/导出、五专科资产、真实学生/专家独立评测、主办方统计口径确认、正式 `agent.json` 导出和 AgentsHub PR 合入。
-
-## 官方流程与许可证
-
-报名确认后3个自然日内需完成官方 Fork、目录骨架、过程仓库登记、经核实的小助手管理权限和技术方案提交；每7个自然日至少更新一次过程仓库，30个自然日内提供中期演示。本仓库现已公开；官方 Fork 主分支已收到5份启动材料，链接见启动登记文档。报名成功日、过程仓库登记和小助手管理员权限待核实。GitHub 公开、Fork材料上传和最终官方PR合入是不同节点。
-
-使用本项目应遵守 [MIT License](LICENSE)。官方来源：[活动公告](https://gitcode.com/org/ModelEngine/discussions/26)、[交付要求](https://atomgit.com/ModelEngine/AgentsHub/blob/main/需求包详情与交付要求.md)。
+项目使用[MIT许可证](LICENSE)。官方依据：[活动公告](https://gitcode.com/org/ModelEngine/discussions/26)、[需求包](https://atomgit.com/ModelEngine/AgentsHub/blob/main/需求包详情与交付要求.md)。
