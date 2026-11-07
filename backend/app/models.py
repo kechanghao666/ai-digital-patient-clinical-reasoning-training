@@ -84,6 +84,47 @@ class ExamDefinition(BaseModel):
     negative_explicit: str | None = None
 
 
+class TreatmentDefinition(BaseModel):
+    """A treatment action a student may plan or (after explicit confirmation) execute."""
+
+    model_config = ConfigDict(extra="forbid")
+    treatment_id: str
+    name: str
+    # Anchor event fired when this treatment is actually executed; rules key off it.
+    trigger: str = "treatment_executed"
+
+
+class DiagnosisSpec(BaseModel):
+    """Auditable diagnosis matching: accepted names plus literal whole-statement templates."""
+
+    model_config = ConfigDict(extra="forbid")
+    names: list[str] = Field(min_length=1)
+    # Whole-statement forms that also earn credit; ``{name}`` is replaced by each accepted name.
+    extra_positive: list[str] = Field(default_factory=list)
+    # Words that must never appear in patient-visible text (diagnosis leakage guard).
+    leak_terms: list[str] = Field(default_factory=list)
+
+
+class DifferentialRule(BaseModel):
+    """Which revealed information supports or opposes a differential candidate.
+
+    Keys are fact ids (disclosed by an ask event) or exam ids (result ready before sealing).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    supporting_keys: list[str] = Field(default_factory=list)
+    opposing_keys: list[str] = Field(default_factory=list)
+    min_supporting: int = Field(default=0, ge=0)
+    min_opposing: int = Field(default=0, ge=0)
+    medically_reviewed: bool = False
+
+
+class DifferentialOption(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    candidate_id: str
+    label: str
+
+
 class RuleEffect(BaseModel):
     to_state: ClinicalState
     new_fact_ids: list[str] = Field(default_factory=list)
@@ -101,6 +142,10 @@ class EvolutionRule(BaseModel):
     effect: RuleEffect
     repeatable: bool = False
     medically_reviewed: bool = False
+    # Delay rules: fire once ``delay_minutes`` have passed since this exam's result became ready,
+    # unless one of the listed treatments has been executed.
+    delay_anchor_exam: str | None = None
+    delay_exclusion_treatments: list[str] = Field(default_factory=list)
 
 
 class RubricItem(BaseModel):
@@ -113,6 +158,10 @@ class RubricItem(BaseModel):
     critical: bool = False
     latest_workflow: Workflow | None = None
     ordering_constraint: Literal["any", "first_exam_before_wait"] = "any"
+    diagnosis: DiagnosisSpec | None = None
+    differential: DifferentialRule | None = None
+    # Shown to the student when the item is missed; defaults are generated from the item type.
+    improvement: str = ""
 
 
 class CaseDefinition(BaseModel):
@@ -131,9 +180,12 @@ class CaseDefinition(BaseModel):
     chief_complaint: str
     facts: list[Fact] = Field(min_length=1)
     exams: list[ExamDefinition] = Field(default_factory=list)
+    treatments: list[TreatmentDefinition] = Field(default_factory=list)
+    differential_options: list[DifferentialOption] = Field(default_factory=list)
     rules: list[EvolutionRule] = Field(default_factory=list)
     rubric: list[RubricItem] = Field(min_length=1)
     hidden_diagnosis: str | None = None
+    authored_by: str | None = None
 
     @model_validator(mode="after")
     def validate_references(self) -> "CaseDefinition":
@@ -160,11 +212,22 @@ class CaseDefinition(BaseModel):
             if exam.configured and exam.result is None:
                 raise ValueError(f"configured exam {exam.exam_id} must have a result")
         exam_ids_set = set(exam_ids)
+        treatment_ids = [t.treatment_id for t in self.treatments]
+        if len(treatment_ids) != len(set(treatment_ids)):
+            raise ValueError("treatment_id must be unique")
+        treatment_ids_set = set(treatment_ids)
         for rule in self.rules:
             if not rule.anchor_event.strip():
                 raise ValueError(f"rule {rule.rule_id} must have an anchor event")
             if rule.delay_minutes < 0:
                 raise ValueError(f"rule {rule.rule_id} has an invalid delay")
+            if rule.delay_anchor_exam is not None and rule.delay_anchor_exam not in exam_ids_set:
+                raise ValueError(f"rule {rule.rule_id} references unknown exam: {rule.delay_anchor_exam}")
+            if set(rule.delay_exclusion_treatments) - treatment_ids_set:
+                raise ValueError(f"rule {rule.rule_id} references unknown treatments")
+        option_ids = [o.candidate_id for o in self.differential_options]
+        if len(option_ids) != len(set(option_ids)):
+            raise ValueError("differential candidate_id must be unique")
         rubric_ids = [r.item_id for r in self.rubric]
         if len(rubric_ids) != len(set(rubric_ids)):
             raise ValueError("item_id must be unique")
@@ -175,6 +238,26 @@ class CaseDefinition(BaseModel):
                 raise ValueError(f"rubric references unknown exam: {rubric.item_id}")
             if rubric.evidence_type != "exam_order" and rubric.ordering_constraint != "any":
                 raise ValueError("ordering_constraint is only valid for exam_order rubrics")
+            if rubric.evidence_type == "treatment_execution" and rubric.item_id not in treatment_ids_set:
+                raise ValueError(f"rubric references unknown treatment: {rubric.item_id}")
+            if rubric.evidence_type == "diagnosis" and rubric.diagnosis is None:
+                raise ValueError(f"diagnosis rubric {rubric.item_id} requires a diagnosis spec")
+            if rubric.evidence_type != "diagnosis" and rubric.diagnosis is not None:
+                raise ValueError("diagnosis spec is only valid for diagnosis rubrics")
+            if rubric.differential is not None:
+                if rubric.evidence_type != "ddx_evidence":
+                    raise ValueError("differential rule is only valid for ddx_evidence rubrics")
+                keys = set(rubric.differential.supporting_keys) | set(rubric.differential.opposing_keys)
+                if keys - fact_ids - exam_ids_set:
+                    raise ValueError(f"differential rule {rubric.item_id} references unknown facts or exams")
+                if rubric.differential.min_supporting + rubric.differential.min_opposing < 1:
+                    raise ValueError(f"differential rule {rubric.item_id} must require at least one piece of evidence")
+                if rubric.differential.min_supporting > len(rubric.differential.supporting_keys):
+                    raise ValueError(f"differential rule {rubric.item_id} requires more supporting keys than defined")
+                if rubric.differential.min_opposing > len(rubric.differential.opposing_keys):
+                    raise ValueError(f"differential rule {rubric.item_id} requires more opposing keys than defined")
+            if rubric.evidence_type == "ddx_evidence" and option_ids and rubric.item_id not in option_ids:
+                raise ValueError(f"differential rubric {rubric.item_id} is not in differential_options")
         if self.review_status == ReviewStatus.PUBLISHED and (not self.reviewer or not self.review_date):
             raise ValueError("published case requires reviewer and review_date")
         return self
@@ -304,6 +387,8 @@ class ScoreItem(BaseModel):
     max_score: float
     evidence_event_ids: list[str] = Field(default_factory=list)
     reason: str
+    # Concrete advice shown when points were lost; empty for full-credit items.
+    improvement: str = ""
 
 
 class ScoreSnapshot(BaseModel):

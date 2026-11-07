@@ -1,13 +1,42 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Protocol
+from dataclasses import dataclass, field
+from typing import Any, Protocol
 
 from .models import CaseDefinition, Fact
 
+FALLBACK_ANSWER = "我不太确定您的问题，能否换一种方式询问？"
+
+
+@dataclass(frozen=True)
+class PatientTurnRequest:
+    """Built only by the trusted backend; the adapter never receives student-controlled identity."""
+
+    owner_id: str
+    session_id: str
+    case_id: str
+    case_version: int
+    request_id: str
+    state_version: int
+    question: str
+    candidates: tuple[Fact, ...]
+
+
+@dataclass
+class PatientSelection:
+    """Which backend-authorized facts the patient agent chose to answer with.
+
+    The student-visible utterance is rendered by the backend from these facts; free model text
+    is never shown. ``source`` and ``trace`` are audit data and are not part of the public projection.
+    """
+
+    fact_ids: list[str]
+    source: str
+    trace: dict[str, Any] = field(default_factory=dict)
+
 
 class PatientAdapter(Protocol):
-    def answer(self, question: str, facts: list[str], visible_state: dict) -> str: ...
+    def select_facts(self, turn: PatientTurnRequest) -> PatientSelection: ...
 
 
 @dataclass
@@ -17,21 +46,37 @@ class SimulatorPatientAdapter:
     def answer(self, question: str, facts: list[str], visible_state: dict) -> str:
         if facts:
             return "，".join(facts)
-        return "我不太确定您的问题，能否换一种方式询问？"
+        return FALLBACK_ANSWER
+
+    def select_facts(self, turn: PatientTurnRequest) -> PatientSelection:
+        return PatientSelection(
+            fact_ids=[fact.fact_id for fact in turn.candidates],
+            source="simulator",
+            trace={"real_platform": False},
+        )
 
 
-@dataclass
-class NexentPatientAdapter:
-    base_url: str
-    api_key: str
-    agent_name: str
-
-    def answer(self, question: str, facts: list[str], visible_state: dict) -> str:
-        raise RuntimeError("真实 Nexent 适配器需要在目标环境配置并完成联调")
+def render_selected_answer(candidates: list[Fact], selected_ids: list[str]) -> tuple[list[Fact], str]:
+    """Render the student-visible utterance from selected facts in authorized order."""
+    wanted = set(selected_ids)
+    selected = [fact for fact in candidates if fact.fact_id in wanted]
+    if not selected:
+        return [], FALLBACK_ANSWER
+    return selected, "，".join(fact.content for fact in selected)
 
 
 def _normalize(text: str) -> str:
     return "".join(text.casefold().split())
+
+
+def _leak_terms(case: CaseDefinition) -> set[str]:
+    """Diagnosis words that must never appear in patient-visible text, from the case's own config."""
+    terms: set[str] = set()
+    for rubric in case.rubric:
+        if rubric.diagnosis is not None:
+            terms.update(_normalize(name) for name in rubric.diagnosis.names)
+            terms.update(_normalize(term) for term in rubric.diagnosis.leak_terms)
+    return {term for term in terms if term}
 
 
 def authorized_answer_or_fallback(
@@ -48,10 +93,7 @@ def authorized_answer_or_fallback(
     hidden = _normalize(case.hidden_diagnosis or "")
     if hidden and hidden in normalized:
         return fallback, [], True
-    hidden_terms = []
-    if "stemi" in hidden or "心肌梗死" in hidden:
-        hidden_terms.extend(("stemi", "心肌梗死"))
-    if any(term in normalized for term in hidden_terms):
+    if any(term in normalized for term in _leak_terms(case)):
         return fallback, [], True
     if any(marker in normalized for marker in ("sentinel", "内部错误", "traceback", "api_key")):
         return fallback, [], True

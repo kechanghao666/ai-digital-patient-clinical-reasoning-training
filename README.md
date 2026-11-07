@@ -2,7 +2,7 @@
 
 基于结构化模拟病例的医学教学训练项目，参与 ModelEngine/Nexent 开发者活动课题1。AtomGit账号：`kechanghao`。
 
-**当前版本：本地单病例原型。** 支持疑似STEMI病例的问诊、检查开单与回报、病历、鉴别与诊断提交、模拟治疗、封存评分及回放。病例未经医学审核，保持draft，仅用于工程验证。真实Nexent、教师病例管理、五专科和正式评测尚未完成。
+**当前版本：本地多专科原型。** 五个自造draft病例（心内、普外、神经内、呼吸内、内分泌），支持问诊、检查开单与回报、病历、鉴别与诊断提交、模拟治疗、封存评分（含鉴别规则评分、扣分说明和改进建议）及回放；教师可校验、保存、送审和发布病例。真实Nexent适配器、可信MCP服务和封存后反馈链已按官方公开协议实现并通过本地契约测试，**但尚无真实Nexent实例，真实平台联调未完成**。全部病例未经医学审核，仅用于工程验证；正式身份、正式评测尚未完成。
 
 > 教学模拟环境，非真实患者，不用于真实诊疗。
 
@@ -11,6 +11,7 @@
 - [技术方案与实施边界](docs/technical-plan.md)
 - [开发计划与官方流程](docs/milestones.md)
 - [验收指标与交付清单](docs/acceptance-plan.md)
+- [Nexent集成：契约、环境核实、资源方案](docs/nexent-integration.md)
 - [Nexent配置字段草案](docs/agent-config-draft.md)
 - [测试说明](docs/testing.md)
 - [第三方资源与AI工具披露](docs/third-party-and-ai-disclosure.md)
@@ -25,6 +26,7 @@
 | cases | 自造结构化模拟病例 |
 | tests | 核心规则及API回归测试 |
 | docs | 技术、计划、验收、配置、测试及许可文档 |
+| knowledge | 封存后反馈用教学依据草稿（未审核） |
 | deliverables/AgentsHub | 最终智能体提交目录，当前为骨架 |
 
 ## 本地运行
@@ -50,7 +52,7 @@ $env:APP_ENV = "development"
 
 SQLite当前固定保存在 `backend/data/app.db`。`backend/.env.example`仅列配置，不会自动加载，其中 `DATABASE_URL`、`SHOW_REFERENCE_DIAGNOSIS`尚未接入实现。不要用旧版 `data/ai_patient.sqlite3` 覆盖当前数据库：两者格式及API不同，旧版 `AI_PATIENT_DB` 参数不再适用；旧数据应另存，不直接迁移。
 
-默认 `NEXENT_MODE=simulator`。真实适配器尚未实现，设置 `NEXENT_MODE=nexent` 或填写凭据不会使真实接入自动可用。正式身份认证亦待实现。
+默认 `NEXENT_MODE=simulator`（本地确定性模拟）。`NEXENT_MODE=nexent` 需要真实Nexent实例、已发布的病人/反馈智能体、API Key，并另起可信MCP服务：设置 `MCP_SERVICE_TOKEN` 后在 `backend` 目录执行 `python -m app.mcp_server`，再按[集成文档](docs/nexent-integration.md)在Nexent注册。未配置完整时后端拒绝而不是回退伪造结果。教师接口 `/api/teacher/*` 与正式身份认证尚未接入真实身份服务，开发模式下以 `teacher-` 前缀身份代替。
 
 ## 学生操作
 

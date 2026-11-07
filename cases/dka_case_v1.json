@@ -1,0 +1,319 @@
+{
+  "version": 1,
+  "review_status": "draft",
+  "reviewer": null,
+  "review_date": null,
+  "sources": [
+    "自造模拟病例；正式医学审核待完成"
+  ],
+  "case_id": "DKA-001",
+  "public_id": "CASE-005",
+  "specialty": "内分泌科/急诊",
+  "title": "口渴多尿并呕吐的年轻女性模拟患者",
+  "learning_goals": [
+    "识别诱因和胰岛素中断",
+    "选择血糖、酮体和血气",
+    "完成胃肠炎与高渗状态的鉴别",
+    "识别延误补液与胰岛素的风险"
+  ],
+  "target_population": "本科临床医学教学，模拟22岁女性患者",
+  "chief_complaint": "口渴多尿、恶心呕吐2天",
+  "facts": [
+    {
+      "fact_id": "f_cc",
+      "content": "我这两天特别口渴，尿很多，今天一直恶心还吐了。",
+      "field": "主诉",
+      "disclosure_triggers": [],
+      "disclosure_level": "voluntary",
+      "auto_volunteer": true
+    },
+    {
+      "fact_id": "f_polyuria",
+      "content": "每天喝很多水，小便次数明显增多。",
+      "field": "多饮多尿",
+      "disclosure_triggers": [
+        "口渴",
+        "多饮",
+        "喝水",
+        "小便",
+        "尿"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_gi",
+      "content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "field": "消化道症状",
+      "disclosure_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "肚子",
+        "吃不下"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_breath",
+      "content": "感觉呼吸又深又快，自己也觉得喘。",
+      "field": "呼吸",
+      "disclosure_triggers": [
+        "呼吸",
+        "气短",
+        "喘"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_hx",
+      "content": "确诊糖尿病3年，一直打胰岛素。",
+      "field": "既往史",
+      "disclosure_triggers": [
+        "既往",
+        "病史",
+        "糖尿病",
+        "基础病",
+        "用药"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_insulin",
+      "content": "三天前感冒发烧，胰岛素自己停了两天。",
+      "field": "诱因与用药依从",
+      "disclosure_triggers": [
+        "胰岛素",
+        "停药",
+        "感冒",
+        "诱因",
+        "发烧",
+        "感染"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_deterioration",
+      "content": "患者意识逐渐模糊，呼吸更深更快，血压下降，需要立即重新评估。",
+      "field": "当前可观察危急变化",
+      "disclosure_triggers": [],
+      "disclosure_level": "on_inquiry"
+    }
+  ],
+  "exams": [
+    {
+      "exam_id": "ex_glucose",
+      "standard_name": "快速血糖",
+      "return_after_minutes": 5,
+      "allowed_values": [
+        "明显升高",
+        "正常"
+      ],
+      "result": "明显升高",
+      "negative_explicit": "正常"
+    },
+    {
+      "exam_id": "ex_ketone",
+      "standard_name": "血酮体或尿酮体",
+      "return_after_minutes": 15,
+      "allowed_values": [
+        "阳性（强）",
+        "阴性"
+      ],
+      "result": "阳性（强）",
+      "negative_explicit": "阴性"
+    },
+    {
+      "exam_id": "ex_abg",
+      "standard_name": "动脉血气分析",
+      "return_after_minutes": 20,
+      "allowed_values": [
+        "代谢性酸中毒",
+        "正常"
+      ],
+      "result": "代谢性酸中毒",
+      "negative_explicit": "正常"
+    }
+  ],
+  "treatments": [
+    {
+      "treatment_id": "fluids_insulin",
+      "name": "补液并启动胰岛素治疗",
+      "trigger": "dka_treatment_started"
+    },
+    {
+      "treatment_id": "monitoring",
+      "name": "转入监护并监测电解质与血糖"
+    }
+  ],
+  "differential_options": [
+    {
+      "candidate_id": "gastroenteritis",
+      "label": "急性胃肠炎"
+    },
+    {
+      "candidate_id": "hyperosmolar_state",
+      "label": "高渗高血糖状态"
+    },
+    {
+      "candidate_id": "acute_pancreatitis",
+      "label": "急性胰腺炎"
+    },
+    {
+      "candidate_id": "sepsis",
+      "label": "脓毒症"
+    }
+  ],
+  "rules": [
+    {
+      "rule_id": "r_dka_delay_fixture",
+      "from_state": "initial",
+      "anchor_event": "delay_fluids_insulin",
+      "delay_minutes": 60,
+      "exclusions": [],
+      "delay_anchor_exam": "ex_abg",
+      "delay_exclusion_treatments": [
+        "fluids_insulin"
+      ],
+      "effect": {
+        "to_state": "deteriorating",
+        "new_fact_ids": [
+          "f_deterioration"
+        ],
+        "severity": "high",
+        "message": "血气提示异常后延误补液和胰岛素达到夹具阈值，触发病情加重。"
+      },
+      "repeatable": false,
+      "medically_reviewed": false
+    }
+  ],
+  "rubric": [
+    {
+      "item_id": "f_polyuria",
+      "stage": "病史采集",
+      "description": "询问多饮多尿",
+      "evidence_type": "ask_event",
+      "weight": 1
+    },
+    {
+      "item_id": "f_gi",
+      "stage": "病史采集",
+      "description": "询问恶心呕吐和腹痛",
+      "evidence_type": "ask_event",
+      "weight": 1
+    },
+    {
+      "item_id": "f_hx",
+      "stage": "病史采集",
+      "description": "询问糖尿病史和用药",
+      "evidence_type": "ask_event",
+      "weight": 1
+    },
+    {
+      "item_id": "f_insulin",
+      "stage": "病史采集",
+      "description": "询问诱因和胰岛素是否中断",
+      "evidence_type": "ask_event",
+      "weight": 2,
+      "critical": true,
+      "improvement": "糖尿病患者出现症状时必须询问胰岛素使用情况和近期感染等诱因。"
+    },
+    {
+      "item_id": "ex_glucose",
+      "stage": "检查选择",
+      "description": "开立快速血糖",
+      "evidence_type": "exam_order",
+      "weight": 1
+    },
+    {
+      "item_id": "ex_ketone",
+      "stage": "检查选择",
+      "description": "开立血酮体或尿酮体",
+      "evidence_type": "exam_order",
+      "weight": 2,
+      "critical": true,
+      "improvement": "糖尿病患者出现呕吐、多尿应尽快检查酮体。"
+    },
+    {
+      "item_id": "ex_abg",
+      "stage": "检查选择",
+      "description": "开立动脉血气分析评估酸碱状态",
+      "evidence_type": "exam_order",
+      "weight": 1
+    },
+    {
+      "item_id": "gastroenteritis",
+      "stage": "鉴别诊断",
+      "description": "提供急性胃肠炎的支持与反对证据",
+      "evidence_type": "ddx_evidence",
+      "weight": 1,
+      "differential": {
+        "supporting_keys": [
+          "f_gi"
+        ],
+        "opposing_keys": [
+          "ex_glucose",
+          "ex_ketone"
+        ],
+        "min_supporting": 1,
+        "min_opposing": 1,
+        "medically_reviewed": false
+      }
+    },
+    {
+      "item_id": "hyperosmolar_state",
+      "stage": "鉴别诊断",
+      "description": "提供高渗高血糖状态的支持与反对证据",
+      "evidence_type": "ddx_evidence",
+      "weight": 1,
+      "differential": {
+        "supporting_keys": [
+          "ex_glucose"
+        ],
+        "opposing_keys": [
+          "ex_ketone",
+          "ex_abg"
+        ],
+        "min_supporting": 1,
+        "min_opposing": 1,
+        "medically_reviewed": false
+      }
+    },
+    {
+      "item_id": "diabetic_ketoacidosis",
+      "stage": "诊断",
+      "description": "提交糖尿病酮症酸中毒",
+      "evidence_type": "diagnosis",
+      "weight": 2,
+      "critical": true,
+      "improvement": "请直接写出明确诊断，并避免否定或不确定的表述。",
+      "diagnosis": {
+        "names": [
+          "糖尿病酮症酸中毒",
+          "酮症酸中毒",
+          "dka"
+        ],
+        "extra_positive": [
+          "{name}，立即补液"
+        ],
+        "leak_terms": []
+      }
+    },
+    {
+      "item_id": "fluids_insulin",
+      "stage": "治疗",
+      "description": "确认补液并启动胰岛素治疗",
+      "evidence_type": "treatment_execution",
+      "weight": 2,
+      "critical": true,
+      "improvement": "诊断明确后应尽快确认补液和胰岛素；仅计划不计入执行。"
+    },
+    {
+      "item_id": "monitoring",
+      "stage": "治疗",
+      "description": "确认转入监护并监测电解质",
+      "evidence_type": "treatment_execution",
+      "weight": 1
+    }
+  ],
+  "hidden_diagnosis": "糖尿病酮症酸中毒，待医学审核"
+}

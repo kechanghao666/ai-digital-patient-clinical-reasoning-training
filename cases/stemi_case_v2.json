@@ -1,0 +1,338 @@
+{
+  "case_id": "STEMI-001",
+  "version": 2,
+  "public_id": "CASE-001",
+  "specialty": "心内科/急诊",
+  "title": "突发胸痛的成人模拟患者",
+  "learning_goals": [
+    "采集缺血性胸痛关键病史",
+    "优先选择并解读心电图",
+    "完成主动脉夹层和肺栓塞鉴别",
+    "识别需要紧急再灌注的危险路径"
+  ],
+  "target_population": "本科临床医学教学，模拟成人患者",
+  "review_status": "draft",
+  "reviewer": null,
+  "review_date": null,
+  "sources": [
+    "自造模拟病例；正式医学审核待完成。v2在v1基础上把诊断匹配、处置、延误锚点、鉴别规则与前端选项改为病例配置。"
+  ],
+  "chief_complaint": "突发胸痛2小时",
+  "facts": [
+    {
+      "fact_id": "f_cc",
+      "content": "我两个小时前突然开始胸痛。",
+      "field": "主诉",
+      "disclosure_triggers": [],
+      "auto_volunteer": true,
+      "disclosure_level": "voluntary"
+    },
+    {
+      "fact_id": "f_pain_character",
+      "content": "胸痛像压榨一样。",
+      "field": "疼痛性质",
+      "disclosure_triggers": [
+        "性质",
+        "怎么疼",
+        "什么样的痛",
+        "压榨"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_pain_radiation",
+      "content": "疼痛向左肩和左上肢放射。",
+      "field": "疼痛放射",
+      "disclosure_triggers": [
+        "放射",
+        "窜到哪",
+        "传到哪里",
+        "肩",
+        "手臂"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_pain_onset",
+      "content": "休息时突然发作，持续没有缓解。",
+      "field": "起病与诱因",
+      "disclosure_triggers": [
+        "什么时候",
+        "多久",
+        "诱因",
+        "开始",
+        "持续"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_hx_htn",
+      "content": "有高血压10年。",
+      "field": "既往史",
+      "disclosure_triggers": [
+        "既往史",
+        "基础病",
+        "高血压"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_hx_dm",
+      "content": "有糖尿病5年。",
+      "field": "既往史",
+      "disclosure_triggers": [
+        "既往史",
+        "基础病",
+        "糖尿病"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_hx_smoke",
+      "content": "吸烟约20年，每天一包。",
+      "field": "危险因素",
+      "disclosure_triggers": [
+        "吸烟",
+        "危险因素",
+        "烟"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_med_asa",
+      "content": "今天早上自行服过一片阿司匹林，规格待医学审核确认。",
+      "field": "既往用药",
+      "disclosure_triggers": [
+        "用药",
+        "吃过药",
+        "阿司匹林"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_deterioration",
+      "content": "患者出现血压下降和意识模糊，需要立即重新评估。",
+      "field": "当前可观察危急变化",
+      "disclosure_triggers": [],
+      "auto_volunteer": false,
+      "disclosure_level": "on_inquiry"
+    }
+  ],
+  "exams": [
+    {
+      "exam_id": "ex_ecg",
+      "standard_name": "心电图",
+      "return_after_minutes": 5,
+      "allowed_values": [
+        "II/III/aVF导联ST段抬高",
+        "ST段压低",
+        "正常"
+      ],
+      "result": "II/III/aVF导联ST段抬高",
+      "negative_explicit": "正常"
+    },
+    {
+      "exam_id": "ex_troponin",
+      "standard_name": "肌钙蛋白",
+      "return_after_minutes": 30,
+      "allowed_values": [
+        "升高",
+        "正常"
+      ],
+      "result": "升高",
+      "negative_explicit": "正常"
+    }
+  ],
+  "rules": [
+    {
+      "rule_id": "r_stemi_delay_fixture",
+      "from_state": "initial",
+      "anchor_event": "delay_reperfusion",
+      "delay_minutes": 60,
+      "exclusions": [
+        "reperfusion_started"
+      ],
+      "effect": {
+        "to_state": "deteriorating",
+        "new_fact_ids": [
+          "f_deterioration"
+        ],
+        "severity": "high",
+        "message": "在心电图提示ST段抬高后延误再灌注达到夹具阈值，触发危急变化。"
+      },
+      "repeatable": false,
+      "medically_reviewed": false,
+      "delay_anchor_exam": "ex_ecg",
+      "delay_exclusion_treatments": [
+        "reperfusion_pathway"
+      ]
+    }
+  ],
+  "rubric": [
+    {
+      "item_id": "f_pain_character",
+      "stage": "病史采集",
+      "description": "询问胸痛性质",
+      "evidence_type": "ask_event",
+      "weight": 1,
+      "improvement": "建议询问疼痛的性质（压榨、撕裂、刺痛等），它能区分缺血性胸痛和其他原因。"
+    },
+    {
+      "item_id": "f_pain_radiation",
+      "stage": "病史采集",
+      "description": "询问疼痛放射",
+      "evidence_type": "ask_event",
+      "weight": 1,
+      "improvement": "建议询问疼痛是否向肩、上肢、下颌或背部放射。"
+    },
+    {
+      "item_id": "f_pain_onset",
+      "stage": "病史采集",
+      "description": "询问起病时间和诱因",
+      "evidence_type": "ask_event",
+      "weight": 1,
+      "improvement": "建议询问起病时间、诱因和持续情况，判断是否为持续性静息痛。"
+    },
+    {
+      "item_id": "ex_ecg",
+      "stage": "检查选择",
+      "description": "优先开立心电图",
+      "evidence_type": "exam_order",
+      "weight": 2,
+      "critical": true,
+      "ordering_constraint": "first_exam_before_wait",
+      "improvement": "疑似急性冠脉综合征应在其他检查和等待之前先开立并解读心电图。"
+    },
+    {
+      "item_id": "ex_troponin",
+      "stage": "检查选择",
+      "description": "开立肌钙蛋白",
+      "evidence_type": "exam_order",
+      "weight": 1,
+      "improvement": "建议同时开立肌钙蛋白，但不应因等待结果而延误再灌注决策。"
+    },
+    {
+      "item_id": "aortic_dissection",
+      "stage": "鉴别诊断",
+      "description": "提供主动脉夹层的支持/反对证据",
+      "evidence_type": "ddx_evidence",
+      "weight": 1,
+      "differential": {
+        "supporting_keys": [
+          "f_pain_onset"
+        ],
+        "opposing_keys": [
+          "f_pain_character",
+          "f_pain_radiation",
+          "ex_ecg"
+        ],
+        "min_supporting": 1,
+        "min_opposing": 1,
+        "medically_reviewed": false
+      }
+    },
+    {
+      "item_id": "pulmonary_embolism",
+      "stage": "鉴别诊断",
+      "description": "提供肺栓塞的支持/反对证据",
+      "evidence_type": "ddx_evidence",
+      "weight": 1,
+      "differential": {
+        "supporting_keys": [
+          "f_pain_onset"
+        ],
+        "opposing_keys": [
+          "f_pain_character",
+          "ex_ecg"
+        ],
+        "min_supporting": 1,
+        "min_opposing": 1,
+        "medically_reviewed": false
+      }
+    },
+    {
+      "item_id": "stemi",
+      "stage": "诊断",
+      "description": "提交急性ST段抬高型心肌梗死方向",
+      "evidence_type": "diagnosis",
+      "weight": 2,
+      "critical": true,
+      "improvement": "请直接写出明确诊断（如“急性ST段抬高型心肌梗死”），并避免否定或不确定的表述。",
+      "diagnosis": {
+        "names": [
+          "stemi",
+          "急性st段抬高型心肌梗死"
+        ],
+        "extra_positive": [
+          "{name}已确诊，无药物过敏史",
+          "{name}，已排除主动脉夹层",
+          "{name}，考虑急诊pci",
+          "{name}已确诊，非nstemi",
+          "{name}已确诊并排除主动脉夹层",
+          "{name}已确诊并已排除主动脉夹层",
+          "{name}已确诊，排除主动脉夹层",
+          "{name}已确诊，已排除主动脉夹层",
+          "{name}已确诊并排除nstemi",
+          "{name}已确诊并已排除nstemi",
+          "{name}已确诊，排除nstemi",
+          "{name}已确诊，已排除nstemi"
+        ],
+        "leak_terms": [
+          "stemi",
+          "心肌梗死"
+        ]
+      }
+    },
+    {
+      "item_id": "aspirin",
+      "stage": "治疗",
+      "description": "确认执行阿司匹林动作（适用条件待审核）",
+      "evidence_type": "treatment_execution",
+      "weight": 1,
+      "improvement": "无禁忌时应确认执行阿司匹林；仅提交计划不计入执行。"
+    },
+    {
+      "item_id": "reperfusion_pathway",
+      "stage": "治疗",
+      "description": "确认启动再灌注路径",
+      "evidence_type": "treatment_execution",
+      "weight": 2,
+      "critical": true,
+      "improvement": "心电图提示ST段抬高后应尽快确认启动再灌注路径；仅计划不计入执行。"
+    }
+  ],
+  "hidden_diagnosis": "急性ST段抬高型心肌梗死（下壁），待医学审核",
+  "treatments": [
+    {
+      "treatment_id": "aspirin",
+      "name": "阿司匹林"
+    },
+    {
+      "treatment_id": "reperfusion_pathway",
+      "name": "再灌注路径",
+      "trigger": "reperfusion_started"
+    }
+  ],
+  "differential_options": [
+    {
+      "candidate_id": "aortic_dissection",
+      "label": "主动脉夹层"
+    },
+    {
+      "candidate_id": "pulmonary_embolism",
+      "label": "急性肺栓塞"
+    },
+    {
+      "candidate_id": "acute_pericarditis",
+      "label": "急性心包炎"
+    },
+    {
+      "candidate_id": "pneumothorax",
+      "label": "气胸"
+    },
+    {
+      "candidate_id": "gerd",
+      "label": "胃食管反流"
+    }
+  ]
+}

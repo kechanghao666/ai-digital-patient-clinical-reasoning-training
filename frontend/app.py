@@ -72,6 +72,8 @@ def api(method, path, **kwargs):
             return "treatment"
         if request_path.endswith("/seal"):
             return "seal"
+        if request_path.endswith("/feedback"):
+            return "feedback"
         if request_path.startswith("/api/sessions/"):
             return "session_read"
         return "general"
@@ -141,7 +143,7 @@ if not st.session_state.session_id:
         if st.button("恢复训练"):
             st.session_state.session_id = selected_session[1]
             st.session_state.session_snapshot = None
-            for key in ("diagnosis_input", "differential_text", "case_notes_input"):
+            for key in ("diagnosis_input", "differential_choice", "case_notes_input"):
                 st.session_state.pop(key, None)
             st.rerun()
     if cases:
@@ -152,7 +154,7 @@ if not st.session_state.session_id:
             if result:
                 st.session_state.session_id = result["session_id"]
                 st.session_state.session_snapshot = result
-                for key in ("diagnosis_input", "differential_text", "case_notes_input"):
+                for key in ("diagnosis_input", "differential_choice", "case_notes_input"):
                     st.session_state.pop(key, None)
                 st.rerun()
     else:
@@ -173,6 +175,10 @@ else:
         st.session_state.session_snapshot = session
     state = session["state"]
     case = session["case"]
+    options = session.get("options") or {}
+    exam_names = {item["exam_id"]: item["name"] for item in options.get("exams", [])}
+    treatment_names = {item["treatment_id"]: item["name"] for item in options.get("treatments", [])}
+    differential_labels = {item["candidate_id"]: item["label"] for item in options.get("differentials", [])}
     readonly = state["sealed"]
     st.caption(f"{case['public_id']} · {case['title']} · 模拟时间 {state['sim_time_minutes']} 分钟")
     left, right = st.columns(2)
@@ -189,8 +195,13 @@ else:
             if result:
                 st.info(result["answer"])
         st.subheader("检查开单")
-        exam_id = st.selectbox("检查项目", ["ex_ecg", "ex_troponin"], disabled=readonly)
-        if st.button("确认开单", disabled=readonly):
+        exam_id = st.selectbox(
+            "检查项目",
+            list(exam_names),
+            format_func=lambda value: exam_names.get(value, value),
+            disabled=readonly or not exam_names,
+        )
+        if st.button("确认开单", disabled=readonly or not exam_names):
             result = action_mutation(state["session_id"], "order_exam", {"exam_id": exam_id})
             if result:
                 st.rerun()
@@ -221,40 +232,59 @@ else:
         if st.button("保存病历记录", disabled=readonly):
             action_mutation(state["session_id"], "update_notes", {"notes": notes})
         submissions = state.get("submissions", {})
-        restored_candidates = submissions.get("differential") or []
-        restored_differential = "\n".join(
-            "；".join(
-                [
-                    candidate.get("candidate_id", ""),
-                    "、".join(candidate.get("supporting_evidence", [])),
-                    "、".join(candidate.get("opposing_evidence", [])),
-                    ",".join(candidate.get("evidence_event_ids", [])),
-                ]
+        restored = {c.get("candidate_id"): c for c in (submissions.get("differential") or [])}
+        evidence_events = {
+            event["event_id"]: (
+                f"#{event['seq']} 问诊：{event['intent']}"
+                if event["action"] == "ask"
+                else f"#{event['seq']} 等待 {event['result'].get('advanced_minutes', 0)} 分钟后的检查结果"
             )
-            for candidate in restored_candidates
+            for event in state.get("events", [])
+            if event["action"] in {"ask", "wait"}
+        }
+        st.markdown("**鉴别诊断**（先选候选，再填支持/反对证据并选择依据事件）")
+        chosen = st.multiselect(
+            "候选诊断",
+            list(differential_labels),
+            default=[value for value in restored if value in differential_labels],
+            format_func=lambda value: differential_labels.get(value, value),
+            key="differential_choice",
+            disabled=readonly or not differential_labels,
         )
-        differential_text = st.text_area(
-            "鉴别诊断（每行：候选ID；支持证据；反对证据；证据事件ID）",
-            value=restored_differential,
-            key="differential_text",
-            disabled=readonly,
-            help="候选ID示例：aortic_dissection 或 pulmonary_embolism；证据事件ID可从下方回放查看。",
-        )
-        if st.button("提交鉴别诊断", disabled=readonly):
-            candidates = []
-            for line in differential_text.splitlines():
-                parts = [part.strip() for part in line.split("；")]
-                if len(parts) != 4 or not parts[0]:
-                    st.warning("鉴别诊断格式应为：候选ID；支持证据；反对证据；证据事件ID")
-                    continue
-                candidates.append(
-                    {
-                        "candidate_id": parts[0],
-                        "supporting_evidence": [parts[1]] if parts[1] else [],
-                        "opposing_evidence": [parts[2]] if parts[2] else [],
-                        "evidence_event_ids": [value.strip() for value in parts[3].split(",") if value.strip()],
-                    }
-                )
+        drafts = []
+        for candidate_id in chosen:
+            previous = restored.get(candidate_id, {})
+            label = differential_labels.get(candidate_id, candidate_id)
+            support = st.text_input(
+                f"{label}：支持证据",
+                value="、".join(previous.get("supporting_evidence", [])),
+                key=f"ddx_support_{candidate_id}",
+                disabled=readonly,
+            )
+            oppose = st.text_input(
+                f"{label}：反对证据",
+                value="、".join(previous.get("opposing_evidence", [])),
+                key=f"ddx_oppose_{candidate_id}",
+                disabled=readonly,
+            )
+            cited = st.multiselect(
+                f"{label}：依据事件",
+                list(evidence_events),
+                default=[v for v in previous.get("evidence_event_ids", []) if v in evidence_events],
+                format_func=lambda value: evidence_events.get(value, value),
+                key=f"ddx_events_{candidate_id}",
+                disabled=readonly,
+            )
+            drafts.append(
+                {
+                    "candidate_id": candidate_id,
+                    "supporting_evidence": [support.strip()] if support.strip() else [],
+                    "opposing_evidence": [oppose.strip()] if oppose.strip() else [],
+                    "evidence_event_ids": cited,
+                }
+            )
+        if st.button("提交鉴别诊断", disabled=readonly or not drafts):
+            candidates = drafts
             if candidates:
                 mutate(
                     "POST",
@@ -275,12 +305,17 @@ else:
                 "diagnosis",
                 {"diagnosis": diagnosis},
             )
-        treatment_id = st.selectbox("治疗动作", ["aspirin", "reperfusion_pathway"], disabled=readonly)
+        treatment_id = st.selectbox(
+            "治疗动作",
+            list(treatment_names),
+            format_func=lambda value: treatment_names.get(value, value),
+            disabled=readonly or not treatment_names,
+        )
         confirm = st.checkbox("确认执行该治疗动作", disabled=readonly)
         restored_treatment = submissions.get("treatment") or {}
         if restored_treatment:
             st.caption(
-                f"已提交治疗：{restored_treatment.get('treatment_id', '')} "
+                f"已提交治疗：{restored_treatment.get('treatment_name') or restored_treatment.get('treatment_id', '')} "
                 f"（{'已执行' if restored_treatment.get('confirm_execution') else '仅计划'}）"
             )
         if st.button("提交治疗", disabled=readonly) and confirm:
@@ -320,11 +355,25 @@ else:
                 st.success(status_labels.get(status, status))
             st.metric("总分", f"{snapshot['total_score']} / {snapshot['max_score']}")
             st.dataframe(snapshot["items"], use_container_width=True)
+        feedback_cache = st.session_state.setdefault("feedback_by_session", {})
+        if st.button("生成分环节改进反馈"):
+            generated = mutate(
+                "POST", f"/api/sessions/{state['session_id']}/feedback", "feedback", {}
+            )
+            if generated:
+                feedback_cache[state["session_id"]] = generated
+        shown = feedback_cache.get(state["session_id"])
+        if shown:
+            st.caption(shown.get("notice", ""))
+            for item in shown["items"]:
+                st.markdown(f"**{item['stage']}**：{item['comment']}")
+                if item.get("improvement"):
+                    st.markdown(f"- 改进建议：{item['improvement']}")
         if st.button("开始新训练"):
             st.session_state.session_id = None
             st.session_state.session_snapshot = None
             st.session_state.pending_mutations = {}
-            for key in ("diagnosis_input", "differential_text", "case_notes_input"):
+            for key in ("diagnosis_input", "differential_choice", "case_notes_input"):
                 st.session_state.pop(key, None)
             st.rerun()
     with st.expander("训练回放"):

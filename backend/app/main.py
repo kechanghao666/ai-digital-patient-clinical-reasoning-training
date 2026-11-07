@@ -7,9 +7,17 @@ from typing import Any
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from .adapters import NexentPatientAdapter, SimulatorPatientAdapter
+from .adapters import (
+    PatientSelection,
+    PatientTurnRequest,
+    authorized_answer_or_fallback,
+    render_selected_answer,
+)
 from .case_store import CaseStore
 from .disclosure import classify_and_authorize
+from .integration.feedback import FeedbackUnavailable
+from .integration.nexent_client import NexentError
+from .integration.runtime import IntegrationRuntime
 from .models import (
     ActionKind,
     ActionRequest,
@@ -22,14 +30,16 @@ from .models import (
     TreatmentRequest,
 )
 from .scoring import score_session
+from .teacher_api import build_router as build_teacher_router
 from .state_machine import StateMachine
 from .storage import ConcurrentUpdateError, SessionRepository
 
 
 ROOT = Path(__file__).resolve().parents[2]
-CASE_STORE = CaseStore(ROOT / "cases")
+CASE_STORE = CaseStore(ROOT / "cases", ROOT / "backend" / "data" / "teacher_cases")
 REPOSITORY = SessionRepository(ROOT / "backend" / "data" / "app.db")
 MACHINE = StateMachine(CASE_STORE, REPOSITORY)
+RUNTIME = IntegrationRuntime()
 app = FastAPI(title="AI数字病人临床思维训练系统", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
@@ -50,6 +60,22 @@ def current_owner(x_owner_id: str | None = Header(default=None)) -> str:
     raise HTTPException(status_code=401, detail="需要经验证的业务身份；本地自填身份仅在 APP_ENV=development 时可用")
 
 
+def _development() -> bool:
+    return os.getenv("APP_ENV", "production").lower() == "development"
+
+
+def current_teacher(x_owner_id: str | None = Header(default=None)) -> str:
+    """Teacher role. Until a real identity provider exists, only development-mode ``teacher-`` ids qualify."""
+    if not x_owner_id:
+        raise HTTPException(status_code=401, detail="需要业务身份")
+    if _development() and x_owner_id.startswith("teacher-"):
+        return x_owner_id
+    raise HTTPException(status_code=403, detail="需要教师角色；正式身份认证尚未接入，本地自填教师身份仅在 APP_ENV=development 时可用")
+
+
+app.include_router(build_teacher_router(lambda: CASE_STORE, current_teacher))
+
+
 def get_state(session_id: str, owner_id: str) -> SessionState:
     try:
         return REPOSITORY.get(session_id, owner_id)
@@ -65,6 +91,21 @@ def safe_case(case: CaseDefinition) -> dict[str, Any]:
         "specialty": case.specialty,
         "chief_complaint": case.chief_complaint,
         "review_status": case.review_status.value,
+    }
+
+
+def safe_options(case: CaseDefinition) -> dict[str, Any]:
+    """Fixed, case-configured choices for the student UI; no hidden or scoring data."""
+    return {
+        "exams": [
+            {"exam_id": exam.exam_id, "name": exam.standard_name}
+            for exam in case.exams
+            if exam.configured
+        ],
+        "treatments": [{"treatment_id": t.treatment_id, "name": t.name} for t in case.treatments],
+        "differentials": [
+            {"candidate_id": o.candidate_id, "label": o.label} for o in case.differential_options
+        ],
     }
 
 
@@ -141,10 +182,8 @@ def _safe_treatment(payload: Any) -> dict[str, Any]:
 def safe_submissions(state: SessionState, case: CaseDefinition) -> dict[str, Any]:
     treatment = _safe_treatment(state.treatment_submission)
     if treatment.get("treatment_id"):
-        treatment["treatment_name"] = {
-            "aspirin": "阿司匹林",
-            "reperfusion_pathway": "再灌注路径",
-        }.get(treatment["treatment_id"], treatment["treatment_id"])
+        names = {t.treatment_id: t.name for t in case.treatments}
+        treatment["treatment_name"] = names.get(treatment["treatment_id"], treatment["treatment_id"])
     return {
         "diagnosis": (state.diagnosis_submission or {}).get("diagnosis"),
         "differential": _safe_differential((state.differential_submission or {}).get("candidates", [])),
@@ -201,33 +240,38 @@ def safe_state(state: SessionState) -> dict[str, Any]:
     }
 
 
+def _nexent_http_error(exc: NexentError) -> HTTPException:
+    if exc.kind == "timeout":
+        return HTTPException(status_code=504, detail="患者智能体响应超时，本次提问未记录，可用原请求重试")
+    if exc.kind == "conflict":
+        return HTTPException(status_code=429, detail="患者智能体繁忙，本次提问未记录，请稍后重试")
+    return HTTPException(status_code=502, detail="患者智能体暂不可用，本次提问未记录")
+
+
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "patient_adapter": os.getenv("NEXENT_MODE", "simulator")}
+    return {"status": "ok", "patient_adapter": RUNTIME.settings.mode}
 
 
 @app.get("/api/cases")
 def list_cases(_: str = Depends(current_owner)) -> list[dict]:
-    cases = CASE_STORE.list_public()
-    if os.getenv("APP_ENV", "production").lower() == "development":
-        return cases
-    return [case for case in cases if case["review_status"] == "published"]
+    return CASE_STORE.list_public(include_unpublished=_development())
 
 
 @app.post("/api/sessions")
 def create_session(case_id: str, owner_id: str = Depends(current_owner)) -> dict:
     try:
-        case = CASE_STORE.get(case_id)
-    except KeyError:
-        try:
-            case = CASE_STORE.get_by_public_id(case_id)
-        except KeyError as exc:
-            raise HTTPException(status_code=404, detail="病例不存在") from exc
-    if os.getenv("APP_ENV", "production").lower() != "development" and case.review_status.value != "published":
-        raise HTTPException(status_code=404, detail="病例不存在")
+        case = CASE_STORE.resolve_for_student(case_id, include_unpublished=_development())
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="病例不存在") from exc
     state = SessionState(owner_id=owner_id, case_id=case.case_id, case_version=case.version)
     REPOSITORY.create(state)
-    return {"session_id": state.session_id, "case": safe_case(case), "state": safe_state(state)}
+    return {
+        "session_id": state.session_id,
+        "case": safe_case(case),
+        "options": safe_options(case),
+        "state": safe_state(state),
+    }
 
 
 @app.get("/api/sessions")
@@ -252,7 +296,8 @@ def list_sessions(owner_id: str = Depends(current_owner)) -> list[dict]:
 @app.get("/api/sessions/{session_id}")
 def session_detail(session_id: str, owner_id: str = Depends(current_owner)) -> dict:
     state = get_state(session_id, owner_id)
-    return {"state": safe_state(state), "case": safe_case(CASE_STORE.get(state.case_id, state.case_version))}
+    case = CASE_STORE.get(state.case_id, state.case_version)
+    return {"state": safe_state(state), "case": safe_case(case), "options": safe_options(case)}
 
 
 @app.post("/api/sessions/{session_id}/ask")
@@ -260,8 +305,6 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
     state = get_state(session_id, owner_id)
     case = CASE_STORE.get(state.case_id, state.case_version)
     visible = classify_and_authorize(state, request.question, case.facts)
-    fact_ids = [fact.fact_id for fact in visible]
-    content = [fact.content for fact in visible]
     before = state.model_copy(deep=True)
     try:
         result = MACHINE._check_request(state, request.request_id, {"action": "ask", "question": request.question})
@@ -272,20 +315,28 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
         return {"answer": event.result.get("answer", ""), "event": safe_event(event, case)}
     if state.sealed:
         raise HTTPException(status_code=409, detail="session is sealed")
-    adapter = SimulatorPatientAdapter()
-    if os.getenv("NEXENT_MODE", "simulator") == "nexent":
-        adapter = NexentPatientAdapter(
-            os.getenv("NEXENT_BASE_URL", ""),
-            os.getenv("NEXENT_API_KEY", ""),
-            os.getenv("NEXENT_AGENT_NAME", ""),
+    if visible:
+        turn_request = PatientTurnRequest(
+            owner_id=state.owner_id,
+            session_id=state.session_id,
+            case_id=state.case_id,
+            case_version=state.case_version,
+            request_id=request.request_id,
+            state_version=state.state_version,
+            question=request.question,
+            candidates=tuple(visible),
         )
-    try:
-        raw_answer = adapter.answer(request.question, content, {"clinical_state": state.clinical_state.value})
-    except RuntimeError as exc:
-        raise HTTPException(status_code=502, detail="患者适配器暂不可用") from exc
-    from .adapters import authorized_answer_or_fallback
-
-    answer, final_fact_ids, was_fallback = authorized_answer_or_fallback(raw_answer, visible, case)
+        try:
+            selection = RUNTIME.patient_adapter().select_facts(turn_request)
+        except NexentError as exc:
+            raise _nexent_http_error(exc) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=502, detail="患者适配器暂不可用") from exc
+    else:
+        selection = PatientSelection(fact_ids=[], source="local_no_candidates")
+    selected, rendered = render_selected_answer(visible, selection.fact_ids)
+    answer, final_fact_ids, was_fallback = authorized_answer_or_fallback(rendered, selected, case)
+    was_fallback = was_fallback or (bool(visible) and not selected)
     state.disclosed_fact_ids.extend(
         fact_id for fact_id in final_fact_ids if fact_id not in state.disclosed_fact_ids
     )
@@ -294,7 +345,12 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
         request.request_id,
         ActionKind.ASK,
         {"question": request.question, "matched_fact_ids": final_fact_ids, "fallback": was_fallback},
-        {"answer": answer, "fact_ids": final_fact_ids, "fallback": was_fallback},
+        {
+            "answer": answer,
+            "fact_ids": final_fact_ids,
+            "fallback": was_fallback,
+            "adapter": {"source": selection.source, "trace": selection.trace},
+        },
         intent=request.question,
         fact_ids=final_fact_ids,
         before={
@@ -392,6 +448,39 @@ def seal(session_id: str, request: SealRequest, owner_id: str = Depends(current_
         "state": safe_state(state),
         "event": safe_event(result.event, case),
         "request_id": request.request_id,
+    }
+
+
+@app.post("/api/sessions/{session_id}/feedback")
+def feedback(session_id: str, request: SealRequest, owner_id: str = Depends(current_owner)) -> dict:
+    state = get_state(session_id, owner_id)
+    if not state.sealed:
+        raise HTTPException(status_code=409, detail="提交训练后才能生成反馈")
+    case = CASE_STORE.get(state.case_id, state.case_version)
+    try:
+        return _public_feedback(RUNTIME.feedback_service.get_or_generate(state, case, request.request_id))
+    except FeedbackUnavailable as exc:
+        status = 504 if exc.kind == "timeout" else 502
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
+
+
+@app.get("/api/sessions/{session_id}/feedback")
+def get_feedback(session_id: str, owner_id: str = Depends(current_owner)) -> dict:
+    state = get_state(session_id, owner_id)
+    if not state.sealed:
+        raise HTTPException(status_code=409, detail="提交训练后才能查看反馈")
+    stored = RUNTIME.feedback_store.get(session_id, owner_id)
+    if stored is None:
+        raise HTTPException(status_code=404, detail="反馈尚未生成")
+    return _public_feedback(stored)
+
+
+def _public_feedback(stored: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "source": stored["source"],
+        "basis_status": stored["basis_status"],
+        "items": stored["items"],
+        "notice": "反馈与教学依据均为未经医学审核的教学草稿，分数以评分快照为准。",
     }
 
 

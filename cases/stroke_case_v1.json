@@ -1,0 +1,336 @@
+{
+  "version": 1,
+  "review_status": "draft",
+  "reviewer": null,
+  "review_date": null,
+  "sources": [
+    "自造模拟病例；正式医学审核待完成"
+  ],
+  "case_id": "STROKE-001",
+  "public_id": "CASE-003",
+  "specialty": "神经内科/急诊",
+  "title": "突发言语含糊的老年男性模拟患者",
+  "learning_goals": [
+    "准确记录起病时间",
+    "先排除出血和低血糖再判断",
+    "完成脑出血与低血糖的鉴别",
+    "识别时间窗内的延误风险"
+  ],
+  "target_population": "本科临床医学教学，模拟68岁男性患者",
+  "chief_complaint": "突发言语含糊、右侧肢体无力1小时",
+  "facts": [
+    {
+      "fact_id": "f_cc",
+      "content": "我一个半小时前突然说话含糊，右边手脚没力气。",
+      "field": "主诉",
+      "disclosure_triggers": [],
+      "disclosure_level": "voluntary",
+      "auto_volunteer": true
+    },
+    {
+      "fact_id": "f_onset_time",
+      "content": "是上午9点半发生的，当时正在吃早饭，我记得很清楚。",
+      "field": "起病时间",
+      "disclosure_triggers": [
+        "什么时候",
+        "几点",
+        "多久",
+        "起病",
+        "时间",
+        "开始"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_symptom_detail",
+      "content": "右手拿不住东西，右腿走路拖着，嘴角有点歪。",
+      "field": "症状细节",
+      "disclosure_triggers": [
+        "症状",
+        "无力",
+        "麻木",
+        "嘴歪",
+        "口角",
+        "走路",
+        "手脚"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_headache",
+      "content": "没有明显头痛，也没有呕吐。",
+      "field": "头痛呕吐",
+      "disclosure_triggers": [
+        "头痛",
+        "头疼",
+        "呕吐",
+        "恶心"
+      ],
+      "disclosure_level": "on_inquiry",
+      "polarity": "negative"
+    },
+    {
+      "fact_id": "f_hx_af",
+      "content": "有房颤好几年，没有规律吃药。",
+      "field": "既往史",
+      "disclosure_triggers": [
+        "既往",
+        "病史",
+        "房颤",
+        "心脏",
+        "基础病"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_hx_htn",
+      "content": "高血压15年，血压控制得不好。",
+      "field": "既往史",
+      "disclosure_triggers": [
+        "既往",
+        "病史",
+        "高血压",
+        "基础病"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_anticoag",
+      "content": "没有吃抗凝药，最近也没有手术或外伤，没有出血病史。",
+      "field": "抗凝与出血风险",
+      "disclosure_triggers": [
+        "抗凝",
+        "出血",
+        "手术",
+        "外伤",
+        "用药",
+        "华法林"
+      ],
+      "disclosure_level": "on_inquiry",
+      "polarity": "negative"
+    },
+    {
+      "fact_id": "f_deterioration",
+      "content": "患者意识逐渐变差，右侧肢体完全不能活动，需要立即重新评估。",
+      "field": "当前可观察危急变化",
+      "disclosure_triggers": [],
+      "disclosure_level": "on_inquiry"
+    }
+  ],
+  "exams": [
+    {
+      "exam_id": "ex_ct_head",
+      "standard_name": "头颅CT平扫",
+      "return_after_minutes": 15,
+      "allowed_values": [
+        "未见出血",
+        "可见出血"
+      ],
+      "result": "未见出血",
+      "negative_explicit": "未见出血"
+    },
+    {
+      "exam_id": "ex_glucose",
+      "standard_name": "快速血糖",
+      "return_after_minutes": 5,
+      "allowed_values": [
+        "正常范围",
+        "明显降低"
+      ],
+      "result": "正常范围",
+      "negative_explicit": "正常范围"
+    },
+    {
+      "exam_id": "ex_ecg",
+      "standard_name": "心电图",
+      "return_after_minutes": 5,
+      "allowed_values": [
+        "心房颤动",
+        "正常"
+      ],
+      "result": "心房颤动",
+      "negative_explicit": "正常"
+    }
+  ],
+  "treatments": [
+    {
+      "treatment_id": "stroke_pathway",
+      "name": "启动卒中绿色通道并评估再灌注治疗",
+      "trigger": "reperfusion_evaluated"
+    },
+    {
+      "treatment_id": "supportive_care",
+      "name": "心电监护并维持气道与对症支持"
+    }
+  ],
+  "differential_options": [
+    {
+      "candidate_id": "intracerebral_hemorrhage",
+      "label": "脑出血"
+    },
+    {
+      "candidate_id": "hypoglycemia",
+      "label": "低血糖"
+    },
+    {
+      "candidate_id": "migraine_aura",
+      "label": "偏头痛先兆"
+    },
+    {
+      "candidate_id": "post_seizure_paralysis",
+      "label": "癫痫发作后肢体无力"
+    }
+  ],
+  "rules": [
+    {
+      "rule_id": "r_stroke_delay_fixture",
+      "from_state": "initial",
+      "anchor_event": "delay_stroke_pathway",
+      "delay_minutes": 60,
+      "exclusions": [],
+      "delay_anchor_exam": "ex_ct_head",
+      "delay_exclusion_treatments": [
+        "stroke_pathway"
+      ],
+      "effect": {
+        "to_state": "deteriorating",
+        "new_fact_ids": [
+          "f_deterioration"
+        ],
+        "severity": "high",
+        "message": "排除出血后延误卒中通道达到夹具阈值，触发病情加重。"
+      },
+      "repeatable": false,
+      "medically_reviewed": false
+    }
+  ],
+  "rubric": [
+    {
+      "item_id": "f_onset_time",
+      "stage": "病史采集",
+      "description": "询问起病的具体时间",
+      "evidence_type": "ask_event",
+      "weight": 2,
+      "critical": true,
+      "improvement": "必须问清起病（或最后正常）的具体时间，它决定治疗窗口。"
+    },
+    {
+      "item_id": "f_symptom_detail",
+      "stage": "病史采集",
+      "description": "询问具体症状表现",
+      "evidence_type": "ask_event",
+      "weight": 1
+    },
+    {
+      "item_id": "f_anticoag",
+      "stage": "病史采集",
+      "description": "询问抗凝药、出血和手术外伤史",
+      "evidence_type": "ask_event",
+      "weight": 1,
+      "improvement": "决定是否可能进行再灌注治疗前，必须询问抗凝与出血风险。"
+    },
+    {
+      "item_id": "f_hx_af",
+      "stage": "病史采集",
+      "description": "询问房颤等心脏病史",
+      "evidence_type": "ask_event",
+      "weight": 1
+    },
+    {
+      "item_id": "ex_ct_head",
+      "stage": "检查选择",
+      "description": "开立头颅CT平扫",
+      "evidence_type": "exam_order",
+      "weight": 2,
+      "critical": true,
+      "improvement": "突发局灶神经功能缺损应尽快开立头颅CT以排除出血。"
+    },
+    {
+      "item_id": "ex_glucose",
+      "stage": "检查选择",
+      "description": "开立快速血糖以排除低血糖",
+      "evidence_type": "exam_order",
+      "weight": 1
+    },
+    {
+      "item_id": "ex_ecg",
+      "stage": "检查选择",
+      "description": "开立心电图评估心律",
+      "evidence_type": "exam_order",
+      "weight": 1
+    },
+    {
+      "item_id": "intracerebral_hemorrhage",
+      "stage": "鉴别诊断",
+      "description": "提供脑出血的支持与反对证据",
+      "evidence_type": "ddx_evidence",
+      "weight": 1,
+      "differential": {
+        "supporting_keys": [
+          "f_hx_htn"
+        ],
+        "opposing_keys": [
+          "ex_ct_head",
+          "f_headache"
+        ],
+        "min_supporting": 1,
+        "min_opposing": 1,
+        "medically_reviewed": false
+      }
+    },
+    {
+      "item_id": "hypoglycemia",
+      "stage": "鉴别诊断",
+      "description": "提供低血糖的反对证据",
+      "evidence_type": "ddx_evidence",
+      "weight": 1,
+      "differential": {
+        "supporting_keys": [],
+        "opposing_keys": [
+          "ex_glucose"
+        ],
+        "min_supporting": 0,
+        "min_opposing": 1,
+        "medically_reviewed": false
+      }
+    },
+    {
+      "item_id": "acute_ischemic_stroke",
+      "stage": "诊断",
+      "description": "提交急性缺血性卒中",
+      "evidence_type": "diagnosis",
+      "weight": 2,
+      "critical": true,
+      "improvement": "请直接写出明确诊断，并避免否定或不确定的表述。",
+      "diagnosis": {
+        "names": [
+          "急性缺血性卒中",
+          "缺血性卒中",
+          "急性脑梗死",
+          "脑梗死"
+        ],
+        "extra_positive": [
+          "{name}，已排除脑出血"
+        ],
+        "leak_terms": []
+      }
+    },
+    {
+      "item_id": "stroke_pathway",
+      "stage": "治疗",
+      "description": "确认启动卒中绿色通道并评估再灌注",
+      "evidence_type": "treatment_execution",
+      "weight": 2,
+      "critical": true,
+      "improvement": "排除出血后应尽快确认启动卒中绿色通道；仅计划不计入执行。"
+    },
+    {
+      "item_id": "supportive_care",
+      "stage": "治疗",
+      "description": "确认监护与支持治疗",
+      "evidence_type": "treatment_execution",
+      "weight": 1
+    }
+  ],
+  "hidden_diagnosis": "急性缺血性卒中，待医学审核"
+}

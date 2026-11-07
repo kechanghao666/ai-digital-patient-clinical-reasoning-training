@@ -1,0 +1,182 @@
+{
+  "case_id": "APPY-001",
+  "version": 1,
+  "public_id": "CASE-002",
+  "specialty": "普外科/急诊",
+  "title": "腹痛一天的青年男性模拟患者",
+  "learning_goals": [
+    "采集腹痛部位转移、伴随症状等关键病史",
+    "合理选择检查并解读结果",
+    "完成输尿管结石和急性胃肠炎的鉴别",
+    "识别需要尽早外科评估的延误风险"
+  ],
+  "target_population": "本科临床医学教学，模拟24岁男性患者",
+  "review_status": "draft",
+  "reviewer": null,
+  "review_date": null,
+  "sources": [
+    "自造模拟病例；正式医学审核待完成"
+  ],
+  "chief_complaint": "腹痛1天",
+  "facts": [
+    {
+      "fact_id": "f_cc",
+      "content": "我从昨晚开始肚子痛，今天越来越厉害。",
+      "field": "主诉",
+      "disclosure_triggers": [],
+      "auto_volunteer": true,
+      "disclosure_level": "voluntary"
+    },
+    {
+      "fact_id": "f_pain_migration",
+      "content": "一开始是肚脐周围隐隐作痛，后来逐渐转移到右下腹。",
+      "field": "疼痛部位与转移",
+      "disclosure_triggers": ["哪里痛", "哪里疼", "部位", "位置", "转移", "肚脐", "右下腹", "哪个地方"],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_pain_character",
+      "content": "右下腹是持续性的疼，走路或咳嗽时更明显。",
+      "field": "疼痛性质",
+      "disclosure_triggers": ["性质", "什么样的痛", "怎么痛", "怎么疼", "加重", "咳嗽", "走路", "绞痛"],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_onset",
+      "content": "大约24小时前开始的，没有受伤，也没有明显诱因。",
+      "field": "起病与诱因",
+      "disclosure_triggers": ["什么时候", "多久", "开始", "诱因", "时间", "几天"],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_gi",
+      "content": "有恶心，吐过一次，食欲很差。",
+      "field": "消化道症状",
+      "disclosure_triggers": ["恶心", "呕吐", "吐", "食欲", "胃口", "吃饭"],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_fever",
+      "content": "自己量过体温，37.8℃，有点发热。",
+      "field": "发热",
+      "disclosure_triggers": ["发热", "发烧", "体温", "畏寒"],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_bowel",
+      "content": "排便基本正常，没有腹泻。",
+      "field": "排便",
+      "polarity": "negative",
+      "disclosure_triggers": ["腹泻", "大便", "排便", "拉肚子"],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_urine",
+      "content": "小便正常，没有血尿，也没有尿痛。",
+      "field": "泌尿症状",
+      "polarity": "negative",
+      "disclosure_triggers": ["小便", "尿", "血尿", "尿痛"],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_hx",
+      "content": "既往体健，没有做过手术，没有药物过敏。",
+      "field": "既往史与过敏史",
+      "disclosure_triggers": ["既往", "病史", "手术", "过敏", "基础病"],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_deterioration",
+      "content": "患者腹痛突然加重并蔓延到全腹，体温升到39℃，腹肌紧张，需要立即重新评估。",
+      "field": "当前可观察危急变化",
+      "disclosure_triggers": [],
+      "auto_volunteer": false,
+      "disclosure_level": "on_inquiry"
+    }
+  ],
+  "exams": [
+    {
+      "exam_id": "ex_cbc",
+      "standard_name": "血常规",
+      "return_after_minutes": 30,
+      "allowed_values": ["白细胞及中性粒细胞比例升高", "正常"],
+      "result": "白细胞及中性粒细胞比例升高",
+      "negative_explicit": "正常"
+    },
+    {
+      "exam_id": "ex_us",
+      "standard_name": "腹部超声",
+      "return_after_minutes": 45,
+      "allowed_values": ["阑尾增粗并周围渗出", "未见明显异常"],
+      "result": "阑尾增粗并周围渗出",
+      "negative_explicit": "未见明显异常"
+    },
+    {
+      "exam_id": "ex_urine",
+      "standard_name": "尿常规",
+      "return_after_minutes": 20,
+      "allowed_values": ["未见红细胞", "可见红细胞"],
+      "result": "未见红细胞",
+      "negative_explicit": "未见红细胞"
+    }
+  ],
+  "treatments": [
+    {"treatment_id": "fluids_antibiotics", "name": "禁食、补液并使用抗生素"},
+    {"treatment_id": "surgical_consult", "name": "请普外科会诊并准备手术", "trigger": "surgical_started"}
+  ],
+  "differential_options": [
+    {"candidate_id": "ureteral_stone", "label": "输尿管结石"},
+    {"candidate_id": "gastroenteritis", "label": "急性胃肠炎"},
+    {"candidate_id": "mesenteric_lymphadenitis", "label": "肠系膜淋巴结炎"},
+    {"candidate_id": "terminal_ileitis", "label": "末端回肠炎"}
+  ],
+  "rules": [
+    {
+      "rule_id": "r_appy_delay_fixture",
+      "from_state": "initial",
+      "anchor_event": "delay_surgical_consult",
+      "delay_minutes": 90,
+      "exclusions": [],
+      "delay_anchor_exam": "ex_us",
+      "delay_exclusion_treatments": ["surgical_consult"],
+      "effect": {
+        "to_state": "deteriorating",
+        "new_fact_ids": ["f_deterioration"],
+        "severity": "high",
+        "message": "超声提示异常后延误外科评估达到夹具阈值，触发病情加重。"
+      },
+      "repeatable": false,
+      "medically_reviewed": false
+    }
+  ],
+  "rubric": [
+    {"item_id": "f_pain_migration", "stage": "病史采集", "description": "询问疼痛部位及是否转移", "evidence_type": "ask_event", "weight": 1, "improvement": "建议询问疼痛最初出现的位置以及是否发生转移。"},
+    {"item_id": "f_onset", "stage": "病史采集", "description": "询问起病时间和诱因", "evidence_type": "ask_event", "weight": 1},
+    {"item_id": "f_fever", "stage": "病史采集", "description": "询问是否发热", "evidence_type": "ask_event", "weight": 1},
+    {"item_id": "f_gi", "stage": "病史采集", "description": "询问恶心呕吐和食欲", "evidence_type": "ask_event", "weight": 1},
+    {"item_id": "f_hx", "stage": "病史采集", "description": "询问既往史、手术史和过敏史", "evidence_type": "ask_event", "weight": 1, "improvement": "拟手术或用药前应询问既往史、手术史和过敏史。"},
+    {"item_id": "ex_us", "stage": "检查选择", "description": "开立腹部超声", "evidence_type": "exam_order", "weight": 2, "critical": true, "improvement": "右下腹痛伴发热时应开立腹部超声评估阑尾及周围情况。"},
+    {"item_id": "ex_cbc", "stage": "检查选择", "description": "开立血常规", "evidence_type": "exam_order", "weight": 1},
+    {"item_id": "ex_urine", "stage": "检查选择", "description": "开立尿常规以评估泌尿系统原因", "evidence_type": "exam_order", "weight": 1},
+    {
+      "item_id": "ureteral_stone", "stage": "鉴别诊断", "description": "提供输尿管结石的反对证据", "evidence_type": "ddx_evidence", "weight": 1,
+      "differential": {"supporting_keys": [], "opposing_keys": ["f_urine", "ex_urine", "f_pain_migration"], "min_supporting": 0, "min_opposing": 1, "medically_reviewed": false}
+    },
+    {
+      "item_id": "gastroenteritis", "stage": "鉴别诊断", "description": "提供急性胃肠炎的支持与反对证据", "evidence_type": "ddx_evidence", "weight": 1,
+      "differential": {"supporting_keys": ["f_gi"], "opposing_keys": ["f_bowel", "f_pain_migration", "ex_us"], "min_supporting": 1, "min_opposing": 1, "medically_reviewed": false}
+    },
+    {
+      "item_id": "acute_appendicitis", "stage": "诊断", "description": "提交急性阑尾炎", "evidence_type": "diagnosis", "weight": 2, "critical": true,
+      "improvement": "请直接写出明确诊断，并避免否定或不确定的表述。",
+      "diagnosis": {
+        "names": ["急性阑尾炎", "阑尾炎"],
+        "extra_positive": ["{name}已确诊，建议手术", "{name}，考虑手术治疗"],
+        "leak_terms": []
+      }
+    },
+    {"item_id": "surgical_consult", "stage": "治疗", "description": "确认请普外科会诊并准备手术", "evidence_type": "treatment_execution", "weight": 2, "critical": true, "improvement": "诊断明确后应尽早确认外科会诊；仅计划不计入执行。"},
+    {"item_id": "fluids_antibiotics", "stage": "治疗", "description": "确认禁食、补液并使用抗生素", "evidence_type": "treatment_execution", "weight": 1}
+  ],
+  "hidden_diagnosis": "急性阑尾炎，待医学审核"
+}

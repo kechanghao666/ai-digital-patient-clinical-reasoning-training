@@ -98,11 +98,11 @@ class StateMachine:
         return newly_ready
 
     def _apply_delayed_rules(self, state: SessionState) -> tuple[str | None, list[str]]:
-        for order in state.orders:
-            if order.exam_id != "ex_ecg" or order.state != ExamState.READY:
+        for rule in self._case(state).rules:
+            if rule.delay_anchor_exam is None or rule.from_state != state.clinical_state:
                 continue
-            for rule in self._case(state).rules:
-                if rule.anchor_event != "delay_reperfusion" or rule.from_state != state.clinical_state:
+            for order in state.orders:
+                if order.exam_id != rule.delay_anchor_exam or order.state != ExamState.READY:
                     continue
                 if state.sim_time_minutes < order.return_sim_time + rule.delay_minutes:
                     continue
@@ -110,7 +110,7 @@ class StateMachine:
                     continue
                 if any(
                     event.action == ActionKind.EXECUTE_TREATMENT
-                    and event.payload.get("treatment_id") == "reperfusion_pathway"
+                    and event.payload.get("treatment_id") in rule.delay_exclusion_treatments
                     and event.executed
                     for event in state.events
                 ):
@@ -130,7 +130,11 @@ class StateMachine:
                 continue
             if not rule.repeatable and any(event.rule_id == rule.rule_id for event in state.events):
                 continue
-            if any(self._event_matches_exclusion(event, exclusion) for event in state.events for exclusion in rule.exclusions):
+            if any(
+                self._event_matches_exclusion(state, event, exclusion)
+                for event in state.events
+                for exclusion in rule.exclusions
+            ):
                 continue
             state.clinical_state = rule.effect.to_state
             for fact_id in rule.effect.new_fact_ids:
@@ -139,16 +143,16 @@ class StateMachine:
             return rule.rule_id
         return None
 
-    @staticmethod
-    def _event_matches_exclusion(event: Event, exclusion: str) -> bool:
+    def _trigger_for(self, state: SessionState, treatment_id: str) -> str:
+        treatment = next((t for t in self._case(state).treatments if t.treatment_id == treatment_id), None)
+        return treatment.trigger if treatment else "treatment_executed"
+
+    def _event_matches_exclusion(self, state: SessionState, event: Event, exclusion: str) -> bool:
         if exclusion in {event.action.value, event.intent, event.rule_id}:
             return True
-        if exclusion == "reperfusion_started":
-            return (
-                event.action == ActionKind.EXECUTE_TREATMENT
-                and event.payload.get("treatment_id") == "reperfusion_pathway"
-                and event.executed
-            )
+        if event.action == ActionKind.EXECUTE_TREATMENT and event.executed:
+            if exclusion == self._trigger_for(state, str(event.payload.get("treatment_id", ""))):
+                return True
         return exclusion in {
             event.payload.get("anchor_event"),
             event.payload.get("treatment_id"),
@@ -225,6 +229,10 @@ class StateMachine:
             return {"notes": notes}
         return payload
 
+    def _require_known_treatment(self, state: SessionState, treatment_id: object) -> None:
+        if treatment_id not in {t.treatment_id for t in self._case(state).treatments}:
+            raise ValueError("unsupported treatment action")
+
     def apply(self, state: SessionState, request_id: str, action: ActionKind, payload: dict) -> ActionResult:
         payload = self._validate_action_payload(action, payload)
         replay = self._check_request(state, request_id, {"action": action.value, "payload": payload})
@@ -282,6 +290,7 @@ class StateMachine:
                 "clinical_updates": update_texts,
             }
         elif action == ActionKind.PLAN_TREATMENT:
+            self._require_known_treatment(state, payload.get("treatment_id"))
             state.workflow = Workflow.TREATMENT
             state.treatment_submission = payload
             response = {"planned": True, "executed": False, "treatment_id": payload.get("treatment_id")}
@@ -289,11 +298,10 @@ class StateMachine:
             treatment_id = payload.get("treatment_id")
             if not payload.get("confirm_execution"):
                 raise ValueError("treatment execution requires explicit confirmation")
-            if treatment_id not in {"aspirin", "reperfusion_pathway"}:
-                raise ValueError("unsupported treatment action")
+            self._require_known_treatment(state, treatment_id)
             state.workflow = Workflow.TREATMENT
             state.treatment_submission = payload
-            rule_id = self._apply_rules(state, "reperfusion_started" if treatment_id == "reperfusion_pathway" else "treatment_executed")
+            rule_id = self._apply_rules(state, self._trigger_for(state, treatment_id))
             response = {"executed": True, "treatment_id": treatment_id, "clinical_state": state.clinical_state.value}
         elif action == ActionKind.SUBMIT_DIAGNOSIS:
             state.workflow = Workflow.DIAGNOSIS

@@ -1,0 +1,329 @@
+{
+  "version": 1,
+  "review_status": "draft",
+  "reviewer": null,
+  "review_date": null,
+  "sources": [
+    "自造模拟病例；正式医学审核待完成"
+  ],
+  "case_id": "CAP-001",
+  "public_id": "CASE-004",
+  "specialty": "呼吸内科/急诊",
+  "title": "发热咳嗽三天的中年男性模拟患者",
+  "learning_goals": [
+    "采集发热、咳嗽、气短等关键病史",
+    "选择胸部影像与感染指标",
+    "完成支气管炎与肺栓塞的鉴别",
+    "识别延误抗感染的风险"
+  ],
+  "target_population": "本科临床医学教学，模拟62岁男性患者",
+  "chief_complaint": "发热、咳嗽3天",
+  "facts": [
+    {
+      "fact_id": "f_cc",
+      "content": "我发烧咳嗽三天了，今天觉得有点气短。",
+      "field": "主诉",
+      "disclosure_triggers": [],
+      "disclosure_level": "voluntary",
+      "auto_volunteer": true
+    },
+    {
+      "fact_id": "f_fever_detail",
+      "content": "最高体温39℃，还有寒战。",
+      "field": "发热",
+      "disclosure_triggers": [
+        "发热",
+        "发烧",
+        "体温",
+        "寒战"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_cough",
+      "content": "咳黄绿色的痰，咳得厉害时右侧胸口痛。",
+      "field": "咳嗽咳痰",
+      "disclosure_triggers": [
+        "咳嗽",
+        "痰",
+        "咳",
+        "胸痛"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_dyspnea",
+      "content": "活动后气短，休息时好一点。",
+      "field": "呼吸困难",
+      "disclosure_triggers": [
+        "气短",
+        "呼吸",
+        "喘",
+        "憋"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_hemoptysis",
+      "content": "没有咯血，痰里也没有血丝。",
+      "field": "咯血",
+      "disclosure_triggers": [
+        "咯血",
+        "痰中带血",
+        "血丝"
+      ],
+      "disclosure_level": "on_inquiry",
+      "polarity": "negative"
+    },
+    {
+      "fact_id": "f_exposure",
+      "content": "家里最近没人生病，没去过外地，没有接触禽类。",
+      "field": "流行病学史",
+      "disclosure_triggers": [
+        "接触",
+        "流行",
+        "外地",
+        "家里人",
+        "旅居"
+      ],
+      "disclosure_level": "on_inquiry",
+      "polarity": "negative"
+    },
+    {
+      "fact_id": "f_hx",
+      "content": "吸烟30年，有慢性支气管炎，没有药物过敏。",
+      "field": "既往史与过敏史",
+      "disclosure_triggers": [
+        "既往",
+        "病史",
+        "吸烟",
+        "过敏",
+        "基础病"
+      ],
+      "disclosure_level": "on_inquiry"
+    },
+    {
+      "fact_id": "f_deterioration",
+      "content": "患者呼吸急促加重，血氧下降，意识变差，需要立即重新评估。",
+      "field": "当前可观察危急变化",
+      "disclosure_triggers": [],
+      "disclosure_level": "on_inquiry"
+    }
+  ],
+  "exams": [
+    {
+      "exam_id": "ex_cxr",
+      "standard_name": "胸部X线",
+      "return_after_minutes": 30,
+      "allowed_values": [
+        "右下肺斑片状浸润影",
+        "未见明显异常"
+      ],
+      "result": "右下肺斑片状浸润影",
+      "negative_explicit": "未见明显异常"
+    },
+    {
+      "exam_id": "ex_cbc",
+      "standard_name": "血常规",
+      "return_after_minutes": 30,
+      "allowed_values": [
+        "白细胞及中性粒细胞升高",
+        "正常"
+      ],
+      "result": "白细胞及中性粒细胞升高",
+      "negative_explicit": "正常"
+    },
+    {
+      "exam_id": "ex_spo2",
+      "standard_name": "血氧饱和度",
+      "return_after_minutes": 0,
+      "allowed_values": [
+        "92%（偏低）",
+        "正常"
+      ],
+      "result": "92%（偏低）",
+      "negative_explicit": "正常"
+    }
+  ],
+  "treatments": [
+    {
+      "treatment_id": "antibiotics",
+      "name": "经验性抗感染治疗",
+      "trigger": "antibiotics_started"
+    },
+    {
+      "treatment_id": "oxygen_support",
+      "name": "吸氧并监测血氧"
+    }
+  ],
+  "differential_options": [
+    {
+      "candidate_id": "acute_bronchitis",
+      "label": "急性支气管炎"
+    },
+    {
+      "candidate_id": "pulmonary_embolism",
+      "label": "肺栓塞"
+    },
+    {
+      "candidate_id": "pulmonary_tuberculosis",
+      "label": "肺结核"
+    },
+    {
+      "candidate_id": "heart_failure",
+      "label": "心力衰竭"
+    }
+  ],
+  "rules": [
+    {
+      "rule_id": "r_cap_delay_fixture",
+      "from_state": "initial",
+      "anchor_event": "delay_antibiotics",
+      "delay_minutes": 120,
+      "exclusions": [],
+      "delay_anchor_exam": "ex_cxr",
+      "delay_exclusion_treatments": [
+        "antibiotics"
+      ],
+      "effect": {
+        "to_state": "deteriorating",
+        "new_fact_ids": [
+          "f_deterioration"
+        ],
+        "severity": "high",
+        "message": "影像提示异常后延误抗感染达到夹具阈值，触发病情加重。"
+      },
+      "repeatable": false,
+      "medically_reviewed": false
+    }
+  ],
+  "rubric": [
+    {
+      "item_id": "f_fever_detail",
+      "stage": "病史采集",
+      "description": "询问发热程度和寒战",
+      "evidence_type": "ask_event",
+      "weight": 1
+    },
+    {
+      "item_id": "f_cough",
+      "stage": "病史采集",
+      "description": "询问咳嗽、咳痰和胸痛",
+      "evidence_type": "ask_event",
+      "weight": 1
+    },
+    {
+      "item_id": "f_dyspnea",
+      "stage": "病史采集",
+      "description": "询问气短和呼吸困难",
+      "evidence_type": "ask_event",
+      "weight": 1,
+      "improvement": "出现气短时必须询问活动耐量和呼吸困难程度，评估严重度。"
+    },
+    {
+      "item_id": "f_hx",
+      "stage": "病史采集",
+      "description": "询问吸烟史、基础病和过敏史",
+      "evidence_type": "ask_event",
+      "weight": 1
+    },
+    {
+      "item_id": "ex_cxr",
+      "stage": "检查选择",
+      "description": "开立胸部X线",
+      "evidence_type": "exam_order",
+      "weight": 2,
+      "critical": true,
+      "improvement": "发热伴咳嗽、气短应尽快开立胸部影像。"
+    },
+    {
+      "item_id": "ex_cbc",
+      "stage": "检查选择",
+      "description": "开立血常规评估感染",
+      "evidence_type": "exam_order",
+      "weight": 1
+    },
+    {
+      "item_id": "ex_spo2",
+      "stage": "检查选择",
+      "description": "测量血氧饱和度评估严重度",
+      "evidence_type": "exam_order",
+      "weight": 1
+    },
+    {
+      "item_id": "acute_bronchitis",
+      "stage": "鉴别诊断",
+      "description": "提供急性支气管炎的支持与反对证据",
+      "evidence_type": "ddx_evidence",
+      "weight": 1,
+      "differential": {
+        "supporting_keys": [
+          "f_cough"
+        ],
+        "opposing_keys": [
+          "ex_cxr",
+          "ex_spo2"
+        ],
+        "min_supporting": 1,
+        "min_opposing": 1,
+        "medically_reviewed": false
+      }
+    },
+    {
+      "item_id": "pulmonary_embolism",
+      "stage": "鉴别诊断",
+      "description": "提供肺栓塞的支持与反对证据",
+      "evidence_type": "ddx_evidence",
+      "weight": 1,
+      "differential": {
+        "supporting_keys": [
+          "f_dyspnea"
+        ],
+        "opposing_keys": [
+          "f_fever_detail",
+          "ex_cxr"
+        ],
+        "min_supporting": 1,
+        "min_opposing": 1,
+        "medically_reviewed": false
+      }
+    },
+    {
+      "item_id": "community_acquired_pneumonia",
+      "stage": "诊断",
+      "description": "提交社区获得性肺炎",
+      "evidence_type": "diagnosis",
+      "weight": 2,
+      "critical": true,
+      "improvement": "请直接写出明确诊断，并避免否定或不确定的表述。",
+      "diagnosis": {
+        "names": [
+          "社区获得性肺炎",
+          "细菌性肺炎",
+          "肺炎"
+        ],
+        "extra_positive": [
+          "{name}，考虑抗感染治疗"
+        ],
+        "leak_terms": []
+      }
+    },
+    {
+      "item_id": "antibiotics",
+      "stage": "治疗",
+      "description": "确认开始经验性抗感染治疗",
+      "evidence_type": "treatment_execution",
+      "weight": 2,
+      "critical": true,
+      "improvement": "影像和感染指标支持后应尽快确认抗感染；仅计划不计入执行。"
+    },
+    {
+      "item_id": "oxygen_support",
+      "stage": "治疗",
+      "description": "确认吸氧并监测血氧",
+      "evidence_type": "treatment_execution",
+      "weight": 1
+    }
+  ],
+  "hidden_diagnosis": "社区获得性肺炎，待医学审核"
+}
