@@ -124,8 +124,10 @@ class StateMachine:
                 return rule.rule_id, revealed_fact_ids
         return None, []
 
-    def _apply_rules(self, state: SessionState, trigger: str) -> str | None:
+    def _apply_rules(self, state: SessionState, trigger: str) -> tuple[str | None, list[str]]:
         for rule in self._case(state).rules:
+            if rule.delay_anchor_exam is not None:
+                continue
             if rule.from_state != state.clinical_state or rule.anchor_event != trigger:
                 continue
             if not rule.repeatable and any(event.rule_id == rule.rule_id for event in state.events):
@@ -140,8 +142,17 @@ class StateMachine:
             for fact_id in rule.effect.new_fact_ids:
                 if fact_id not in state.disclosed_fact_ids:
                     state.disclosed_fact_ids.append(fact_id)
-            return rule.rule_id
-        return None
+            return rule.rule_id, list(rule.effect.new_fact_ids)
+        return None, []
+
+    def _record_clinical_updates(self, state: SessionState, rule_id: str | None, fact_ids: list[str]) -> list[str]:
+        if rule_id is None:
+            return []
+        updates = [fact.content for fact in self._facts(state, fact_ids)]
+        if not updates:
+            updates = [next(rule.effect.message for rule in self._case(state).rules if rule.rule_id == rule_id)]
+        state.clinical_updates.extend(text for text in updates if text not in state.clinical_updates)
+        return updates
 
     def _trigger_for(self, state: SessionState, treatment_id: str) -> str:
         treatment = next((t for t in self._case(state).treatments if t.treatment_id == treatment_id), None)
@@ -249,6 +260,7 @@ class StateMachine:
         }
         response: dict[str, Any] = {}
         rule_id = None
+        revealed_fact_ids: list[str] = []
         if action == ActionKind.ORDER_EXAM:
             exam_id = payload.get("exam_id")
             exam = next((e for e in self._case(state).exams if e.exam_id == exam_id), None)
@@ -269,20 +281,14 @@ class StateMachine:
                 order.state = ExamState.READY
                 order.result = exam.result
                 response["state"] = order.state.value
+                response["ready_exam_ids"] = [exam_id]
         elif action == ActionKind.WAIT:
             minutes = int(payload.get("minutes", 0))
             if minutes < 0 or minutes > 240:
                 raise ValueError("wait minutes must be between 0 and 240")
             ready = self._advance(state, minutes)
             rule_id, revealed_fact_ids = self._apply_delayed_rules(state)
-            update_texts = [
-                fact.content
-                for fact in self._case(state).facts
-                if fact.fact_id in revealed_fact_ids
-            ]
-            state.clinical_updates.extend(
-                text for text in update_texts if text not in state.clinical_updates
-            )
+            update_texts = self._record_clinical_updates(state, rule_id, revealed_fact_ids)
             response = {
                 "advanced_minutes": minutes,
                 "ready_exam_ids": ready,
@@ -301,8 +307,9 @@ class StateMachine:
             self._require_known_treatment(state, treatment_id)
             state.workflow = Workflow.TREATMENT
             state.treatment_submission = payload
-            rule_id = self._apply_rules(state, self._trigger_for(state, treatment_id))
-            response = {"executed": True, "treatment_id": treatment_id, "clinical_state": state.clinical_state.value}
+            rule_id, revealed_fact_ids = self._apply_rules(state, self._trigger_for(state, treatment_id))
+            response = {"executed": True, "treatment_id": treatment_id, "clinical_state": state.clinical_state.value,
+                        "clinical_updates": self._record_clinical_updates(state, rule_id, revealed_fact_ids)}
         elif action == ActionKind.SUBMIT_DIAGNOSIS:
             state.workflow = Workflow.DIAGNOSIS
             state.diagnosis_submission = payload
@@ -334,7 +341,7 @@ class StateMachine:
             response,
             rule_id=rule_id,
             before=before,
-            fact_ids=revealed_fact_ids if action == ActionKind.WAIT else None,
+            fact_ids=revealed_fact_ids,
         )
         self.repository.save(state, expected_version=before["state_version"])
         return ActionResult(state=state, event=event, response=response)

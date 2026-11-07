@@ -11,6 +11,7 @@ from .adapters import (
     PatientSelection,
     PatientTurnRequest,
     authorized_answer_or_fallback,
+    diagnosis_leak_terms,
     render_selected_answer,
 )
 from .case_store import CaseStore
@@ -120,6 +121,8 @@ def safe_event(event, case: CaseDefinition | None = None) -> dict[str, Any]:
             "clinical_state", "advanced_minutes", "clinical_updates",
         }
     }
+    if "ready_exam_ids" in result:
+        public_result["exam_results"] = _ready_exam_results(result, case) if case else []
     if event.action == ActionKind.SUBMIT_DIAGNOSIS:
         public_result["diagnosis"] = str(event.payload.get("diagnosis", ""))
     elif event.action == ActionKind.SUBMIT_DIFFERENTIAL:
@@ -192,6 +195,11 @@ def safe_submissions(state: SessionState, case: CaseDefinition) -> dict[str, Any
     }
 
 
+def _ready_exam_results(response: dict[str, Any], case: CaseDefinition) -> list[dict[str, Any]]:
+    return [{"name": exam.standard_name, "result": exam.result}
+            for exam in case.exams if exam.exam_id in response.get("ready_exam_ids", [])]
+
+
 def safe_action_response(response: dict[str, Any], case: CaseDefinition) -> dict[str, Any]:
     result = {
         key: value
@@ -202,6 +210,7 @@ def safe_action_response(response: dict[str, Any], case: CaseDefinition) -> dict
         }
     }
     if "ready_exam_ids" in response:
+        result["exam_results"] = _ready_exam_results(response, case)
         result["ready_exam_names"] = [
             next((exam.standard_name for exam in case.exams if exam.exam_id == exam_id), "未命名检查")
             for exam_id in response["ready_exam_ids"]
@@ -482,10 +491,22 @@ def _public_feedback(stored: dict[str, Any], state: SessionState, case: CaseDefi
     items = validate_feedback_items(stored["items"], state, case, RUNTIME.knowledge)
     if isinstance(items, str):
         raise HTTPException(status_code=409, detail="已存反馈不符合当前五环节与安全规则，请教师复核；原记录保持不变。")
+    forbidden = diagnosis_leak_terms(case) | {"".join((case.hidden_diagnosis or "").casefold().split())}
+    forbidden.discard("")
+    basis = []
+    for basis_id in dict.fromkeys(basis_id for item in items for basis_id in item["basis_ids"]):
+        entry = RUNTIME.knowledge.get(basis_id, case.case_id)
+        title_hidden = any(term in "".join(entry.title.casefold().split()) for term in forbidden)
+        sources = [source for source in entry.sources
+                   if not any(term in "".join(source.casefold().split()) for term in forbidden)]
+        basis.append({"basis_id": basis_id,
+                      "title": "教学依据（题名含参考答案，已隐藏）" if title_hidden else entry.title,
+                      "sources": sources, "restricted": title_hidden or len(sources) != len(entry.sources)})
     return {
         "source": stored["source"],
         "basis_status": stored["basis_status"],
         "items": items,
+        "teaching_basis": basis,
         "notice": "反馈与教学依据均为未经医学审核的教学草稿，分数以评分快照为准。",
     }
 

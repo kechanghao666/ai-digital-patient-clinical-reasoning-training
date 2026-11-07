@@ -1,6 +1,7 @@
 import hashlib
 import json
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 from threading import RLock
 
@@ -16,7 +17,7 @@ class SessionRepository:
         self.database_path = str(database_path)
         Path(self.database_path).parent.mkdir(parents=True, exist_ok=True)
         self.lock = RLock()
-        with sqlite3.connect(self.database_path) as connection:
+        with closing(sqlite3.connect(self.database_path)) as connection, connection:
             connection.execute(
                 "CREATE TABLE IF NOT EXISTS sessions "
                 "(session_id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, state_json TEXT NOT NULL)"
@@ -29,7 +30,7 @@ class SessionRepository:
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     def create(self, state: SessionState) -> None:
-        with self.lock, sqlite3.connect(self.database_path) as connection:
+        with self.lock, closing(sqlite3.connect(self.database_path)) as connection, connection:
             connection.execute(
                 "INSERT INTO sessions(session_id, owner_id, state_json) VALUES (?, ?, ?)",
                 (state.session_id, state.owner_id, state.model_dump_json()),
@@ -37,7 +38,7 @@ class SessionRepository:
             connection.commit()
 
     def get(self, session_id: str, owner_id: str) -> SessionState:
-        with self.lock, sqlite3.connect(self.database_path) as connection:
+        with self.lock, closing(sqlite3.connect(self.database_path)) as connection, connection:
             row = connection.execute(
                 "SELECT state_json FROM sessions WHERE session_id=? AND owner_id=?",
                 (session_id, owner_id),
@@ -47,7 +48,7 @@ class SessionRepository:
         return SessionState.model_validate_json(row[0])
 
     def list_for_owner(self, owner_id: str) -> list[SessionState]:
-        with self.lock, sqlite3.connect(self.database_path) as connection:
+        with self.lock, closing(sqlite3.connect(self.database_path)) as connection, connection:
             rows = connection.execute(
                 "SELECT state_json FROM sessions WHERE owner_id=? ORDER BY rowid DESC",
                 (owner_id,),
@@ -55,7 +56,7 @@ class SessionRepository:
         return [SessionState.model_validate_json(row[0]) for row in rows]
 
     def save(self, state: SessionState, expected_version: int | None = None) -> None:
-        with self.lock, sqlite3.connect(self.database_path) as connection:
+        with self.lock, closing(sqlite3.connect(self.database_path)) as connection, connection:
             if expected_version is None:
                 expected_version = state.state_version - 1
             current = connection.execute(

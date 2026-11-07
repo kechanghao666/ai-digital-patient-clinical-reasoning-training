@@ -56,6 +56,11 @@ class IntegrationSettings:
             knowledge_dir=Path(os.getenv("KNOWLEDGE_DIR", str(ROOT / "knowledge"))),
         )
 
+    def __post_init__(self):
+        for field in ("integration_db_path", "knowledge_dir"):
+            path = Path(getattr(self, field)).expanduser()
+            object.__setattr__(self, field, (ROOT / path).resolve())
+
     @property
     def uses_nexent(self) -> bool:
         return self.mode == "nexent"

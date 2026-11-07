@@ -117,6 +117,7 @@ def render_teacher(api):
         with st.expander("病例事实、检查与评分配置"):
             advanced = st.checkbox("直接编辑完整结构化配置（覆盖上方表格）", key="case_editor_advanced")
             st.caption("启用后以下配置优先于表格；修改后先执行校验。病例事实与参考答案仅用于教师编辑。")
+            st.caption("检查须显式开单；当前不支持检查前置表达式或评分阶段截止配置。披露级别与主动回答标记仅作编写备注，不会绕过逐问披露。")
             content = {}
             for field, label in (("facts", "症状与体征"), ("exams", "检查结果"), ("treatments", "模拟处置"),
                                  ("differential_options", "鉴别候选"), ("rules", "病情演进规则"), ("rubric", "评分量表")):

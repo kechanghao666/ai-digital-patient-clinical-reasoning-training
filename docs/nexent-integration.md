@@ -4,6 +4,8 @@
 
 ## 1. 运行前准备
 
+`backend/.env.example`不会自动加载，须显式设置进程环境。`INTEGRATION_DB_PATH`及`KNOWLEDGE_DIR`的相对路径统一以项目根目录解析，推荐值分别为`backend/data/integration.db`和`knowledge`；API和MCP即使从不同目录启动，也必须使用同一集成库和知识目录。绝对路径继续支持；已有自定义相对值升级时须按项目根目录重新核对，不能沿用旧的当前目录含义。
+
 | 项目 | 必须落实的内容 |
 |---|---|
 | 实例与版本 | 可访问的Nexent地址、准确版本及其API文档，不能用镜像最新标签代替目标实例版本 |

@@ -80,8 +80,9 @@ def _event_visible_parts(event, case) -> list[str]:
             if fact.fact_id in event.payload.get("matched_fact_ids", [])
         )
         parts.append(str(event.result.get("answer", "")))
-    elif event.action == ActionKind.WAIT:
-        ready_exam_ids = event.result.get("ready_exam_ids", [])
+    else:
+        ready_exam_ids = _event_keys(event)
+        parts.extend(fact.content for fact in case.facts if fact.fact_id in ready_exam_ids)
         parts.extend(
             exam.result or ""
             for exam in case.exams
@@ -92,10 +93,10 @@ def _event_visible_parts(event, case) -> list[str]:
 
 def _event_supports_text(event, text: str, case) -> bool:
     candidate = _normalize(text)
-    if not candidate:
+    if sum(char.isalnum() for char in candidate) < 2:
         return False
     return any(
-        part and (_normalize(part) in candidate or candidate in _normalize(part))
+        part and candidate in _normalize(part)
         for part in _event_visible_parts(event, case)
     )
 
@@ -104,20 +105,23 @@ def _event_keys(event) -> set[str]:
     """Fact ids and exam ids that the student actually learned from this event."""
     if event.action == ActionKind.ASK:
         return set(event.payload.get("matched_fact_ids", []))
-    if event.action == ActionKind.WAIT:
-        return set(event.result.get("ready_exam_ids", []))
+    if event.action in {ActionKind.WAIT, ActionKind.EXECUTE_TREATMENT}:
+        return set(event.result.get("ready_exam_ids", [])) | set(event.fact_ids_revealed)
+    if event.action == ActionKind.ORDER_EXAM and event.result.get("state") == "ready":
+        return {event.payload["exam_id"]}
     return set()
 
 
 def _matching_keys(event, text, case) -> set[str]:
     candidate = _normalize(text)
-    if not candidate:
+    information_length = sum(char.isalnum() for char in candidate)
+    if information_length < 2:
         return set()
     available = _event_keys(event)
     parts = [(f.fact_id, f.content) for f in case.facts]
     parts += [(e.exam_id, e.result or "") for e in case.exams]
     return {key for key, content in parts if key in available and content
-            and (candidate in _normalize(content) or _normalize(content) in candidate)}
+            and (candidate == _normalize(content) or information_length >= 4 and candidate in _normalize(content))}
 
 
 def _score_differential(rubric, candidate, events, event_ids, case):
@@ -142,7 +146,9 @@ def _score_differential(rubric, candidate, events, event_ids, case):
             keys = set().union(*(_matching_keys(event, text, case) for event in matched)) if matched else set()
             on_side = keys & (support_keys if role == "supporting" else oppose_keys)
             other_side = keys & (oppose_keys if role == "supporting" else support_keys)
-            if on_side:
+            if on_side and other_side:
+                uncertain_texts.append(text)
+            elif on_side:
                 verified[f"correct_{role}"].update(on_side)
                 used_events.update(event.event_id for event in matched if _matching_keys(event, text, case) & on_side)
             elif other_side:
@@ -154,7 +160,8 @@ def _score_differential(rubric, candidate, events, event_ids, case):
     required = rule.min_supporting + rule.min_opposing
     fraction = (got_support + got_oppose) / required if required else 0.0
     score = rubric.weight * fraction
-    full = required > 0 and got_support + got_oppose == required and not reversed_texts
+    full = (required > 0 and got_support + got_oppose == required
+            and not reversed_texts and not uncertain_texts and not invalid)
     notes: list[str] = []
     advice: list[str] = []
     if got_support < rule.min_supporting:
@@ -172,9 +179,11 @@ def _score_differential(rubric, candidate, events, event_ids, case):
     if not cited and not invalid:
         notes.append("未引用任何证据事件")
         advice.append("在证据事件中选择已取得结果的问诊或检查事件")
-    review = (not full) and bool(uncertain_texts)
-    if review:
+    review = bool(uncertain_texts or invalid)
+    if uncertain_texts:
         notes.append("部分证据文字无法与病例规则自动对应，需教师复核")
+    if invalid:
+        notes.append("当前分数仅计有效证据，须教师复核后定分")
     reason = "已找到符合病例规则的支持/反对证据" if full else "；".join(notes) or "证据不足"
     improvement = "" if full else (rubric.improvement or "；".join(advice) or "补充可核对的证据")
     evidence = sorted(used_events) if used_events else [e for e in cited_ids if e in event_ids]

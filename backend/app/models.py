@@ -58,10 +58,11 @@ class ActionKind(str, Enum):
 class Fact(BaseModel):
     model_config = ConfigDict(extra="forbid")
     fact_id: str
-    content: str
+    content: str = Field(min_length=1, pattern=r"\S")
     field: str
     patient_known: bool = True
     disclosure_triggers: list[str] = Field(default_factory=list)
+    # Authoring metadata; disclosure always requires an explicit question or evolution event.
     disclosure_level: Literal["voluntary", "on_inquiry", "deep_inquiry"] = "on_inquiry"
     auto_volunteer: bool = False
     status_valid_from: int = 0
@@ -74,8 +75,8 @@ class ExamDefinition(BaseModel):
     model_config = ConfigDict(extra="forbid")
     exam_id: str
     standard_name: str
-    order_required: bool = True
-    precondition: str | None = None
+    order_required: Literal[True] = True
+    precondition: None = None
     return_after_minutes: int = Field(ge=0)
     allowed_values: list[str] = Field(min_length=1)
     configured: bool = True
@@ -153,10 +154,10 @@ class RubricItem(BaseModel):
     item_id: str
     stage: Literal["病史采集", "检查选择", "鉴别诊断", "诊断", "治疗"]
     description: str
-    evidence_type: str
+    evidence_type: Literal["ask_event", "exam_order", "ddx_evidence", "diagnosis", "treatment_execution"]
     weight: float = Field(gt=0)
     critical: bool = False
-    latest_workflow: Workflow | None = None
+    latest_workflow: None = None
     ordering_constraint: Literal["any", "first_exam_before_wait"] = "any"
     diagnosis: DiagnosisSpec | None = None
     differential: DifferentialRule | None = None
@@ -221,6 +222,8 @@ class CaseDefinition(BaseModel):
                 raise ValueError(f"rule {rule.rule_id} must have an anchor event")
             if rule.delay_minutes < 0:
                 raise ValueError(f"rule {rule.rule_id} has an invalid delay")
+            if rule.delay_anchor_exam is None and rule.delay_minutes:
+                raise ValueError(f"rule {rule.rule_id} requires a delay_anchor_exam for delayed execution")
             if rule.delay_anchor_exam is not None and rule.delay_anchor_exam not in exam_ids_set:
                 raise ValueError(f"rule {rule.rule_id} references unknown exam: {rule.delay_anchor_exam}")
             if set(rule.delay_exclusion_treatments) - treatment_ids_set:
@@ -248,6 +251,8 @@ class CaseDefinition(BaseModel):
                 if rubric.evidence_type != "ddx_evidence":
                     raise ValueError("differential rule is only valid for ddx_evidence rubrics")
                 keys = set(rubric.differential.supporting_keys) | set(rubric.differential.opposing_keys)
+                if set(rubric.differential.supporting_keys) & set(rubric.differential.opposing_keys):
+                    raise ValueError(f"differential rule {rubric.item_id} cannot use the same key on both sides")
                 if keys - fact_ids - exam_ids_set:
                     raise ValueError(f"differential rule {rubric.item_id} references unknown facts or exams")
                 if rubric.differential.min_supporting + rubric.differential.min_opposing < 1:

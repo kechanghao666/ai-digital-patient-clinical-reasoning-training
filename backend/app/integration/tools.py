@@ -268,6 +268,8 @@ def _event_digest(event: Event, case: CaseDefinition) -> dict[str, Any]:
         digest["answer"] = str(event.result.get("answer", ""))
     elif event.action == ActionKind.ORDER_EXAM:
         digest["exam"] = exam_names.get(str(event.payload.get("exam_id")), "未命名检查")
+        if event.result.get("state") == "ready":
+            digest["result"] = next((exam.result for exam in case.exams if exam.exam_id == event.payload.get("exam_id")), None)
     elif event.action == ActionKind.WAIT:
         digest["minutes"] = event.payload.get("minutes")
         digest["ready_exams"] = [exam_names.get(i, "未命名检查") for i in event.result.get("ready_exam_ids", [])]
@@ -277,4 +279,5 @@ def _event_digest(event: Event, case: CaseDefinition) -> dict[str, Any]:
     elif event.action in {ActionKind.PLAN_TREATMENT, ActionKind.EXECUTE_TREATMENT}:
         digest["treatment_id"] = str(event.payload.get("treatment_id", ""))
         digest["executed"] = event.executed and event.action == ActionKind.EXECUTE_TREATMENT
+        digest["clinical_updates"] = event.result.get("clinical_updates", [])
     return digest
