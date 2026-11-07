@@ -8,12 +8,14 @@
 | Pydantic | 数据校验 | MIT |
 | Uvicorn | 服务启动 | BSD-3-Clause |
 | Streamlit | 学生教学界面 | Apache-2.0 |
-| HTTPX | 接口测试 | BSD-3-Clause |
+| HTTPX | 平台HTTP调用与接口测试 | BSD-3-Clause |
 | pytest | 自动测试 | MIT |
 | Requests | 前端请求 | Apache-2.0 |
 | FastMCP 4.1.6（及其传递依赖 mcp、httpx2、authlib、cryptography 等） | 可信MCP服务 | Apache-2.0为主，传递依赖许可以锁定版本随附文本为准，正式交付前补审 |
 
 参考官方Nexent/AgentsHub规范不等于已复用或集成其全部代码。后续增加模型、MCP、数据或知识资源时记录版本、来源、用途及许可。
+
+前期调研清单中的候选项目不等于实际依赖或已授权资产。复用代码、模型或数据前分别核对许可与署名；许可不明或非商业限制的资产不得直接并入本项目MIT交付物。病例维持自造模拟数据，不导入真实患者病历。
 
 ## AI辅助
 

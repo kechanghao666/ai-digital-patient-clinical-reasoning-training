@@ -40,7 +40,7 @@ CASE_STORE = CaseStore(ROOT / "cases", ROOT / "backend" / "data" / "teacher_case
 REPOSITORY = SessionRepository(ROOT / "backend" / "data" / "app.db")
 MACHINE = StateMachine(CASE_STORE, REPOSITORY)
 RUNTIME = IntegrationRuntime()
-app = FastAPI(title="AI数字病人临床思维训练系统", version="0.1.0")
+app = FastAPI(title="AI数字病人临床思维训练", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:8501", "http://127.0.0.1:8501"],

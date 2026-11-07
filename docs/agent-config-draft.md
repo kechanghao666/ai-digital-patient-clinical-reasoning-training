@@ -4,7 +4,7 @@
 
 | 配置目的 | 官方现有样例中的候选字段 | 本项目计划 |
 |---|---|---|
-| 名称及显示 | name / display_name | AI数字病人临床思维训练，唯一内部名称待创建 |
+| 名称及显示 | name / display_name | 显示名：AI数字病人临床思维训练；唯一内部名称待创建 |
 | 职责 | description / duty_prompt | 教学模拟、受限问诊、提交后反馈 |
 | 约束 | constraint_prompt | 只回答获准事实，禁止答案和内部状态泄露 |
 | 示例 | few_shots_prompt等 | 自造问题与安全边界，待整理 |

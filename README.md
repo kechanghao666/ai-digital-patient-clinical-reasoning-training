@@ -1,6 +1,6 @@
-# AI数字病人临床思维训练系统
+# AI数字病人临床思维训练
 
-基于结构化模拟病例的医学教学训练项目，参与 ModelEngine/Nexent 开发者活动课题1。AtomGit账号：`kechanghao`。
+基于结构化模拟病例的医学教学训练项目，参加[魔擎开发者激励1期-基于Nexent的智能体开发](https://gitcode.com/org/ModelEngine/discussions/26)，对应课题1「AI数字病人临床思维训练」。AtomGit账号：`kechanghao`。
 
 **当前版本：本地多专科原型。** 五个自造draft病例（心内、普外、神经内、呼吸内、内分泌），支持问诊、检查开单与回报、病历、鉴别与诊断提交、模拟治疗、封存评分（含鉴别规则评分、扣分说明和改进建议）及回放；教师可校验、保存、送审和发布病例。真实Nexent适配器、可信MCP服务和封存后反馈链已按官方公开协议实现并通过本地契约测试，**但尚无真实Nexent实例，真实平台联调未完成**。全部病例未经医学审核，仅用于工程验证；正式身份、正式评测尚未完成。
 
@@ -8,26 +8,33 @@
 
 ## 文档
 
-- [技术方案与实施边界](docs/technical-plan.md)
-- [开发计划与官方流程](docs/milestones.md)
-- [验收指标与交付清单](docs/acceptance-plan.md)
-- [Nexent集成：契约、环境核实、资源方案](docs/nexent-integration.md)
-- [Nexent配置字段草案](docs/agent-config-draft.md)
-- [测试说明](docs/testing.md)
-- [第三方资源与AI工具披露](docs/third-party-and-ai-disclosure.md)
-- [更新记录](CHANGELOG.md)
+| 用途 | 文档 |
+|---|---|
+| 理解架构与约束 | [技术方案](docs/technical-plan.md) |
+| 继续开发、处理已知问题及官方节点 | [开发计划](docs/milestones.md) |
+| 核对指标与最终交付物 | [验收计划](docs/acceptance-plan.md) |
+| 配置平台、MCP及反馈链 | [Nexent集成](docs/nexent-integration.md)、[配置字段草案](docs/agent-config-draft.md) |
+| 运行验证及维护依赖 | [测试说明](docs/testing.md) |
+| 核对来源、许可与AI使用 | [第三方资源与AI工具披露](docs/third-party-and-ai-disclosure.md) |
+| 查看版本变化 | [更新记录](CHANGELOG.md) |
+
+日常开发以本README和上述正式文档为入口。旧方案、历轮复核、日志、临时脚本和打包副本不放在项目目录；尚未解决的工作统一记录在开发计划中。
 
 ## 目录
 
 | 目录 | 内容 |
 |---|---|
 | backend/app | API、病例校验、状态机、存储、评分及适配器 |
+| backend/data | 本地数据库、备份及教师病例，保留且不提交 |
 | frontend | Streamlit学生训练界面 |
 | cases | 自造结构化模拟病例 |
 | tests | 核心规则及API回归测试 |
 | docs | 技术、计划、验收、配置、测试及许可文档 |
+| docs/evidence | 仅保存脱敏的真实平台验证证据，当前暂无 |
 | knowledge | 封存后反馈用教学依据草稿（未审核） |
 | deliverables/AgentsHub | 最终智能体提交目录，当前为骨架 |
+| .github/workflows | 自动测试与依赖审计 |
+| .venv | 本地Python运行环境，不提交 |
 
 ## 本地运行
 
@@ -57,12 +64,12 @@ SQLite当前固定保存在 `backend/data/app.db`。`backend/.env.example`仅列
 ## 学生操作
 
 1. 新建病例训练，或从列表恢复自己的已有训练。
-2. 逐项问诊；开立心电图、肌钙蛋白，推进模拟时间后查看结果。
+2. 逐项问诊，按当前病例选择检查，推进模拟时间后查看结果。
 3. 保存病历，填写鉴别诊断与支持/反对证据，提交诊断。
 4. 按页面明确确认模拟治疗执行。等待和治疗会影响轨迹，请区分计划与实际执行。
 5. 提交并封存训练，查看分项反馈和回放；封存后只读，可另开新训练。
 
-当前检查/治疗选项仍有内部标识，鉴别诊断需引用回放中的事件ID；尚未达到正式学生端体验。部分评分显示待人工复核，不能视为正式成绩。
+检查、治疗和鉴别候选使用中文选项，证据通过事件列表选择。正式学生端体验仍待浏览器与人员验证；鉴别评分、教师病例工具链及草稿版本还有[已知问题](docs/milestones.md#优先修复)，当前分数不能视为正式成绩。
 
 ## 验证与依赖维护
 
@@ -75,7 +82,7 @@ SQLite当前固定保存在 `backend/data/app.db`。`backend/.env.example`仅列
 
 ## 交付与许可证
 
-过程仓库：[GitHub](https://github.com/kechanghao666/ai-digital-patient-topic1)。官方Fork：[kechanghao/AgentsHub](https://gitcode.com/kechanghao/AgentsHub)，课题目录为 `行业智能体/医疗/AI数字病人临床思维训练/`。
+过程仓库：[GitHub](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training)。官方Fork：[kechanghao/AgentsHub](https://gitcode.com/kechanghao/AgentsHub)，课题目录为 `行业智能体/医疗/AI数字病人临床思维训练/`。
 
 完整报名提交后可等待统一核验，无需重复报名或催审。报名成功日期、过程登记和小助手权限尚未核实。启动材料上传不代表官方验收；最终须完成真实平台、评测及完整交付，再向官方仓库提交PR并合入。具体节点见[开发计划](docs/milestones.md)。
 
