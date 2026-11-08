@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -15,8 +16,8 @@ def _float(name: str, default: float) -> float:
         value = float(raw)
     except ValueError as exc:
         raise ValueError(f"{name} must be a number") from exc
-    if value <= 0:
-        raise ValueError(f"{name} must be positive")
+    if not math.isfinite(value) or value <= 0:
+        raise ValueError(f"{name} must be a finite positive number")
     return value
 
 
@@ -57,6 +58,10 @@ class IntegrationSettings:
         )
 
     def __post_init__(self):
+        for name in ("connect_timeout_s", "first_event_timeout_s", "total_timeout_s", "turn_ttl_s"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+                raise ValueError(f"{name} must be a finite positive number")
         for field in ("integration_db_path", "knowledge_dir"):
             path = Path(getattr(self, field)).expanduser()
             object.__setattr__(self, field, (ROOT / path).resolve())

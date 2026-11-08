@@ -47,8 +47,8 @@ def ok_response(text: str = "好的", conv: str = "42") -> httpx.Response:
     )
 
 
-class BrokenStream(httpx.SyncByteStream):
-    def __iter__(self):
+class BrokenStream(httpx.AsyncByteStream):
+    async def __aiter__(self):
         yield b'data: {"type":"model_output_thinking","content":"x"}\n\n'
         raise httpx.ReadError("connection reset")
 

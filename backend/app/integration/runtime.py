@@ -17,7 +17,7 @@ from .turns import TurnStore
 class IntegrationRuntime:
     """Lazily built integration objects, so importing the API never touches integration files."""
 
-    def __init__(self, settings: IntegrationSettings | None = None, nexent_transport: httpx.BaseTransport | None = None):
+    def __init__(self, settings: IntegrationSettings | None = None, nexent_transport: httpx.AsyncBaseTransport | None = None):
         self._settings = settings
         self._transport = nexent_transport
 

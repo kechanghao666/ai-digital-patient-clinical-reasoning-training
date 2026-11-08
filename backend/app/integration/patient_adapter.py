@@ -52,6 +52,8 @@ class NexentPatientAdapter:
             "conversation_id": run.conversation_id,
             "event_types": run.event_types,
             "first_event_ms": run.first_event_ms,
+            "platform_first_event_ms": run.first_event_ms,
+            "platform_first_final_event_ms": run.first_final_event_ms,
             "total_ms": run.total_ms,
             "tool_calls": [{"tool": c["tool"], "ok": c["ok"]} for c in calls],
         }

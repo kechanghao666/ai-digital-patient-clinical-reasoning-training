@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -319,6 +320,7 @@ def session_detail(session_id: str, owner_id: str = Depends(current_owner)) -> d
 
 @app.post("/api/sessions/{session_id}/ask")
 def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_owner)) -> dict:
+    started = time.monotonic()
     state = get_state(session_id, owner_id)
     case = CASE_STORE.get(state.case_id, state.case_version)
     visible = classify_and_authorize(state, request.question, case.facts)
@@ -329,7 +331,9 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     if result is not None:
         event = next(event for event in state.events if event.request_id == request.request_id)
-        return {"answer": event.result.get("answer", ""), "event": safe_event(event, case)}
+        return {"answer": event.result.get("answer", ""), "event": safe_event(event, case),
+                "timing": {"replayed": True, "answer_validated_ms": None,
+                           "api_ready_ms": int((time.monotonic() - started) * 1000)}}
     if state.sealed:
         raise HTTPException(status_code=409, detail="session is sealed")
     if visible:
@@ -353,6 +357,8 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
         selection = PatientSelection(fact_ids=[], source="local_no_candidates")
     selected, rendered = render_selected_answer(visible, selection.fact_ids)
     answer, final_fact_ids, was_fallback = authorized_answer_or_fallback(rendered, selected, case)
+    answer_validated_ms = int((time.monotonic() - started) * 1000)
+    selection.trace["answer_validated_ms"] = answer_validated_ms
     was_fallback = was_fallback or (bool(visible) and not selected)
     state.disclosed_fact_ids.extend(
         fact_id for fact_id in final_fact_ids if fact_id not in state.disclosed_fact_ids
@@ -385,6 +391,8 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
         "answer": answer,
         "event": safe_event(event, case),
         "disclosed_fact_count": len(final_fact_ids),
+        "timing": {"replayed": False, "answer_validated_ms": answer_validated_ms,
+                   "api_ready_ms": int((time.monotonic() - started) * 1000)},
     }
 
 

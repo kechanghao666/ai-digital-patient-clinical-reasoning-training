@@ -1,5 +1,6 @@
 import uuid
 import json
+import time
 import sys
 from pathlib import Path
 
@@ -100,6 +101,7 @@ def api(method, path, *, allow_missing=False, **kwargs):
         return "general"
 
     scope = error_scope(path)
+    started = time.perf_counter()
     try:
         response = requests.request(method, f"{API}{path}", headers=headers(), timeout=(5, 65), **kwargs)
     except requests.RequestException:
@@ -127,6 +129,12 @@ def api(method, path, *, allow_missing=False, **kwargs):
         st.session_state.last_error_status = response.status_code
         st.session_state.last_error_scope = scope
         return None
+    if scope == "ask" and isinstance(result, dict) and isinstance(result.get("answer"), str) and result["answer"].strip():
+        st.session_state.answer_timing = {
+            "session_id": path.split("/")[-2], "event_id": result.get("event", {}).get("event_id"),
+            "response_received_ms": int((time.perf_counter() - started) * 1000),
+            "backend": result.get("timing"),
+        }
     if st.session_state.get("last_error_scope") == scope:
         st.session_state.last_error = None
         st.session_state.last_error_status = None
@@ -282,14 +290,16 @@ else:
                     st.write(event["intent"])
                 with st.chat_message("assistant", avatar=":material/person:"):
                     st.write(event.get("result", {}).get("answer", ""))
+                    timing = st.session_state.get("answer_timing", {})
+                    if timing.get("session_id") == state["session_id"] and timing.get("event_id") == event["event_id"]:
+                        st.caption(f"本次回答请求用时 {timing['response_received_ms'] / 1000:.2f} 秒",
+                                   help="从前端发出请求到收到有效回答，不含浏览器绘制时间。")
         question = st.text_input("向患者提问", key="question", disabled=readonly)
         if st.button("提交问题", disabled=readonly) and question:
-            result = mutate(
-                "POST",
-                f"/api/sessions/{state['session_id']}/ask",
-                "ask",
-                {"question": question},
-            )
+            with st.spinner("患者正在回答，请稍候…"):
+                result = mutate(
+                    "POST", f"/api/sessions/{state['session_id']}/ask", "ask", {"question": question},
+                )
             if result:
                 st.rerun()
         st.subheader("检查开单")
