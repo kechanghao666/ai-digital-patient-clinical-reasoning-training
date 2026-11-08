@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from pydantic import ValidationError
 
+from .adapters import diagnosis_leak_terms
 from .models import CaseDefinition
 
 STAGES = ("病史采集", "检查选择", "鉴别诊断", "诊断", "治疗")
@@ -37,18 +38,9 @@ def schema_errors(error: ValidationError) -> list[dict[str, str]]:
     ]
 
 
-def _leak_terms(case: CaseDefinition) -> set[str]:
-    terms: set[str] = set()
-    for rubric in case.rubric:
-        if rubric.diagnosis is not None:
-            terms.update(name.strip().casefold() for name in rubric.diagnosis.names)
-            terms.update(term.strip().casefold() for term in rubric.diagnosis.leak_terms)
-    return {term for term in terms if term}
-
-
 def check_case(case: CaseDefinition, for_publish: bool = False) -> list[Issue]:
     issues: list[Issue] = []
-    leaks = _leak_terms(case)
+    leaks = diagnosis_leak_terms(case)
 
     def leaks_in(text: str) -> list[str]:
         folded = "".join(text.casefold().split())
@@ -56,6 +48,7 @@ def check_case(case: CaseDefinition, for_publish: bool = False) -> list[Issue]:
 
     visible = {
         "标题": case.title,
+        "专科": case.specialty,
         "公开编号": case.public_id,
         "主诉": case.chief_complaint,
     }

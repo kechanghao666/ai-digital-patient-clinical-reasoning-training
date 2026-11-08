@@ -71,7 +71,7 @@ def _normalize(text: str) -> str:
 
 def diagnosis_leak_terms(case: CaseDefinition) -> set[str]:
     """Diagnosis words that must never appear in patient-visible text, from the case's own config."""
-    terms: set[str] = set()
+    terms: set[str] = {_normalize(case.hidden_diagnosis or "")}
     for rubric in case.rubric:
         if rubric.diagnosis is not None:
             terms.update(_normalize(name) for name in rubric.diagnosis.names)

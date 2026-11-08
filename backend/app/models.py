@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from math import isfinite
 from enum import Enum
 from typing import Any, Literal
 from uuid import uuid4
@@ -155,7 +156,7 @@ class RubricItem(BaseModel):
     stage: Literal["病史采集", "检查选择", "鉴别诊断", "诊断", "治疗"]
     description: str
     evidence_type: Literal["ask_event", "exam_order", "ddx_evidence", "diagnosis", "treatment_execution"]
-    weight: float = Field(gt=0)
+    weight: float = Field(gt=0, allow_inf_nan=False)
     critical: bool = False
     latest_workflow: None = None
     ordering_constraint: Literal["any", "first_exam_before_wait"] = "any"
@@ -163,6 +164,14 @@ class RubricItem(BaseModel):
     differential: DifferentialRule | None = None
     # Shown to the student when the item is missed; defaults are generated from the item type.
     improvement: str = ""
+
+    @model_validator(mode="after")
+    def validate_stage(self) -> "RubricItem":
+        stages = {"ask_event": "病史采集", "exam_order": "检查选择", "ddx_evidence": "鉴别诊断",
+                  "diagnosis": "诊断", "treatment_execution": "治疗"}
+        if self.stage != stages[self.evidence_type]:
+            raise ValueError("rubric stage must match its evidence_type")
+        return self
 
 
 class CaseDefinition(BaseModel):
@@ -190,6 +199,8 @@ class CaseDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_references(self) -> "CaseDefinition":
+        if not isfinite(sum(item.weight for item in self.rubric)):
+            raise ValueError("rubric total weight must be finite")
         ids = [f.fact_id for f in self.facts]
         if len(ids) != len(set(ids)):
             raise ValueError("fact_id must be unique")

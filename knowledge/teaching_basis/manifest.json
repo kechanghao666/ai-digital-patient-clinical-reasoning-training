@@ -89,6 +89,7 @@
     },
     {
       "basis_id": "kb_feedback_principles",
+      "kind": "feedback_guidance",
       "title": "训练反馈的撰写原则",
       "file": "kb_feedback_principles.md",
       "tags": ["反馈", "改进建议", "扣分说明"],

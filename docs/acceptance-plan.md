@@ -25,7 +25,26 @@
 - 评分85%的一致率分母、分项分数容差和汇总方式，20轮问答是总量还是逐病例统计，10组业务样本的计数方式；未确认时不得自定口径宣称达标。
 - 冻结病例/量表/代码版本，记录学生轨迹、独立教师评分及系统输出；预先预约人员，不能用合成轨迹替代学生样本。
 - 逐例列出适用的错误检查、延误和处置分支，验证触发和反馈；当前每例单条延误路径的工程测试不足以覆盖100%指标。
-- 已修复范围和剩余工作见[开发计划](milestones.md)；评分、配置及演进边界已修复，反馈文字的授权复核已实现，正式采样前仍须完成评分人工裁定、专业依据及错误分支矩阵。五环节结构已有本地验证，仍须正式人员对照评测。needs_review或只显示分数表不等于已完成正式评分。
+- 已修复范围和剩余工作见[开发计划](milestones.md)；评分、配置及演进边界已修复，反馈文字的授权复核已实现，独立评分裁定已本地实现；正式采样前仍须完成专业依据、错误分支矩阵及正式身份。五环节结构已有本地验证，仍须正式人员对照评测。needs_review或只显示分数表不等于已完成正式评分。
+
+## 已有工程场景索引
+
+下表为可执行回归的准备索引，**不作为官方≥10组完整业务样本、医学评测或真实平台证据计数**。正式样本仍须记录版本、完整输入、预期、实际输出和逐项判定，并经专业核对。
+
+| 编号 | 场景 | 自动验证入口（tests目录） |
+|---|---|---|
+| ENG-01 | 正常五环节闭环 | test_cases_config.py::test_second_specialty_runs_the_full_loop_with_five_stage_scoring |
+| ENG-02 | 相同请求重放 | test_core.py::test_idempotency_same_request_returns_original |
+| ENG-03 | 同编号更换内容 | test_core.py::test_idempotency_rejects_changed_payload |
+| ENG-04 | 治疗须明确确认 | test_core.py::test_treatment_requires_explicit_confirmation |
+| ENG-05 | 封存后写入拒绝 | test_core.py::test_sealed_state_rejects_new_actions |
+| ENG-06 | 零延迟检查可引用 | test_quality_boundaries.py::test_immediate_results_are_selectable_and_scoreable |
+| ENG-07 | 延误规则与处置取消 | test_cases_config.py::test_delay_rule_is_bound_to_configured_exam_and_treatment |
+| ENG-08 | 治疗触发公开演进 | test_quality_boundaries.py::test_treatment_evolution_has_public_updates_and_replay |
+| ENG-09 | 非法或重复鉴别候选 | test_current_audit.py::test_unknown_or_duplicate_differential_is_rejected_without_writing |
+| ENG-10 | 教师裁定保留原分 | test_score_reviews.py::test_score_review_keeps_original_and_exposes_separate_student_projection |
+| ENG-11 | 裁定并发与重试 | test_score_reviews.py::test_score_review_is_idempotent_and_stale_revision_conflicts |
+| ENG-12 | 写作规范不补临床覆盖 | test_knowledge_coverage.py::test_general_feedback_rules_do_not_fill_missing_clinical_coverage |
 
 ## 必需交付物
 

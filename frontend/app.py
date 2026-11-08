@@ -453,9 +453,10 @@ else:
             st.code(f"学生账号：{OWNER}\n训练编号：{state['session_id']}", language=None)
         snapshot = api("GET", f"/api/sessions/{state['session_id']}/score")
         if snapshot:
+            st.caption("以下为封存时生成的原规则评分；教师裁定在下方独立展示。")
             status_labels = {
                 "complete": "已完成自动评分",
-                "needs_review": "待人工复核（当前分数不含待复核项的最终定分）",
+                "needs_review": "待人工复核（包含暂计分，不作为最终成绩）",
                 "failed": "评分失败",
             }
             status = snapshot.get("status", "complete")
@@ -465,7 +466,7 @@ else:
                 st.error(status_labels[status])
             else:
                 st.success(status_labels.get(status, status))
-            st.metric("总分", f"{snapshot['total_score']} / {snapshot['max_score']}")
+            st.metric("原规则总分", f"{snapshot['total_score']} / {snapshot['max_score']}")
             stage_scores = {}
             for item in snapshot["items"]:
                 totals = stage_scores.setdefault(item["stage"], [0, 0])
@@ -477,6 +478,14 @@ else:
                 column_config={"stage": "环节", "score": "得分", "max_score": "满分", "reason": "评分说明",
                                "improvement": "改进建议", "item_id": None, "evidence_event_ids": None, "hit": None})
         feedback_cache = st.session_state.setdefault("feedback_by_session", {})
+        adjudicated = api("GET", f"/api/sessions/{state['session_id']}/score-review", allow_missing=True) if not stale else None
+        if adjudicated:
+            reviewed = adjudicated["reviewed_score"]
+            st.info(f"教师评分裁定第{adjudicated['revision']}版：{reviewed['total_score']:g} / {reviewed['max_score']:g}。原规则评分保留。")
+            st.caption(adjudicated["notice"])
+            st.dataframe(reviewed["items"], width="stretch", hide_index=True,
+                column_config={"stage": "环节", "score": "裁定得分", "max_score": "满分", "reason": "教师裁定说明",
+                               "improvement": "改进建议", "item_id": None, "evidence_event_ids": None, "hit": None})
         if st.button("刷新已存反馈与教师复核", disabled=stale):
             feedback_cache.pop(state["session_id"], None)
         if state["session_id"] not in feedback_cache and not stale:
@@ -492,6 +501,9 @@ else:
         shown = feedback_cache.get(state["session_id"])
         if shown:
             st.caption(shown.get("notice", ""))
+            if shown.get("basis_coverage", {}).get("missing_clinical_stages"):
+                st.warning("以下环节尚缺专科临床依据：" + "、".join(shown["basis_coverage"]["missing_clinical_stages"])
+                           + "。通用反馈规范只用于组织评语，请教师核对。")
             if shown.get("review_revision"):
                 st.info(f"当前展示教师反馈复核第{shown['review_revision']}版；封存分数与评分复核状态保持不变。")
             basis = {entry["basis_id"]: entry for entry in shown.get("teaching_basis", [])}

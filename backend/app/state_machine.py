@@ -182,7 +182,7 @@ class StateMachine:
             if set(payload) != {"minutes"}:
                 raise ValueError("wait payload must contain only minutes")
             minutes = payload.get("minutes")
-            if not isinstance(minutes, int):
+            if type(minutes) is not int:
                 raise ValueError("wait minutes must be an integer")
             if minutes < 0 or minutes > 240:
                 raise ValueError("wait minutes must be between 0 and 240")
@@ -315,6 +315,10 @@ class StateMachine:
             state.diagnosis_submission = payload
             response = {"submitted": True}
         elif action == ActionKind.SUBMIT_DIFFERENTIAL:
+            candidate_ids = [candidate["candidate_id"] for candidate in payload["candidates"]]
+            allowed = {option.candidate_id for option in self._case(state).differential_options}
+            if len(candidate_ids) != len(set(candidate_ids)) or set(candidate_ids) - allowed:
+                raise ValueError("differential candidates must be unique and configured for this case")
             state.workflow = Workflow.DIFFERENTIAL
             state.differential_submission = payload
             response = {"submitted": True}

@@ -10,6 +10,7 @@ from .feedback import FeedbackService, FeedbackStore
 from .knowledge import KnowledgeStore
 from .nexent_client import NexentClient, NexentError
 from .patient_adapter import NexentPatientAdapter
+from .score_reviews import ScoreReviewStore
 from .turns import TurnStore
 
 
@@ -36,6 +37,10 @@ class IntegrationRuntime:
     @cached_property
     def feedback_store(self) -> FeedbackStore:
         return FeedbackStore(self.settings.integration_db_path)
+
+    @cached_property
+    def score_reviews(self) -> ScoreReviewStore:
+        return ScoreReviewStore(self.settings.integration_db_path)
 
     @cached_property
     def feedback_service(self) -> FeedbackService:

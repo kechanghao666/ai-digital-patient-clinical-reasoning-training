@@ -12,8 +12,7 @@ def _normalize(text: str) -> str:
 
 def student_score_snapshot(snapshot: ScoreSnapshot, case) -> ScoreSnapshot:
     """Filter feedback text without rewriting sealed scores or historical records."""
-    forbidden = diagnosis_leak_terms(case) | {_normalize(case.hidden_diagnosis or "")}
-    forbidden.discard("")
+    forbidden = diagnosis_leak_terms(case) | {"api_key", "secret", "turn_token", "traceback", "sentinel"}
     items = []
     for item in snapshot.items:
         updates = {}

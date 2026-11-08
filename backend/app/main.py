@@ -28,12 +28,14 @@ from .models import (
     DifferentialRequest,
     DiagnosisRequest,
     SealRequest,
+    ScoreSnapshot,
     SessionState,
     TreatmentRequest,
 )
 from .scoring import score_session, student_score_snapshot
 from .teacher_api import build_router as build_teacher_router
 from .teacher_feedback_api import build_router as build_feedback_review_router
+from .teacher_score_api import build_router as build_score_review_router
 from .state_machine import StateMachine
 from .storage import ConcurrentUpdateError, SessionRepository
 
@@ -76,8 +78,9 @@ def current_teacher(x_owner_id: str | None = Header(default=None)) -> str:
     raise HTTPException(status_code=403, detail="需要教师角色；正式身份认证尚未接入，本地自填教师身份仅在 APP_ENV=development 时可用")
 
 
-app.include_router(build_teacher_router(lambda: CASE_STORE, current_teacher))
+app.include_router(build_teacher_router(lambda: CASE_STORE, current_teacher, lambda: RUNTIME.knowledge))
 app.include_router(build_feedback_review_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: RUNTIME, current_teacher))
+app.include_router(build_score_review_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: RUNTIME, current_teacher))
 
 
 def get_state(session_id: str, owner_id: str) -> SessionState:
@@ -510,7 +513,9 @@ def _public_feedback(stored: dict[str, Any], state: SessionState, case: CaseDefi
         "items": items,
         "teaching_basis": basis,
         "review_revision": stored.get("review_revision", 0),
-        "notice": "反馈与教学依据均为未经医学审核的教学草稿，分数以评分快照为准。",
+        "basis_coverage": {key: value for key, value in RUNTIME.knowledge.coverage(case.case_id).items()
+                           if key in {"status", "missing_clinical_stages", "notice"}},
+        "notice": "反馈基于原封存规则评分，教师评分裁定独立展示；反馈与教学依据均为未经医学审核的教学草稿。",
     }
 
 
@@ -522,3 +527,19 @@ def score(session_id: str, owner_id: str = Depends(current_owner)) -> dict:
     case = CASE_STORE.get(state.case_id, state.case_version)
     snapshot = state.score_snapshot or score_session(state, case)
     return student_score_snapshot(snapshot, case).model_dump(mode="json")
+
+
+@app.get("/api/sessions/{session_id}/score-review")
+def score_review(session_id: str, owner_id: str = Depends(current_owner)) -> dict:
+    state = get_state(session_id, owner_id)
+    if not state.sealed:
+        raise HTTPException(status_code=409, detail="提交训练后才能查看评分裁定")
+    reviews = RUNTIME.score_reviews.list(session_id, owner_id)
+    if not reviews:
+        raise HTTPException(status_code=404, detail="尚无教师评分裁定")
+    latest = reviews[-1]
+    case = CASE_STORE.get(state.case_id, state.case_version)
+    snapshot = ScoreSnapshot.model_validate(latest["snapshot"])
+    return {"revision": latest["revision"], "created_at": latest["created_at"],
+            "reviewed_score": student_score_snapshot(snapshot, case).model_dump(mode="json"),
+            "notice": "教师裁定为独立的教学复核结果；原规则评分与反馈保留，不属于医学审核或正式评测。"}

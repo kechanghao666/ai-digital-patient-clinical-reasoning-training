@@ -68,6 +68,7 @@ def build_router(
                                 "text": e.text, "sources": e.sources}
                                for e in runtime.knowledge.for_case(case.case_id)],
             "notice": "仅复核反馈文字及引用，不改变封存分数或待评分复核状态，也不代表医学审核。",
+            "basis_coverage": runtime.knowledge.coverage(case.case_id),
         }
 
     @router.post("/{session_id}")

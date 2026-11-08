@@ -6,6 +6,7 @@ from datetime import date
 from urllib.parse import quote
 
 import streamlit as st
+from score_review import render_score_review
 
 STATUS = {"draft": "草稿", "validated": "结构校验通过", "under_review": "待医学审核", "published": "已发布"}
 
@@ -40,9 +41,12 @@ def render_teacher(api):
         st.info("请使用有权限的教师身份。当前仅支持开发模式教师账号。")
         return
 
-    task = st.radio("教师任务", ["病例编写与发布", "训练反馈复核"], horizontal=True, key="teacher_task")
+    task = st.radio("教师任务", ["病例编写与发布", "训练反馈复核", "待复核评分裁定"], horizontal=True, key="teacher_task")
     if task == "训练反馈复核":
         render_feedback_review(api)
+        return
+    if task == "待复核评分裁定":
+        render_score_review(api)
         return
 
     a, b, c = st.columns(3)
@@ -56,6 +60,11 @@ def render_teacher(api):
                 format_func=lambda x: f"{x['title']} · v{x['version']} · {STATUS.get(x['review_status'], x['review_status'])}",
                 key="teacher_selected_version")
             path = f"/api/teacher/cases/{quote(selected['case_id'], safe='')}/versions/{selected['version']}"
+            coverage = api("GET", path + "/teaching-basis")
+            if coverage:
+                if coverage["missing_clinical_stages"]:
+                    st.warning("该病例缺少专科临床依据：" + "、".join(coverage["missing_clinical_stages"]))
+                st.caption(coverage["notice"])
             left, right = st.columns(2)
             if left.button("打开此版本", width="stretch"):
                 raw = api("GET", path)
@@ -231,6 +240,8 @@ def render_feedback_review(api):
         return
     st.write(f"{record['case']['title']} · v{record['case']['version']} · 反馈复核第{record['current_revision']}版")
     st.caption(f"当前载入：{record['owner_id']} · {record['session_id']}")
+    if record.get("basis_coverage", {}).get("missing_clinical_stages"):
+        st.warning("缺少适用专科临床依据：" + "、".join(record["basis_coverage"]["missing_clinical_stages"]) + "。通用反馈规范不能替代。")
     if record["validation_error"]:
         st.error("当前反馈未通过学生展示校验：" + record["validation_error"])
     if record["original_validation_error"]:

@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from .case_authoring import Issue, check_case, has_errors, schema_errors
 from .case_store import CaseStore, CaseStoreError
+from .integration.knowledge import KnowledgeStore
 from .models import CaseDefinition, ReviewStatus
 
 
@@ -43,8 +44,25 @@ def _summary(case: CaseDefinition) -> dict[str, Any]:
     }
 
 
-def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[..., str]) -> APIRouter:
+def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[..., str],
+                 get_knowledge: Callable[[], KnowledgeStore]) -> APIRouter:
     router = APIRouter(prefix="/api/teacher", tags=["teacher"])
+
+    def checked_issues(case: CaseDefinition, for_publish: bool = False) -> list[Issue]:
+        issues = check_case(case, for_publish=for_publish)
+        missing = get_knowledge().coverage(case.case_id)["missing_clinical_stages"]
+        if missing:
+            issues.append(Issue("warning", "missing_clinical_basis",
+                                "缺少适用于当前病例的专科临床依据：" + "、".join(missing) + "；通用反馈规范不能替代。"))
+        return issues
+
+    @router.get("/cases/{case_id}/versions/{version}/teaching-basis")
+    def basis_coverage(case_id: str, version: int, _: str = Depends(current_teacher)) -> dict[str, Any]:
+        try:
+            case = get_store().get(case_id, version)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="病例版本不存在") from exc
+        return get_knowledge().coverage(case.case_id)
 
     @router.get("/cases")
     def list_cases(_: str = Depends(current_teacher)) -> list[dict[str, Any]]:
@@ -60,7 +78,7 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
     @router.post("/cases/validate")
     def validate(raw: dict[str, Any], _: str = Depends(current_teacher)) -> dict[str, Any]:
         case = _parse_case(raw)
-        issues = check_case(case, for_publish=True)
+        issues = checked_issues(case, for_publish=True)
         return {"valid": not has_errors(issues), "issues": _issues(issues)}
 
     @router.put("/cases/{case_id}")
@@ -73,7 +91,7 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
         raw.setdefault("version", 1)
         raw.setdefault("review_status", "draft")
         case = _parse_case(raw)
-        issues = check_case(case)
+        issues = checked_issues(case)
         if has_errors(issues):
             raise HTTPException(status_code=422, detail={"issues": _issues(issues)})
         try:
@@ -90,7 +108,7 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
             raise HTTPException(status_code=404, detail="病例版本不存在") from exc
         issues: list[Issue] = []
         if target in {ReviewStatus.VALIDATED, ReviewStatus.PUBLISHED}:
-            issues = check_case(current, for_publish=True)
+            issues = checked_issues(current, for_publish=True)
             if has_errors(issues):
                 raise HTTPException(status_code=422, detail={"issues": _issues(issues)})
         try:
