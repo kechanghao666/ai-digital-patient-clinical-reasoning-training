@@ -448,6 +448,9 @@ else:
         st.info("本训练已封存，当前页面为只读反馈。")
         st.divider()
         st.subheader("训练反馈")
+        with st.expander("向教师提供复核信息"):
+            st.caption("反馈需要复核时，将以下账号和完整训练编号提供给教师。")
+            st.code(f"学生账号：{OWNER}\n训练编号：{state['session_id']}", language=None)
         snapshot = api("GET", f"/api/sessions/{state['session_id']}/score")
         if snapshot:
             status_labels = {
@@ -474,6 +477,8 @@ else:
                 column_config={"stage": "环节", "score": "得分", "max_score": "满分", "reason": "评分说明",
                                "improvement": "改进建议", "item_id": None, "evidence_event_ids": None, "hit": None})
         feedback_cache = st.session_state.setdefault("feedback_by_session", {})
+        if st.button("刷新已存反馈与教师复核", disabled=stale):
+            feedback_cache.pop(state["session_id"], None)
         if state["session_id"] not in feedback_cache and not stale:
             stored_feedback = api("GET", f"/api/sessions/{state['session_id']}/feedback", allow_missing=True)
             if stored_feedback:
@@ -487,6 +492,8 @@ else:
         shown = feedback_cache.get(state["session_id"])
         if shown:
             st.caption(shown.get("notice", ""))
+            if shown.get("review_revision"):
+                st.info(f"当前展示教师反馈复核第{shown['review_revision']}版；封存分数与评分复核状态保持不变。")
             basis = {entry["basis_id"]: entry for entry in shown.get("teaching_basis", [])}
             for item in shown["items"]:
                 st.markdown(f"**{item['stage']}**：{item['comment']}")

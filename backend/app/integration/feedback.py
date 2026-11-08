@@ -11,6 +11,7 @@ from typing import Any, Iterator
 
 from ..models import CaseDefinition, SessionState
 from ..scoring import student_score_snapshot
+from ..storage import ConcurrentUpdateError, SessionRepository
 from . import turns as turn_states
 from .config import IntegrationSettings
 from .knowledge import KnowledgeStore
@@ -36,6 +37,20 @@ CREATE TABLE IF NOT EXISTS feedback (
     basis_status TEXT NOT NULL,
     trace_json TEXT NOT NULL,
     created_at REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS feedback_reviews (
+    session_id TEXT NOT NULL,
+    owner_id TEXT NOT NULL,
+    revision INTEGER NOT NULL,
+    teacher_id TEXT NOT NULL,
+    request_id TEXT NOT NULL,
+    payload_hash TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    items_json TEXT NOT NULL,
+    basis_status TEXT NOT NULL,
+    created_at REAL NOT NULL,
+    PRIMARY KEY(session_id, owner_id, revision),
+    UNIQUE(session_id, owner_id, request_id)
 );
 """
 
@@ -95,6 +110,65 @@ class FeedbackStore:
             )
             return cursor.rowcount == 1
 
+    def reviews(self, session_id: str, owner_id: str) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT revision, teacher_id, reason, items_json, basis_status, created_at "
+                "FROM feedback_reviews WHERE session_id=? AND owner_id=? ORDER BY revision",
+                (session_id, owner_id),
+            ).fetchall()
+        return [{"revision": row["revision"], "teacher_id": row["teacher_id"], "reason": row["reason"],
+                 "items": json.loads(row["items_json"]), "basis_status": row["basis_status"],
+                 "created_at": row["created_at"]} for row in rows]
+
+    def effective(self, session_id: str, owner_id: str) -> dict[str, Any] | None:
+        reviews = self.reviews(session_id, owner_id)
+        if not reviews:
+            return self.get(session_id, owner_id)
+        latest = reviews[-1]
+        return {"source": "teacher_review", "items": latest["items"],
+                "basis_status": latest["basis_status"], "created_at": latest["created_at"],
+                "review_revision": latest["revision"]}
+
+    def append_review(
+        self, session_id: str, owner_id: str, teacher_id: str, request_id: str,
+        expected_revision: int, reason: str, items: list[dict[str, Any]], basis_status: str,
+    ) -> int:
+        payload_hash = SessionRepository.hash_payload({
+            "teacher_id": teacher_id, "expected_revision": expected_revision,
+            "reason": reason, "items": items,
+        })
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                previous = connection.execute(
+                    "SELECT revision, payload_hash FROM feedback_reviews "
+                    "WHERE session_id=? AND owner_id=? AND request_id=?",
+                    (session_id, owner_id, request_id),
+                ).fetchone()
+                if previous:
+                    if previous["payload_hash"] != payload_hash:
+                        raise ConcurrentUpdateError("请求编号已用于其他复核内容，请重新载入后提交")
+                    connection.commit()
+                    return previous["revision"]
+                current = connection.execute(
+                    "SELECT COALESCE(MAX(revision), 0) FROM feedback_reviews WHERE session_id=? AND owner_id=?",
+                    (session_id, owner_id),
+                ).fetchone()[0]
+                if current != expected_revision:
+                    raise ConcurrentUpdateError("反馈已被其他复核更新，请重新载入后提交")
+                revision = current + 1
+                connection.execute(
+                    "INSERT INTO feedback_reviews VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    (session_id, owner_id, revision, teacher_id, request_id, payload_hash, reason,
+                     json.dumps(items, ensure_ascii=False), basis_status, time.time()),
+                )
+                connection.commit()
+                return revision
+            except Exception:
+                connection.rollback()
+                raise
+
 
 class FeedbackService:
     def __init__(
@@ -121,7 +195,7 @@ class FeedbackService:
         if not state.sealed or state.score_snapshot is None:
             raise FeedbackUnavailable("not_sealed", "feedback is only available after sealing")
         with self._locks[state.session_id]:
-            existing = self.store.get(state.session_id, state.owner_id)
+            existing = self.store.effective(state.session_id, state.owner_id)
             if existing:
                 return existing
             if self.settings.uses_nexent:
@@ -131,7 +205,7 @@ class FeedbackService:
             self.store.save_once(
                 state.session_id, state.owner_id, source, items, self.knowledge.status, trace
             )
-            stored = self.store.get(state.session_id, state.owner_id)
+            stored = self.store.effective(state.session_id, state.owner_id)
         assert stored is not None
         return stored
 

@@ -33,6 +33,7 @@ from .models import (
 )
 from .scoring import score_session, student_score_snapshot
 from .teacher_api import build_router as build_teacher_router
+from .teacher_feedback_api import build_router as build_feedback_review_router
 from .state_machine import StateMachine
 from .storage import ConcurrentUpdateError, SessionRepository
 
@@ -76,6 +77,7 @@ def current_teacher(x_owner_id: str | None = Header(default=None)) -> str:
 
 
 app.include_router(build_teacher_router(lambda: CASE_STORE, current_teacher))
+app.include_router(build_feedback_review_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: RUNTIME, current_teacher))
 
 
 def get_state(session_id: str, owner_id: str) -> SessionState:
@@ -481,7 +483,7 @@ def get_feedback(session_id: str, owner_id: str = Depends(current_owner)) -> dic
     state = get_state(session_id, owner_id)
     if not state.sealed:
         raise HTTPException(status_code=409, detail="提交训练后才能查看反馈")
-    stored = RUNTIME.feedback_store.get(session_id, owner_id)
+    stored = RUNTIME.feedback_store.effective(session_id, owner_id)
     if stored is None:
         raise HTTPException(status_code=404, detail="反馈尚未生成")
     return _public_feedback(stored, state, CASE_STORE.get(state.case_id, state.case_version))
@@ -507,6 +509,7 @@ def _public_feedback(stored: dict[str, Any], state: SessionState, case: CaseDefi
         "basis_status": stored["basis_status"],
         "items": items,
         "teaching_basis": basis,
+        "review_revision": stored.get("review_revision", 0),
         "notice": "反馈与教学依据均为未经医学审核的教学草稿，分数以评分快照为准。",
     }
 

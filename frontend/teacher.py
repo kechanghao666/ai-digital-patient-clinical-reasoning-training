@@ -40,6 +40,11 @@ def render_teacher(api):
         st.info("请使用有权限的教师身份。当前仅支持开发模式教师账号。")
         return
 
+    task = st.radio("教师任务", ["病例编写与发布", "训练反馈复核"], horizontal=True, key="teacher_task")
+    if task == "训练反馈复核":
+        render_feedback_review(api)
+        return
+
     a, b, c = st.columns(3)
     a.metric("病例版本", len(cases))
     b.metric("待审核", sum(x["review_status"] == "under_review" for x in cases))
@@ -198,3 +203,90 @@ def render_teacher(api):
                 st.rerun()
     if status == "published":
         st.success("此版本已发布；需要修改时请另存为新草稿，保留历史版本。")
+
+
+def render_feedback_review(api):
+    st.subheader("训练反馈复核")
+    st.caption("按学生提供的账号与训练编号载入已封存训练。修订形成独立版本，保留原始记录。")
+    st.warning("反馈复核只修改评语与引用，不调整封存分数，不解除评分待复核状态，也不代表医学审核。")
+    with st.form("feedback_review_lookup"):
+        owner_id = st.text_input("学生账号", key="feedback_review_owner")
+        session_id = st.text_input("训练编号", key="feedback_review_session")
+        load = st.form_submit_button("载入或刷新训练反馈")
+    if load:
+        for key in list(st.session_state):
+            if key.startswith("review_editor_"):
+                del st.session_state[key]
+        st.session_state.pop("feedback_review_record", None)
+        st.session_state.pop("feedback_review_pending", None)
+        if not owner_id.strip() or not session_id.strip():
+            st.error("请填写学生账号和训练编号。")
+        else:
+            record = api("GET", f"/api/teacher/feedback/{quote(session_id.strip(), safe='')}",
+                         params={"owner_id": owner_id.strip()})
+            if record:
+                st.session_state.feedback_review_record = record
+    record = st.session_state.get("feedback_review_record")
+    if not record:
+        return
+    st.write(f"{record['case']['title']} · v{record['case']['version']} · 反馈复核第{record['current_revision']}版")
+    st.caption(f"当前载入：{record['owner_id']} · {record['session_id']}")
+    if record["validation_error"]:
+        st.error("当前反馈未通过学生展示校验：" + record["validation_error"])
+    if record["original_validation_error"]:
+        st.caption("原始反馈校验问题：" + record["original_validation_error"])
+    with st.expander("封存评分、学生提交与事件证据", expanded=True):
+        st.json({key: record[key] for key in ("score_snapshot", "submissions", "case_notes", "events")})
+    with st.expander("原始反馈与历次复核（只读）"):
+        st.json({"original": record["original"], "reviews": record["reviews"]})
+    with st.expander("适用教学依据与来源（未医学审核）"):
+        for entry in record["teaching_basis"]:
+            st.write(f"{entry['basis_id']} · {entry['title']}")
+            st.caption("适用环节：" + "、".join(entry["stages"]))
+            st.write(entry["text"])
+            for source in entry["sources"]:
+                st.caption("来源：" + source)
+
+    stages = ("病史采集", "检查选择", "鉴别诊断", "诊断", "治疗")
+    editable = record["editable_items"] if isinstance(record["editable_items"], list) else []
+    existing = {item.get("stage"): item for item in editable
+                if isinstance(item, dict) and isinstance(item.get("stage"), str)}
+    event_ids = [event["event_id"] for event in record["events"]]
+    event_labels = {event["event_id"]: f"#{event['seq']} · {event['action']} · {event['event_id']}"
+                    for event in record["events"]}
+    basis_labels = {entry["basis_id"]: f"{entry['title']}（{entry['basis_id']}）" for entry in record["teaching_basis"]}
+    items = []
+    with st.form("feedback_review_edit"):
+        st.markdown("**逐环节复核**")
+        st.caption("五环节均须填写评语、建议及适用依据。原始无效引用不会自动保留，请对照只读记录核实。")
+        for stage in stages:
+            old = existing.get(stage, {})
+            basis_ids = [entry["basis_id"] for entry in record["teaching_basis"] if stage in entry["stages"]]
+            with st.expander(stage, expanded=True):
+                comment = st.text_area("复核评语", value=old.get("comment", "") if isinstance(old.get("comment", ""), str) else "",
+                    max_chars=600, key=f"review_editor_{stage}_comment")
+                improvement = st.text_area("改进建议", value=old.get("improvement", "") if isinstance(old.get("improvement", ""), str) else "",
+                    max_chars=300, key=f"review_editor_{stage}_improvement")
+                evidence = st.multiselect("事件引用", event_ids,
+                    default=[v for v in old.get("evidence_event_ids", []) if v in event_ids] if isinstance(old.get("evidence_event_ids", []), list) else [],
+                    format_func=lambda value: event_labels[value], key=f"review_editor_{stage}_events")
+                basis = st.multiselect("教学依据", basis_ids,
+                    default=[v for v in old.get("basis_ids", []) if v in basis_ids] if isinstance(old.get("basis_ids", []), list) else [],
+                    format_func=lambda value: basis_labels[value], key=f"review_editor_{stage}_basis")
+                items.append({"stage": stage, "comment": comment, "improvement": improvement,
+                              "evidence_event_ids": evidence, "basis_ids": basis})
+        reason = st.text_area("复核原因与修改说明（仅教师可见）", max_chars=1000, key="review_editor_reason")
+        save = st.form_submit_button("保存反馈复核版本", type="primary")
+    if save:
+        payload = {"owner_id": record["owner_id"], "expected_revision": record["current_revision"],
+                   "reason": reason, "items": items}
+        pending = st.session_state.get("feedback_review_pending")
+        if not pending or pending["payload"] != payload:
+            pending = {"payload": payload, "request_id": str(uuid.uuid4())}
+            st.session_state.feedback_review_pending = pending
+        result = api("POST", f"/api/teacher/feedback/{quote(record['session_id'], safe='')}",
+                     json={**payload, "request_id": pending["request_id"]})
+        if result:
+            st.session_state.pop("feedback_review_record", None)
+            st.session_state.pop("feedback_review_pending", None)
+            st.success(f"已保存反馈复核第{result['revision']}版。原记录与封存分数未改变；继续修订前请重新载入。")
