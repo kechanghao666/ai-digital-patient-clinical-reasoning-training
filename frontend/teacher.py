@@ -107,7 +107,7 @@ def render_teacher(api):
     with st.form("teacher_case_editor"):
         left, right = st.columns(2)
         case_id = left.text_input("病例编号", value=data.get("case_id", ""), key="case_editor_id",
-                                 help="3至40位英文字母、数字、短横线或下划线。")
+                                 help="3至40位英文字母、数字、短横线或下划线；不得与其他病例的内部编号或公开编号相同。")
         title = right.text_input("病例标题", value=data.get("title", ""), key="case_editor_title")
         specialty = left.text_input("专科", value=data.get("specialty", ""), key="case_editor_specialty")
         population = right.text_input("适用人群", value=data.get("target_population", ""), key="case_editor_population")
@@ -117,6 +117,7 @@ def render_teacher(api):
                                   key="case_editor_diagnosis")
         with st.expander("编辑症状与体征", expanded=True):
             st.caption("修改患者回答和询问触发词；多个触发词以顿号分隔。新增事实及复杂规则在高级配置中维护。")
+            st.caption("问诊评分事实必须为患者知晓、当前有效，并有有效询问触发词；有效时间须与从0开始的模拟时钟相交。")
             facts = st.data_editor([
                 {"回答内容": fact["content"], "询问触发词": "、".join(fact.get("disclosure_triggers", [])),
                  "患者知晓": fact.get("patient_known", True)} for fact in data.get("facts", [])

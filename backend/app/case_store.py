@@ -4,6 +4,7 @@ import re
 import tempfile
 from pathlib import Path
 from threading import RLock
+from typing import Iterable
 
 from .legacy import apply_legacy_profile
 from .models import CaseDefinition, ReviewStatus
@@ -18,6 +19,13 @@ class CaseStoreError(ValueError):
 def load_case_file(path: Path) -> CaseDefinition:
     raw = json.loads(path.read_text(encoding="utf-8"))
     return CaseDefinition.model_validate(apply_legacy_profile(raw))
+
+
+def _check_identifiers(case: CaseDefinition, existing: Iterable[CaseDefinition]) -> None:
+    identifiers = {case.case_id, case.public_id}
+    for other in existing:
+        if other.case_id != case.case_id and identifiers.intersection((other.case_id, other.public_id)):
+            raise CaseStoreError("病例内部编号或公开编号与其他病例冲突，请使用不同编号")
 
 
 class CaseStore:
@@ -37,19 +45,26 @@ class CaseStore:
 
     def reload(self) -> None:
         with self._lock:
-            self._cases.clear()
-            self._teacher_keys.clear()
+            cases: dict[tuple[str, int], CaseDefinition] = {}
+            teacher_keys: set[tuple[str, int]] = set()
             for path in sorted(self.cases_dir.glob("*.json")):
                 case = load_case_file(path)
-                self._cases[(case.case_id, case.version)] = case
+                key = (case.case_id, case.version)
+                if key in cases:
+                    raise CaseStoreError(f"duplicate fixture case version: {key}")
+                _check_identifiers(case, cases.values())
+                cases[key] = case
             if self.teacher_dir and self.teacher_dir.exists():
                 for path in sorted(self.teacher_dir.glob("*.json")):
                     case = load_case_file(path)
                     key = (case.case_id, case.version)
-                    if key in self._cases:
-                        raise CaseStoreError(f"teacher case {key} collides with a fixture case")
-                    self._cases[key] = case
-                    self._teacher_keys.add(key)
+                    if key in cases:
+                        raise CaseStoreError(f"duplicate teacher case version: {key}")
+                    _check_identifiers(case, cases.values())
+                    cases[key] = case
+                    teacher_keys.add(key)
+            self._cases = cases
+            self._teacher_keys = teacher_keys
 
     # ------------------------------------------------------------------ lookup
     def get(self, case_id: str, version: int | None = None) -> CaseDefinition:
@@ -122,6 +137,10 @@ class CaseStore:
         ]
 
     # --------------------------------------------------------------- teacher writes
+    def check_identifiers(self, case: CaseDefinition) -> None:
+        with self._lock:
+            _check_identifiers(case, self._cases.values())
+
     def _teacher_path(self, case_id: str, version: int) -> Path:
         if self.teacher_dir is None:
             raise CaseStoreError("teacher case storage is not configured")
@@ -145,7 +164,7 @@ class CaseStore:
         self._teacher_keys.add((case.case_id, case.version))
 
     def next_public_id(self) -> str:
-        used = {c.public_id for c in self._cases.values()}
+        used = {identifier for c in self._cases.values() for identifier in (c.case_id, c.public_id)}
         number = 100
         while f"CASE-T{number}" in used:
             number += 1
@@ -159,9 +178,7 @@ class CaseStore:
             existing = self.versions(case.case_id)
             if existing and not any((case.case_id, c.version) in self._teacher_keys for c in existing):
                 raise CaseStoreError("this case_id belongs to a built-in fixture case; use a new case_id")
-            for other in self._cases.values():
-                if other.public_id == case.public_id and other.case_id != case.case_id:
-                    raise CaseStoreError("public_id is already used by another case")
+            self.check_identifiers(case)
             latest = existing[-1] if existing else None
             version = (latest.version + 1) if latest else 1
             stored = case.model_copy(

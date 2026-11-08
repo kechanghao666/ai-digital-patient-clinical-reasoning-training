@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pydantic import ValidationError
 
 from .adapters import diagnosis_leak_terms
+from .disclosure import normalize
 from .models import CaseDefinition
 
 STAGES = ("病史采集", "检查选择", "鉴别诊断", "诊断", "治疗")
@@ -73,8 +74,17 @@ def check_case(case: CaseDefinition, for_publish: bool = False) -> list[Issue]:
     for rubric in case.rubric:
         if rubric.evidence_type == "ask_event":
             fact = facts[rubric.item_id]
-            if not fact.disclosure_triggers:
-                issues.append(Issue("error", "unreachable_rubric_fact", f"评分项 {rubric.item_id} 对应的事实没有披露触发词，学生无法问到"))
+            reasons = []
+            if not fact.patient_known:
+                reasons.append("patient_known须为true（患者知晓）")
+            if not fact.current:
+                reasons.append("current须为true（当前有效）")
+            if not any(normalize(trigger) for trigger in fact.disclosure_triggers):
+                reasons.append("disclosure_triggers须至少含一个去除空白后有效的询问触发词")
+            if fact.status_valid_to is not None and fact.status_valid_to < 0:
+                reasons.append("status_valid_to不能早于模拟时钟起点0分钟")
+            if reasons:
+                issues.append(Issue("error", "unreachable_rubric_fact", f"问诊评分项 {rubric.item_id} 对应的事实无法问到：" + "；".join(reasons)))
         if rubric.evidence_type == "ddx_evidence":
             if rubric.differential is None:
                 issues.append(Issue("warning", "ddx_without_rule", f"鉴别项 {rubric.item_id} 没有支持/反对证据规则，只能进入人工复核"))

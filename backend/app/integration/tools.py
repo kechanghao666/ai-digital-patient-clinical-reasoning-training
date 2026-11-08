@@ -53,7 +53,11 @@ class TrustedToolService:
             raise TurnError("session_missing", "session is not available") from exc
         if state.case_id != turn.case_id or state.case_version != turn.case_version:
             raise TurnError("case_mismatch", "session case no longer matches the turn")
-        self.cases.reload()
+        try:
+            self.cases.reload()
+        except (ValueError, OSError) as exc:
+            self.turns.cancel(turn.turn_id, "case_invalid")
+            raise TurnError("case_invalid", "case library is not available", turn.turn_id) from exc
         try:
             case = self.cases.get(turn.case_id, turn.case_version)
         except KeyError as exc:

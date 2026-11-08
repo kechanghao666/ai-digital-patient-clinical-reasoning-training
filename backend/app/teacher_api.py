@@ -79,6 +79,10 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
     def validate(raw: dict[str, Any], _: str = Depends(current_teacher)) -> dict[str, Any]:
         case = _parse_case(raw)
         issues = checked_issues(case, for_publish=True)
+        try:
+            get_store().check_identifiers(case)
+        except CaseStoreError as exc:
+            issues.append(Issue("error", "identifier_conflict", str(exc)))
         return {"valid": not has_errors(issues), "issues": _issues(issues)}
 
     @router.put("/cases/{case_id}")
@@ -107,7 +111,7 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="病例版本不存在") from exc
         issues: list[Issue] = []
-        if target in {ReviewStatus.VALIDATED, ReviewStatus.PUBLISHED}:
+        if target in {ReviewStatus.VALIDATED, ReviewStatus.UNDER_REVIEW, ReviewStatus.PUBLISHED}:
             issues = checked_issues(current, for_publish=True)
             if has_errors(issues):
                 raise HTTPException(status_code=422, detail={"issues": _issues(issues)})
