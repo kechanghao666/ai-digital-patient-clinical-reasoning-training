@@ -92,7 +92,10 @@ class NexentClient:
         first_final_event_ms: int | None = None
         conv_id: int | None = None
         async with self._client(self.settings.first_event_timeout_s) as client:
+            client_ready_ms = int((time.monotonic() - started) * 1000)
             try:
+                if time.monotonic() >= work_deadline:
+                    raise TimeoutError
                 async with asyncio.timeout_at(work_deadline):
                     async with asyncio.timeout_at(min(work_deadline, started + self.settings.first_event_timeout_s)) as first_timer:
                         async with client.stream("POST", "/nb/v1/chat/run", json=body, headers=headers) as response:
@@ -144,14 +147,14 @@ class NexentClient:
                                     else:
                                         final_text = text
             except (TimeoutError, httpx.TimeoutException) as exc:
-                await self._best_effort_stop(client, conv_id, deadline)
-                logger.warning("nexent_run_failed kind=timeout elapsed_ms=%d first_event_ms=%s",
-                               int((time.monotonic() - started) * 1000), first_event_ms)
+                stop_outcome = await self._best_effort_stop(client, conv_id, deadline)
+                logger.warning("nexent_run_failed kind=timeout elapsed_ms=%d client_ready_ms=%d first_event_ms=%s stop_outcome=%s",
+                               int((time.monotonic() - started) * 1000), client_ready_ms, first_event_ms, stop_outcome)
                 raise NexentError("timeout", "Nexent did not complete within the time limit") from exc
             except httpx.TransportError as exc:
-                await self._best_effort_stop(client, conv_id, deadline)
-                logger.warning("nexent_run_failed kind=unavailable elapsed_ms=%d first_event_ms=%s",
-                               int((time.monotonic() - started) * 1000), first_event_ms)
+                stop_outcome = await self._best_effort_stop(client, conv_id, deadline)
+                logger.warning("nexent_run_failed kind=unavailable elapsed_ms=%d client_ready_ms=%d first_event_ms=%s stop_outcome=%s",
+                               int((time.monotonic() - started) * 1000), client_ready_ms, first_event_ms, stop_outcome)
                 raise NexentError("unavailable", "Connection to Nexent was lost") from exc
         if time.monotonic() >= work_deadline:
             raise NexentError("timeout", "Nexent did not complete within the time limit")
@@ -165,15 +168,21 @@ class NexentClient:
             total_ms=int((time.monotonic() - started) * 1000),
         )
 
-    async def _best_effort_stop(self, client: httpx.AsyncClient, conversation_id: int | None, deadline: float) -> None:
+    async def _best_effort_stop(self, client: httpx.AsyncClient, conversation_id: int | None, deadline: float) -> str:
         remaining = deadline - time.monotonic()
-        if conversation_id is None or remaining <= 0:
-            return
+        if conversation_id is None:
+            return "no_conversation"
+        if remaining <= 0:
+            return "budget_exhausted"
         try:
             async with asyncio.timeout_at(deadline):
-                await client.get(f"/nb/v1/chat/stop/{conversation_id}")
+                response = await client.get(f"/nb/v1/chat/stop/{conversation_id}")
+                return "acknowledged" if 200 <= response.status_code < 300 else "rejected"
+        except (TimeoutError, httpx.TimeoutException):
+            return "timeout"
         except Exception as exc:  # Stop is advisory; the caller still cancels the trusted turn token.
             logger.debug("nexent_stop_failed kind=%s", type(exc).__name__)
+            return "failed"
 
 
 def _conversation_id(headers: httpx.Headers) -> int | None:

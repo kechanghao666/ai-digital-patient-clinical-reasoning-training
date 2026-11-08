@@ -22,6 +22,8 @@
 
 客户端在同步工作线程入口内部运行私有异步循环，以可取消截止覆盖连接、响应头及SSE读取；不留下后台读线程。`NEXENT_FIRST_EVENT_TIMEOUT_S`既约束首个可解析事件的等待，也继续作为后续块读取的空闲超时；SSE注释或无换行小块不能重置首事件截止。`NEXENT_TOTAL_TIMEOUT_S`包含停止清理预算，内部预留`min(0.25秒, 总预算×25%)`，因此正常执行可用时间略短于总预算。停止请求尽力而为，服务端是否真正停止仍须目标实例验证；客户端返回失败后可信回合取消，迟到调用不得变成业务事件。四个超时/TTL配置必须为有限正数，环境读取和程序构造均校验。
 
+初始化HTTP客户端后先检查执行预算；若冷启动已耗尽则不发送运行请求。失败日志只记录类别和耗时，增加client_ready_ms及stop_outcome：no_conversation（未取得会话ID）、budget_exhausted（清理后已无预算）、acknowledged（停止HTTP 2xx）、rejected（非2xx）、timeout或failed。未发送、对端收到、HTTP回执与worker退出分别取证；同步初始化、关闭清理及调度仍可能超过名义预算，不宣称硬实时保证。
+
 日志和计时分层：`first_event_ms`保留旧含义，并以`platform_first_event_ms`明确标注；`platform_first_final_event_ms`仅是平台最终文本首次出现，不是患者首字。问诊完成披露与隐藏信息校验后记录`answer_validated_ms`，存库后响应给出`api_ready_ms`；幂等重放不冒充重新生成，返回replayed=true。Streamlit记录从请求发出到解析有效回答的`response_received_ms`，页面显示请求耗时；尚不包含浏览器绘制。正式≤5秒/≤60秒仍须真实实例和浏览器测量，禁止用过程事件、加载提示或上述局部时间代替。安全授权和工具提交完成前不流式展示模型自由文本。
 - 实例核验清单：版本号；`/openapi.json`与上述字段是否一致；`metadata`是否进入Agent提示；Agent能否看到并复述回合凭证；MCP传输（`streamable-http`或`sse`）哪一种被接受；响应头中会话ID的实际名称；`final_answer_mode`取值；`tool_params`能否隐藏凭证。核验结果记入`docs/evidence/`。
 

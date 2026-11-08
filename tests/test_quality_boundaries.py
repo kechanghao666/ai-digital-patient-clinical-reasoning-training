@@ -94,7 +94,7 @@ def test_treatment_evolution_has_public_updates_and_replay(tmp_path, monkeypatch
     api = Api(tmp_path, monkeypatch)
     raw = new_case()
     rule = raw["rules"][0]
-    rule.update(anchor_event="surgical_started", delay_anchor_exam=None, delay_minutes=0)
+    rule.update(anchor_event="surgical_started", delay_anchor_exam=None, delay_minutes=0, delay_exclusion_treatments=[])
     if not has_facts:
         rule["effect"]["new_fact_ids"] = []
     public = put(api, raw).json()["public_id"]

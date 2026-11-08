@@ -1,4 +1,4 @@
-"""Independent teacher adjudication for needs_review scores."""
+"""Independent teacher adjudication for complete or needs_review sealed scores."""
 import copy
 from concurrent.futures import ThreadPoolExecutor
 
@@ -27,6 +27,47 @@ def needs_review_env(tmp_path, monkeypatch):
     state = env.repository.get(sid, "demo-integration")
     assert state.score_snapshot.status == "needs_review"
     return env, sid, state
+
+
+def completed_env(tmp_path, monkeypatch):
+    env = Env(tmp_path, monkeypatch, mode="simulator")
+    sid = env.client.post('/api/sessions?case_id=CASE-005', headers=env.headers).json()['session_id']
+    assert env.client.post(f'/api/sessions/{sid}/treatment', headers=env.headers,
+                          json={'request_id': 'treat', 'treatment_id': 'fluids_insulin', 'confirm_execution': True}).status_code == 200
+    assert env.client.post(f'/api/sessions/{sid}/seal', headers=env.headers, json={'request_id': 'seal'}).status_code == 200
+    state = env.repository.get(sid, 'demo-integration')
+    assert state.score_snapshot.status == 'complete' and state.score_snapshot.total_score == 2
+    return env, sid, state
+
+
+def test_complete_disputed_score_can_be_reviewed_without_overwriting_original(tmp_path, monkeypatch):
+    env, sid, state = completed_env(tmp_path, monkeypatch)
+    before = state.model_dump_json()
+    original = read(env, sid, state)
+    assert original.status_code == 200, original.text
+    payload = body(state, original.json()['original_score'], reason='本合成测试复核执行证据，原分独立保留。')
+    path = f'/api/teacher/scores/{sid}'
+    assert env.client.post(path, headers=TEACHER, json={**payload, 'reason': '  '}).status_code == 422
+    assert env.client.post(path, headers=TEACHER, json={**payload, 'confirmed': False}).status_code == 422
+    for _ in range(2):
+        result = env.client.post(path, headers=TEACHER, json=payload)
+        assert result.status_code == 200 and result.json()['revision'] == 1
+    assert env.repository.get(sid, state.owner_id).model_dump_json() == before
+    student = env.client.get(f'/api/sessions/{sid}/score-review', headers=env.headers)
+    assert student.status_code == 200 and student.json()['reviewed_score']['total_score'] == 0
+    assert '本合成测试' not in student.text
+    assert len(env.runtime.score_reviews.list(sid, state.owner_id)) == 1
+
+
+@pytest.mark.parametrize('status', [None, 'failed'])
+def test_missing_or_failed_snapshot_is_not_adjudicated(tmp_path, monkeypatch, status):
+    env, sid, state = completed_env(tmp_path, monkeypatch)
+    if status is None:
+        state.score_snapshot = None
+    else:
+        state.score_snapshot.status = status
+    env.repository.save(state, expected_version=state.state_version)
+    assert read(env, sid, state).status_code == 409
 
 
 def read(env, sid, state, headers=TEACHER):
@@ -146,16 +187,12 @@ def test_score_review_rejects_production_identity_and_mismatching_student(tmp_pa
     assert env.client.post(f"/api/teacher/scores/{sid}", headers=TEACHER, json=body(state, original)).status_code == 403
 
 
-def test_completed_or_unsealed_training_cannot_be_adjudicated(tmp_path, monkeypatch):
+def test_unsealed_training_cannot_be_adjudicated(tmp_path, monkeypatch):
     env = Env(tmp_path, monkeypatch, mode="simulator")
     sid = env.new_session()
     path = f"/api/teacher/scores/{sid}"
     assert env.client.get(path, headers=TEACHER, params={"owner_id": "demo-integration"}).status_code == 409
     assert env.client.get(f"/api/sessions/{sid}/score-review", headers=env.headers).status_code == 409
-    env.client.post(f"/api/sessions/{sid}/seal", headers=env.headers, json={"request_id": "seal"})
-    state = env.repository.get(sid, "demo-integration")
-    assert env.client.get(path, headers=TEACHER, params={"owner_id": state.owner_id}).status_code == 409
-    assert env.client.post(path, headers=TEACHER, json=body(state, state.score_snapshot.model_dump(mode="json"))).status_code == 409
 
 
 def test_partial_score_uses_real_evidence_and_internal_reasons_stay_private(tmp_path, monkeypatch):
@@ -183,16 +220,18 @@ def test_sealing_event_cannot_be_claimed_as_clinical_evidence(tmp_path, monkeypa
 
 
 @pytest.mark.parametrize("lose_response", [False, True])
-def test_teacher_ui_adjudicates_and_student_reads_separate_result(tmp_path, monkeypatch, lose_response):
-    env, sid, state = needs_review_env(tmp_path, monkeypatch)
+@pytest.mark.parametrize("complete", [False, True])
+def test_teacher_ui_adjudicates_and_student_reads_separate_result(tmp_path, monkeypatch, lose_response, complete):
+    env, sid, state = (completed_env if complete else needs_review_env)(tmp_path, monkeypatch)
     _route_requests(monkeypatch, env)
     page = AppTest.from_file(str(ROOT / "frontend/app.py"), default_timeout=30).run()
     page.radio(key="workspace").set_value("教师病例管理").run()
-    page.radio(key="teacher_task").set_value("待复核评分裁定").run()
+    page.radio(key="teacher_task").set_value("评分复核与裁定").run()
     page.text_input(key="score_review_owner").set_value(state.owner_id)
     page.text_input(key="score_review_session").set_value(sid)
-    next(button for button in page.button if button.label == "载入或刷新待裁定评分").click().run()
+    next(button for button in page.button if button.label == "载入或刷新评分").click().run()
     assert not page.exception, page.exception
+    assert any(("状态：已完成自动评分" if complete else "状态：待人工复核") in value.value for value in page.markdown)
     # Deliberate human choices; this synthetic zero-score decision is not expert validation.
     for item in state.score_snapshot.items:
         page.number_input(key=f"score_editor_{item.item_id}_score").set_value(0.0)
@@ -225,7 +264,10 @@ def test_teacher_ui_adjudicates_and_student_reads_separate_result(tmp_path, monk
     next(button for button in student.button if button.label == "恢复训练").click().run()
     assert not student.exception, student.exception
     assert any("教师评分裁定第1版" in result.value for result in student.info)
-    assert any("待人工复核" in result.value for result in student.warning)
+    if complete:
+        assert any("已完成自动评分" in result.value for result in student.success)
+    else:
+        assert any("待人工复核" in result.value for result in student.warning)
     # Identity changes must discard the hidden rubric and internal review records.
     page.text_input(key="teacher_identity").set_value("teacher-another").run()
     with pytest.raises(KeyError):

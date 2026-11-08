@@ -108,6 +108,9 @@ class StateMachine:
                     continue
                 if not rule.repeatable and any(event.rule_id == rule.rule_id for event in state.events):
                     continue
+                if any(self._event_matches_exclusion(state, event, exclusion)
+                       for event in state.events for exclusion in rule.exclusions):
+                    continue
                 if any(
                     event.action == ActionKind.EXECUTE_TREATMENT
                     and event.payload.get("treatment_id") in rule.delay_exclusion_treatments
@@ -159,16 +162,12 @@ class StateMachine:
         return treatment.trigger if treatment else "treatment_executed"
 
     def _event_matches_exclusion(self, state: SessionState, event: Event, exclusion: str) -> bool:
-        if exclusion in {event.action.value, event.intent, event.rule_id}:
+        if exclusion in {event.action.value, event.rule_id}:
             return True
         if event.action == ActionKind.EXECUTE_TREATMENT and event.executed:
-            if exclusion == self._trigger_for(state, str(event.payload.get("treatment_id", ""))):
-                return True
-        return exclusion in {
-            event.payload.get("anchor_event"),
-            event.payload.get("treatment_id"),
-            event.result.get("trigger") if isinstance(event.result, dict) else None,
-        }
+            return exclusion in {event.payload.get("treatment_id"),
+                                 self._trigger_for(state, str(event.payload.get("treatment_id", "")))}
+        return False
 
     def _validate_action_payload(self, action: ActionKind, payload: dict) -> dict:
         if action == ActionKind.ORDER_EXAM:

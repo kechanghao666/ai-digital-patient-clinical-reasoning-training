@@ -41,11 +41,11 @@ def render_teacher(api):
         st.info("请使用有权限的教师身份。当前仅支持开发模式教师账号。")
         return
 
-    task = st.radio("教师任务", ["病例编写与发布", "训练反馈复核", "待复核评分裁定"], horizontal=True, key="teacher_task")
+    task = st.radio("教师任务", ["病例编写与发布", "训练反馈复核", "评分复核与裁定"], horizontal=True, key="teacher_task")
     if task == "训练反馈复核":
         render_feedback_review(api)
         return
-    if task == "待复核评分裁定":
+    if task == "评分复核与裁定":
         render_score_review(api)
         return
 
@@ -132,6 +132,7 @@ def render_teacher(api):
             advanced = st.checkbox("直接编辑完整结构化配置（覆盖上方表格）", key="case_editor_advanced")
             st.caption("启用后以下配置优先于表格；修改后先执行校验。病例事实与参考答案仅用于教师编辑。")
             st.caption("检查须显式开单；当前不支持检查前置表达式或评分阶段截止配置。披露级别与主动回答标记仅作编写备注，不会绕过逐问披露。")
+            st.caption("即时演进的触发名须对应某项处置的trigger；延误规则须指定已配置检查。取消条件中的治疗ID或trigger只匹配实际执行，显式动作名可匹配计划等事件。")
             content = {}
             for field, label in (("facts", "症状与体征"), ("exams", "检查结果"), ("treatments", "模拟处置"),
                                  ("differential_options", "鉴别候选"), ("rules", "病情演进规则"), ("rubric", "评分量表")):

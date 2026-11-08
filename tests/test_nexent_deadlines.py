@@ -18,7 +18,7 @@ from test_integration import Env, _play_and_seal, feedback_agent, select, settin
 
 
 @contextmanager
-def platform(mode="stall", drive=None, slow_stop=False):
+def platform(mode="stall", drive=None, slow_stop=False, stall_s=0.9):
     closed = threading.Event()
     records = []
     stop_called = threading.Event()
@@ -51,7 +51,7 @@ def platform(mode="stall", drive=None, slow_stop=False):
                     self.wfile.write(b'data: {"type":"model_output_thinking","content":"x"}\n\n')
                     self.wfile.flush()
                     if script["mode"] == "stall":
-                        closed.wait(0.9)
+                        closed.wait(stall_s)
                     elif script["mode"] == "timing":
                         closed.wait(0.1)
                 self.wfile.write(b'data: {"type":"final_answer","answer_phase":"complete","content":"ok"}\n\n')
@@ -84,9 +84,12 @@ def platform(mode="stall", drive=None, slow_stop=False):
 
 
 @pytest.mark.parametrize("mode", ["headers", "stall", "trickle"])
-def test_total_deadline_interrupts_real_socket_waits(tmp_path, mode):
+def test_total_deadline_interrupts_real_socket_waits(tmp_path, mode, caplog, monkeypatch):
     with platform(mode, slow_stop=True) as (url, records, stop_called, _):
         client = NexentClient(settings_for(tmp_path, nexent_base_url=url, total_timeout_s=0.3, first_event_timeout_s=2))
+        # Isolate socket stalls from synchronous HTTPX/TLS initialization, checked separately.
+        prepared = client._client(2)
+        monkeypatch.setattr(client, "_client", lambda _: prepared)
         started = time.monotonic()
         with pytest.raises(NexentError) as raised:
             client.run(agent_name="a", query="q")
@@ -95,8 +98,76 @@ def test_total_deadline_interrupts_real_socket_waits(tmp_path, mode):
         # At most 150ms scheduling/closing tolerance, far less than the scripted 900ms stall.
         assert 0.2 <= elapsed < 0.45, elapsed
         assert len(records) == 1
-        if mode != "headers":
-            assert stop_called.wait(0.05)
+        # A tiny budget cannot guarantee peer receipt after response cleanup.
+        if mode == "headers":
+            assert "stop_outcome=no_conversation" in caplog.text
+        else:
+            assert any(f"stop_outcome={outcome}" in caplog.text
+                       for outcome in ("timeout", "budget_exhausted", "failed"))
+
+
+def test_peer_receives_stop_and_ack_is_distinct_from_worker_exit(tmp_path, caplog):
+    with platform("stall", stall_s=3) as (url, _, stop_called, _):
+        client = NexentClient(settings_for(tmp_path, nexent_base_url=url, total_timeout_s=1.5, first_event_timeout_s=2))
+        started = time.monotonic()
+        with pytest.raises(NexentError) as raised:
+            client.run(agent_name="a", query="q")
+        assert raised.value.kind == "timeout"
+        assert time.monotonic() - started < 1.65
+        assert stop_called.is_set()
+        assert "stop_outcome=acknowledged" in caplog.text
+
+
+def test_client_setup_exhaustion_does_not_start_remote_run(tmp_path, caplog, monkeypatch):
+    requests = []
+    def handler(request):
+        requests.append(request.method)
+        return httpx.Response(200)
+    client = NexentClient(settings_for(tmp_path, total_timeout_s=0.05), httpx.MockTransport(handler))
+    prepared = client._client(1)
+    def slow_setup(_):
+        time.sleep(0.08)
+        return prepared
+    monkeypatch.setattr(client, "_client", slow_setup)
+    with pytest.raises(NexentError) as raised:
+        client.run(agent_name="a", query="q")
+    assert raised.value.kind == "timeout" and not requests
+    assert "stop_outcome=no_conversation" in caplog.text
+    assert "client_ready_ms=" in caplog.text
+
+
+def test_cleanup_can_exhaust_stop_budget_and_reports_it(tmp_path, caplog):
+    requests = []
+    class SlowClosingStream(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            yield b'data: {"type":"model_output_thinking","content":"x"}\n\n'
+            await asyncio.sleep(10)
+        async def aclose(self):
+            await asyncio.sleep(0.1)
+    def handler(request):
+        requests.append(request.method)
+        return httpx.Response(200, headers={"conversation_id": "73"}, stream=SlowClosingStream())
+    client = NexentClient(settings_for(tmp_path, total_timeout_s=0.12), httpx.MockTransport(handler))
+    with pytest.raises(NexentError) as raised:
+        client.run(agent_name="a", query="q")
+    assert raised.value.kind == "timeout"
+    assert requests == ["POST"] and "stop_outcome=budget_exhausted" in caplog.text
+
+
+@pytest.mark.parametrize("status,outcome", [(200, "acknowledged"), (503, "rejected")])
+def test_stop_http_status_is_not_assumed_success(tmp_path, status, outcome):
+    paths = []
+    def handler(request):
+        paths.append(request.url.path)
+        return httpx.Response(status)
+    client = NexentClient(settings_for(tmp_path), httpx.MockTransport(handler))
+    async def run():
+        async with client._client(1) as http:
+            assert await client._best_effort_stop(http, 73, time.monotonic() + 1) == outcome
+            assert await client._best_effort_stop(http, 73, time.monotonic() - 1) == "budget_exhausted"
+            assert await client._best_effort_stop(http, None, time.monotonic() + 1) == "no_conversation"
+    asyncio.run(run())
+    assert paths == ["/nb/v1/chat/stop/73"]
 
 
 def test_first_event_deadline_rejects_comment_trickle(tmp_path):

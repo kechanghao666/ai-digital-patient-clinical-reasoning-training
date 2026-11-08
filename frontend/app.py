@@ -31,7 +31,7 @@ st.title("AI数字病人临床思维训练")
 st.html('<div class="clinic-banner"><p class="clinic-eyebrow">CLINICAL REASONING · 医学教学</p>'
         '<strong>在可重复的病例中，练习每一步临床判断</strong>'
         '<p>从问诊与检查，到诊断、模拟处置和复盘。关注依据，也关注过程。</p></div>')
-st.warning("教学模拟环境，非真实患者，不用于真实诊疗。病例与教学依据尚未通过医学审核。", icon=":material/info:")
+st.warning("教学模拟环境，非真实患者，不用于真实诊疗。病例与教学依据尚未通过医学审核。仅供参考，以医师及评审专家意见为准。", icon=":material/info:")
 error_slot = st.empty()
 
 

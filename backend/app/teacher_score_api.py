@@ -59,8 +59,8 @@ def build_router(get_repository: Callable[[], SessionRepository], get_cases: Cal
             state = get_repository().get(session_id, owner_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="训练不存在或学生账号不匹配") from exc
-        if not state.sealed or state.score_snapshot is None or state.score_snapshot.status != "needs_review":
-            raise HTTPException(status_code=409, detail="当前入口仅处理已封存且规则评分为待复核的训练")
+        if not state.sealed or state.score_snapshot is None or state.score_snapshot.status not in {"complete", "needs_review"}:
+            raise HTTPException(status_code=409, detail="仅可复核已封存且有完整规则评分快照的训练")
         try:
             case = get_cases().get(state.case_id, state.case_version)
         except KeyError as exc:

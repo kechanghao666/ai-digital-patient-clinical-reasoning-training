@@ -93,7 +93,7 @@ class TreatmentDefinition(BaseModel):
     treatment_id: str
     name: str
     # Anchor event fired when this treatment is actually executed; rules key off it.
-    trigger: str = "treatment_executed"
+    trigger: str = Field(default="treatment_executed", min_length=1, pattern=r"\S")
 
 
 class DiagnosisSpec(BaseModel):
@@ -228,6 +228,16 @@ class CaseDefinition(BaseModel):
         if len(treatment_ids) != len(set(treatment_ids)):
             raise ValueError("treatment_id must be unique")
         treatment_ids_set = set(treatment_ids)
+        treatment_triggers = {t.trigger for t in self.treatments}
+        action_keys = {action.value for action in ActionKind}
+        if action_keys & (treatment_ids_set | treatment_triggers | set(rule_ids)):
+            raise ValueError("treatment ids, triggers and rule ids must not shadow action names")
+        if set(rule_ids) & (treatment_ids_set | treatment_triggers):
+            raise ValueError("rule ids must not shadow treatment ids or triggers")
+        if any(t.treatment_id == other.trigger for t in self.treatments for other in self.treatments
+               if t.treatment_id != other.treatment_id):
+            raise ValueError("a treatment id must not shadow another treatment's trigger")
+        exclusion_keys = action_keys | treatment_ids_set | treatment_triggers | set(rule_ids)
         for rule in self.rules:
             if not rule.anchor_event.strip():
                 raise ValueError(f"rule {rule.rule_id} must have an anchor event")
@@ -235,10 +245,18 @@ class CaseDefinition(BaseModel):
                 raise ValueError(f"rule {rule.rule_id} has an invalid delay")
             if rule.delay_anchor_exam is None and rule.delay_minutes:
                 raise ValueError(f"rule {rule.rule_id} requires a delay_anchor_exam for delayed execution")
+            if rule.delay_anchor_exam is None and rule.anchor_event not in treatment_triggers:
+                raise ValueError(f"rule {rule.rule_id} references an unreachable treatment trigger")
+            if rule.delay_anchor_exam is None and rule.delay_exclusion_treatments:
+                raise ValueError(f"rule {rule.rule_id} uses delayed exclusions without a delay anchor")
             if rule.delay_anchor_exam is not None and rule.delay_anchor_exam not in exam_ids_set:
                 raise ValueError(f"rule {rule.rule_id} references unknown exam: {rule.delay_anchor_exam}")
+            if rule.delay_anchor_exam is not None and not next(e for e in self.exams if e.exam_id == rule.delay_anchor_exam).configured:
+                raise ValueError(f"rule {rule.rule_id} requires a configured anchor exam")
             if set(rule.delay_exclusion_treatments) - treatment_ids_set:
                 raise ValueError(f"rule {rule.rule_id} references unknown treatments")
+            if set(rule.exclusions) - exclusion_keys:
+                raise ValueError(f"rule {rule.rule_id} references unknown exclusions")
         option_ids = [o.candidate_id for o in self.differential_options]
         if len(option_ids) != len(set(option_ids)):
             raise ValueError("differential candidate_id must be unique")
