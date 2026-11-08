@@ -21,7 +21,7 @@ CI使用Python 3.11、按哈希安装requirements.lock，并运行上述检查�
 
 本机12项失败涉及教师编写/反馈/评分复核、封存反馈页面，均在日志出现PyArrow DLL应用控制阻断；部分后续断言因此缺少页面状态。E盘和已有隔离虚拟环境单独import pyarrow亦失败。只读Windows代码完整性事件3077定位到pyarrow/arrow.dll及arrow_compute.dll不满足签名级别或代码完整性策略；事件记录在项目外windows-code-integrity.json，不据此推定文件恶意。这不等于已证明所有12项只有环境原因，须由对应提交完整CI与恢复后的本机复验确认。不修改系统安全策略、不增加依赖、不伪造通过结果；当前不能报告本机完整UI可用。
 
-本批源码副本及日志在项目外work/identity_batch_ibpnnha9；full-result.txt/json保留402通过/12失败原始结果，final-check.json记录编译、文档检查；applied-files.json记录应用清单与备份。验证分支CI通过后才推进GitHub main及官方Fork阶段材料。原库哈希未变；未改病例、专业依据、历史事件或分数。
+本批源码副本及日志在项目外work/identity_batch_ibpnnha9；full-result.txt/json保留402通过/12失败原始结果，final-check.json记录编译、文档检查；applied-files.json记录应用清单与备份。代码提交`f57762aa675b72f316d7fad087a0ad37983a5313`已进入GitHub main，其对应测试、编译和依赖审计成功（Actions `42486249324`）；AgentsHub个人Fork阶段材料已同步，提交`de5f52d`。这两项同步不代表官方PR/验收。原库哈希未变；未改病例、专业依据、历史事件或分数。
 
 ## 上一轮独立审计
 
