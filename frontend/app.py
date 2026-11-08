@@ -501,6 +501,8 @@ else:
         shown = feedback_cache.get(state["session_id"])
         if shown:
             st.caption(shown.get("notice", ""))
+            if shown.get("basis_provenance") == "legacy_unversioned":
+                st.warning("历史反馈未留存教学依据版本，无法确认生成时的来源。请教师核对；当前知识库不能替代历史依据。")
             if shown.get("basis_coverage", {}).get("missing_clinical_stages"):
                 st.warning("以下环节尚缺专科临床依据：" + "、".join(shown["basis_coverage"]["missing_clinical_stages"])
                            + "。通用反馈规范只用于组织评语，请教师核对。")
@@ -516,6 +518,8 @@ else:
                         entry = basis.get(basis_id)
                         if entry:
                             st.write(entry["title"])
+                            if entry.get("revision"):
+                                st.caption(f"依据修订 {entry['revision']} · 来源按本次反馈生成时保存")
                             for source in entry["sources"]:
                                 st.caption("来源：" + source)
                             if entry.get("restricted"):

@@ -54,7 +54,7 @@ sequenceDiagram
 
 ## 4. 知识库
 
-`knowledge/teaching_basis/`含9条自行概括的教学依据（`manifest.json`记录来源、适用病例和环节，状态`draft_unreviewed`）。它只用于封存后反馈链，**不得挂载到病人智能体或其检索库**；隐藏病例和标准答案不进入该库。引用仅给出公开指南题名，条款页码待审核者核对，未复制指南正文。上传到Nexent知识库的步骤、实际索引名和检索结果须在实例上完成并留证。反馈工具`search_teaching_basis`目前读取本地副本，Nexent知识库挂载是实例上的另一项配置。
+`knowledge/teaching_basis/`含9条自行概括的教学依据（`manifest.json`记录来源、修订、适用病例版本和环节，状态`draft_unreviewed`）。它只用于封存后反馈链，**不得挂载到病人智能体或其检索库**；隐藏病例和标准答案不进入该库。引用仅给出公开指南题名，条款页码待审核者核对，未复制指南正文。上传到Nexent知识库的步骤、实际索引名和检索结果须在实例上完成并留证。反馈工具`search_teaching_basis`目前读取本地副本，Nexent知识库挂载是实例上的另一项配置。
 
 ## 5. 平台侧配置草案（实例可用后执行）
 
@@ -68,6 +68,8 @@ sequenceDiagram
 反馈智能体（挂载`get_sealed_review`、`search_teaching_basis`、`submit_feedback`及教学依据知识库）提示词要点：先读评分快照，再为五环节分别检索依据；各提交一条评语、可执行建议和适用basis_ids，按需引用真实事件；缺少操作时如实说明并允许空事件列表；分数只读，不公布参考诊断及别名；最后调用`submit_feedback`。
 
 注册MCP：URL`http://<后端主机>:8765/mcp`（或SSE模式`/sse`），请求头`Authorization: Bearer <MCP_SERVICE_TOKEN>`；Nexent在容器内时主机名用`host.docker.internal`。配置和密钥只放服务端环境，不入库。
+
+旧版自定义知识库须先为各条目补充revision，并为临床条目补充明确的applies_to_versions，否则拒绝加载；不得自动猜测适用版本。升级知识资产时应更新manifest版本及变更条目的revision，并显式维护临床条目的applies_to_versions。API与MCP需使用相同知识目录，升级后同步重启两者；运行期间知识对象按进程缓存。search_teaching_basis返回修订与内容哈希，submit_feedback由可信工具服务附加快照，API核对一致后才持久化；不一致返回受控错误，保留重试能力，不能忽略校验继续生成。工具参数仍只接受原有turn_token/items等字段，模型不提供权威快照。旧反馈的basis_snapshot缺失会显示版本未留存；新快照与反馈保存在同一集成库，备份时应一起保留。
 
 ## 6. 本地验证状态
 

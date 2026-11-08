@@ -103,7 +103,8 @@ def test_feedback_exposes_attributable_sources_without_hidden_diagnosis(sealed):
     library.entries[entry.basis_id] = replace(entry, title="含心肌梗死的参考说明",
                                              sources=("项目自拟的反馈撰写规范", "STEMI参考题名"))
     env.runtime.feedback_store.save_once(state.session_id, state.owner_id, "local_rules", items,
-                                         "draft_unreviewed", {"real_platform": False})
+                                         "draft_unreviewed", {"real_platform": False},
+                                         library.snapshot(items, case.case_id, case.version))
     response = env.client.get(f"/api/sessions/{state.session_id}/feedback", headers=env.headers)
     assert response.status_code == 200
     basis = response.json()["teaching_basis"][0]

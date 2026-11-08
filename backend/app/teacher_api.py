@@ -50,7 +50,7 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
 
     def checked_issues(case: CaseDefinition, for_publish: bool = False) -> list[Issue]:
         issues = check_case(case, for_publish=for_publish)
-        missing = get_knowledge().coverage(case.case_id)["missing_clinical_stages"]
+        missing = get_knowledge().coverage(case.case_id, case.version)["missing_clinical_stages"]
         if missing:
             issues.append(Issue("warning", "missing_clinical_basis",
                                 "缺少适用于当前病例的专科临床依据：" + "、".join(missing) + "；通用反馈规范不能替代。"))
@@ -62,7 +62,7 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
             case = get_store().get(case_id, version)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="病例版本不存在") from exc
-        return get_knowledge().coverage(case.case_id)
+        return get_knowledge().coverage(case.case_id, case.version)
 
     @router.get("/cases")
     def list_cases(_: str = Depends(current_teacher)) -> list[dict[str, Any]]:
@@ -98,7 +98,7 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
             stored = store.save_draft(case, teacher_id)
         except CaseStoreError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
-        return {**_summary(stored), "issues": _issues(issues)}
+        return {**_summary(stored), "issues": _issues(checked_issues(stored))}
 
     def _transition(case_id: str, version: int, target: ReviewStatus, **extra: Any) -> dict[str, Any]:
         store = get_store()

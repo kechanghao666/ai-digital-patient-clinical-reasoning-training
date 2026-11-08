@@ -80,7 +80,7 @@ def build_router(get_repository: Callable[[], SessionRepository], get_cases: Cal
                 "rubric": [item.model_dump(mode="json") for item in case.rubric],
                 "submissions": {"diagnosis": state.diagnosis_submission, "differential": state.differential_submission,
                                 "treatment": state.treatment_submission}, "case_notes": state.case_notes,
-                "basis_coverage": get_runtime().knowledge.coverage(case.case_id)}
+                "basis_coverage": get_runtime().knowledge.coverage(case.case_id, case.version)}
 
     @router.post("/{session_id}")
     def save(session_id: str, request: ScoreReviewRequest, teacher_id: str = Depends(current_teacher)) -> dict:

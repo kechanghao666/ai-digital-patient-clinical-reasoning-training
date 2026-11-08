@@ -52,6 +52,13 @@ CREATE TABLE IF NOT EXISTS feedback_reviews (
     PRIMARY KEY(session_id, owner_id, revision),
     UNIQUE(session_id, owner_id, request_id)
 );
+CREATE TABLE IF NOT EXISTS feedback_basis (
+    session_id TEXT NOT NULL,
+    owner_id TEXT NOT NULL,
+    revision INTEGER NOT NULL,
+    snapshot_json TEXT NOT NULL,
+    PRIMARY KEY(session_id, owner_id, revision)
+);
 """
 
 
@@ -75,10 +82,23 @@ class FeedbackStore:
         finally:
             connection.close()
 
+    @staticmethod
+    def _load_basis(value: str | None) -> Any:
+        if value is None:
+            return None
+        try:
+            decoded = json.loads(value)
+            return decoded if isinstance(decoded, dict) else {"schema_version": 0}
+        except (ValueError, TypeError):
+            # Corruption must not be mistaken for a legacy record without a snapshot.
+            return {"schema_version": 0}
+
     def get(self, session_id: str, owner_id: str) -> dict[str, Any] | None:
         with self._connect() as connection:
             row = connection.execute(
-                "SELECT * FROM feedback WHERE session_id=? AND owner_id=?", (session_id, owner_id)
+                "SELECT f.*, b.snapshot_json FROM feedback f LEFT JOIN feedback_basis b "
+                "ON f.session_id=b.session_id AND f.owner_id=b.owner_id AND b.revision=0 "
+                "WHERE f.session_id=? AND f.owner_id=?", (session_id, owner_id)
             ).fetchone()
         if row is None:
             return None
@@ -87,6 +107,7 @@ class FeedbackStore:
             "items": json.loads(row["items_json"]),
             "basis_status": row["basis_status"],
             "created_at": row["created_at"],
+            "basis_snapshot": self._load_basis(row["snapshot_json"]),
         }
 
     def trace(self, session_id: str, owner_id: str) -> dict[str, Any] | None:
@@ -97,29 +118,45 @@ class FeedbackStore:
         return json.loads(row["trace_json"]) if row else None
 
     def save_once(
-        self, session_id: str, owner_id: str, source: str, items: list[dict[str, Any]], basis_status: str, trace: dict[str, Any]
+        self, session_id: str, owner_id: str, source: str, items: list[dict[str, Any]], basis_status: str, trace: dict[str, Any],
+        basis_snapshot: dict | None = None,
     ) -> bool:
         with self._connect() as connection:
-            cursor = connection.execute(
-                "INSERT OR IGNORE INTO feedback(session_id, owner_id, source, items_json, basis_status, trace_json, created_at) "
-                "VALUES (?,?,?,?,?,?,?)",
-                (
-                    session_id, owner_id, source, json.dumps(items, ensure_ascii=False),
-                    basis_status, json.dumps(trace, ensure_ascii=False), time.time(),
-                ),
-            )
-            return cursor.rowcount == 1
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                cursor = connection.execute(
+                    "INSERT OR IGNORE INTO feedback(session_id, owner_id, source, items_json, basis_status, trace_json, created_at) "
+                    "VALUES (?,?,?,?,?,?,?)",
+                    (session_id, owner_id, source, json.dumps(items, ensure_ascii=False),
+                     basis_status, json.dumps(trace, ensure_ascii=False), time.time()),
+                )
+                inserted = cursor.rowcount == 1
+                if inserted:
+                    self._save_basis(connection, session_id, owner_id, 0, basis_snapshot)
+                connection.commit()
+                return inserted
+            except Exception:
+                connection.rollback()
+                raise
+
+    @staticmethod
+    def _save_basis(connection: sqlite3.Connection, session_id: str, owner_id: str, revision: int, snapshot: dict | None):
+        if snapshot is not None:
+            connection.execute("INSERT INTO feedback_basis VALUES (?,?,?,?)",
+                               (session_id, owner_id, revision, json.dumps(snapshot, ensure_ascii=False)))
 
     def reviews(self, session_id: str, owner_id: str) -> list[dict[str, Any]]:
         with self._connect() as connection:
             rows = connection.execute(
-                "SELECT revision, teacher_id, reason, items_json, basis_status, created_at "
-                "FROM feedback_reviews WHERE session_id=? AND owner_id=? ORDER BY revision",
+                "SELECT r.*, b.snapshot_json FROM feedback_reviews r LEFT JOIN feedback_basis b "
+                "ON r.session_id=b.session_id AND r.owner_id=b.owner_id AND r.revision=b.revision "
+                "WHERE r.session_id=? AND r.owner_id=? ORDER BY r.revision",
                 (session_id, owner_id),
             ).fetchall()
         return [{"revision": row["revision"], "teacher_id": row["teacher_id"], "reason": row["reason"],
                  "items": json.loads(row["items_json"]), "basis_status": row["basis_status"],
-                 "created_at": row["created_at"]} for row in rows]
+                 "created_at": row["created_at"],
+                 "basis_snapshot": self._load_basis(row["snapshot_json"])} for row in rows]
 
     def effective(self, session_id: str, owner_id: str) -> dict[str, Any] | None:
         reviews = self.reviews(session_id, owner_id)
@@ -128,16 +165,19 @@ class FeedbackStore:
         latest = reviews[-1]
         return {"source": "teacher_review", "items": latest["items"],
                 "basis_status": latest["basis_status"], "created_at": latest["created_at"],
-                "review_revision": latest["revision"]}
+                "review_revision": latest["revision"], "basis_snapshot": latest["basis_snapshot"]}
 
     def append_review(
         self, session_id: str, owner_id: str, teacher_id: str, request_id: str,
         expected_revision: int, reason: str, items: list[dict[str, Any]], basis_status: str,
+        basis_snapshot: dict | None = None,
+        request_hash: str | None = None,
     ) -> int:
-        payload_hash = SessionRepository.hash_payload({
+        payload_hash = request_hash or SessionRepository.hash_payload({
             "teacher_id": teacher_id, "expected_revision": expected_revision,
             "reason": reason, "items": items,
         })
+        # Retries bind to the submitted edit, even if the knowledge library has since changed.
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             try:
@@ -163,11 +203,24 @@ class FeedbackStore:
                     (session_id, owner_id, revision, teacher_id, request_id, payload_hash, reason,
                      json.dumps(items, ensure_ascii=False), basis_status, time.time()),
                 )
+                self._save_basis(connection, session_id, owner_id, revision, basis_snapshot)
                 connection.commit()
                 return revision
             except Exception:
                 connection.rollback()
                 raise
+
+    def replay_revision(self, session_id: str, owner_id: str, request_id: str, request_hash: str) -> int | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT revision, payload_hash FROM feedback_reviews WHERE session_id=? AND owner_id=? AND request_id=?",
+                (session_id, owner_id, request_id),
+            ).fetchone()
+        if row is None:
+            return None
+        if row["payload_hash"] != request_hash:
+            raise ConcurrentUpdateError("请求编号已用于其他复核内容，请重新载入后提交")
+        return row["revision"]
 
 
 class FeedbackService:
@@ -203,7 +256,8 @@ class FeedbackService:
             else:
                 items, source, trace = self._from_local_rules(state, case)
             self.store.save_once(
-                state.session_id, state.owner_id, source, items, self.knowledge.status, trace
+                state.session_id, state.owner_id, source, items, self.knowledge.status, trace,
+                self.knowledge.snapshot(items, case.case_id, case.version),
             )
             stored = self.store.effective(state.session_id, state.owner_id)
         assert stored is not None
@@ -252,8 +306,13 @@ class FeedbackService:
             self.turns.cancel(turn.turn_id, "no_feedback")
             raise FeedbackUnavailable("no_feedback", "反馈未生成，请稍后重试")
         checked = validate_feedback_items((current.submission or {}).get("items"), state, case, self.knowledge)
-        if isinstance(checked, str) or not self.turns.finalize(turn.turn_id):
+        if isinstance(checked, str):
             self.turns.cancel(turn.turn_id, "invalid_feedback")
+            raise FeedbackUnavailable("invalid_feedback", "反馈未通过校验，请稍后重试")
+        if (current.submission or {}).get("basis_snapshot") != self.knowledge.snapshot(checked, case.case_id, case.version):
+            self.turns.cancel(turn.turn_id, "basis_mismatch")
+            raise FeedbackUnavailable("basis_mismatch", "反馈与工具服务的教学依据版本不一致，请同步知识库后重试")
+        if not self.turns.finalize(turn.turn_id):
             raise FeedbackUnavailable("invalid_feedback", "反馈未通过校验，请稍后重试")
         return checked, "nexent", trace
 
@@ -275,7 +334,7 @@ class FeedbackService:
                 desc = ("诊断结论" if stage == "诊断" else rubric[entry.item_id].description) if entry.item_id in rubric else stage
                 lines.append(f"{'已完成' if entry.hit else '未完成'}：{desc}（{entry.reason}）")
             query = " ".join(rubric[i.item_id].description for i in misses if i.item_id in rubric)
-            basis = self.knowledge.search(f"{query} {stage} 反馈 改进建议", case.case_id, stage, limit=1)
+            basis = self.knowledge.search(f"{query} {stage} 反馈 改进建议", case.case_id, stage, limit=1, case_version=case.version)
             improvement = (
                 "；".join(i.improvement or "请复核本环节缺失的操作与依据。" for i in misses)
                 if misses

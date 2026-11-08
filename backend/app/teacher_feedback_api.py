@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .case_store import CaseStore
 from .integration.runtime import IntegrationRuntime
-from .integration.tools import _event_digest, validate_feedback_items
+from .integration.tools import _event_digest, validate_feedback_items, validate_feedback_record
 from .models import CaseDefinition, SessionState
 from .storage import ConcurrentUpdateError, SessionRepository
 
@@ -19,6 +19,7 @@ class FeedbackReviewRequest(BaseModel):
     expected_revision: int = Field(ge=0, strict=True)
     reason: str = Field(min_length=1, max_length=1000)
     items: list[dict[str, Any]] = Field(min_length=5, max_length=5)
+    basis_hashes: dict[str, str]
 
 
 def build_router(
@@ -48,8 +49,8 @@ def build_router(
         original = runtime.feedback_store.get(session_id, owner_id)
         reviews = runtime.feedback_store.reviews(session_id, owner_id)
         effective = runtime.feedback_store.effective(session_id, owner_id)
-        checked = validate_feedback_items(effective["items"], state, case, runtime.knowledge) if effective else None
-        original_check = validate_feedback_items(original["items"], state, case, runtime.knowledge) if original else None
+        checked = validate_feedback_record(effective, state, case, runtime.knowledge) if effective else None
+        original_check = validate_feedback_record(original, state, case, runtime.knowledge) if original else None
         return {
             "session_id": session_id, "owner_id": owner_id,
             "case": {"title": case.title, "public_id": case.public_id, "version": case.version},
@@ -64,11 +65,13 @@ def build_router(
             "validation_error": checked if isinstance(checked, str) else None,
             "original_validation_error": original_check if isinstance(original_check, str) else None,
             "editable_items": effective["items"] if effective else [],
+            "basis_provenance": ("snapshot" if effective.get("basis_snapshot") is not None else "legacy_unversioned") if effective else None,
             "teaching_basis": [{"basis_id": e.basis_id, "title": e.title, "stages": e.stages,
-                                "text": e.text, "sources": e.sources}
-                               for e in runtime.knowledge.for_case(case.case_id)],
+                                "text": e.text, "sources": e.sources,
+                                "revision": e.revision, "content_hash": e.content_hash}
+                               for e in runtime.knowledge.for_case(case.case_id, case.version)],
             "notice": "仅复核反馈文字及引用，不改变封存分数或待评分复核状态，也不代表医学审核。",
-            "basis_coverage": runtime.knowledge.coverage(case.case_id),
+            "basis_coverage": runtime.knowledge.coverage(case.case_id, case.version),
         }
 
     @router.post("/{session_id}")
@@ -76,13 +79,25 @@ def build_router(
                teacher_id: str = Depends(current_teacher)) -> dict[str, Any]:
         state, case = context(session_id, request.owner_id)
         runtime = get_runtime()
+        request_hash = SessionRepository.hash_payload({"teacher_id": teacher_id, **request.model_dump(exclude={"owner_id", "request_id"})})
+        try:
+            replay = runtime.feedback_store.replay_revision(session_id, request.owner_id, request.request_id, request_hash)
+        except ConcurrentUpdateError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        if replay is not None:
+            return {"revision": replay, "score_status": state.score_snapshot.status,
+                    "notice": "此请求已保存，已返回原复核版本。"}
         checked = validate_feedback_items(request.items, state, case, runtime.knowledge)
         if isinstance(checked, str):
             raise HTTPException(status_code=422, detail="复核反馈未通过校验：" + checked)
+        basis_snapshot = runtime.knowledge.snapshot(checked, case.case_id, case.version)
+        if request.basis_hashes != {entry["basis_id"]: entry["content_hash"] for entry in basis_snapshot["entries"]}:
+            raise HTTPException(status_code=409, detail="教学依据已变化或引用不完整，请重新载入并核对后提交")
         try:
             revision = runtime.feedback_store.append_review(
                 session_id, request.owner_id, teacher_id, request.request_id, request.expected_revision,
                 request.reason, checked, runtime.knowledge.status,
+                basis_snapshot, request_hash=request_hash,
             )
         except ConcurrentUpdateError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc

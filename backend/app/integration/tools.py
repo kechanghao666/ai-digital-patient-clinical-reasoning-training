@@ -7,7 +7,7 @@ from ..case_store import CaseStore
 from ..models import ActionKind, CaseDefinition, Event, SessionState
 from ..storage import SessionRepository
 from . import turns as turn_states
-from .knowledge import KnowledgeStore
+from .knowledge import BasisEntry, KnowledgeStore
 from .turns import Turn, TurnError, TurnStore
 
 MAX_FAILED_CALLS = 3
@@ -177,7 +177,7 @@ class TrustedToolService:
         def body(turn: Turn, state: SessionState, case: CaseDefinition) -> dict[str, Any]:
             if not isinstance(query, str) or not query.strip() or len(query) > 200:
                 return _fail("invalid_query", "query must be a non-empty string of at most 200 characters")
-            entries = self.knowledge.search(query, case.case_id, stage)
+            entries = self.knowledge.search(query, case.case_id, stage, case_version=case.version)
             return {
                 "ok": True,
                 "status": self.knowledge.status,
@@ -187,6 +187,7 @@ class TrustedToolService:
                         "title": e.title,
                         "text": e.text,
                         "sources": list(e.sources),
+                        "revision": e.revision, "content_hash": e.content_hash,
                     }
                     for e in entries
                 ],
@@ -199,7 +200,7 @@ class TrustedToolService:
             problem = validate_feedback_items(items, state, case, self.knowledge)
             if isinstance(problem, str):
                 return _fail("invalid_feedback", problem)
-            if not self.turns.submit(turn.turn_id, {"items": problem}):
+            if not self.turns.submit(turn.turn_id, {"items": problem, "basis_snapshot": self.knowledge.snapshot(problem, case.case_id, case.version)}):
                 return _fail("turn_not_open", "feedback was already submitted or the turn closed")
             return {"ok": True, "accepted_items": len(problem)}
 
@@ -241,9 +242,9 @@ def validate_feedback_items(
             return "basis_ids must be a non-empty list of strings"
         if any(v not in valid_events for v in evidence):
             return "evidence_event_ids must reference events before sealing"
-        if any(knowledge.get(v, case.case_id) is None for v in basis):
+        if any(knowledge.get(v, case.case_id, case.version) is None for v in basis):
             return "basis_ids must reference teaching-basis entries available for this case"
-        if any(stage not in knowledge.get(v, case.case_id).stages for v in basis):
+        if any(stage not in knowledge.get(v, case.case_id, case.version).stages for v in basis):
             return "basis_ids must apply to the feedback stage"
         lowered = "".join((comment + " " + improvement).casefold().split())
         if any(marker in lowered for marker in FORBIDDEN_MARKERS) or any(term in lowered for term in forbidden):
@@ -258,6 +259,24 @@ def validate_feedback_items(
             }
         )
     return sorted(normalized, key=lambda item: FEEDBACK_STAGES.index(item["stage"]))
+
+
+def validate_feedback_record(
+    stored: dict, state: SessionState, case: CaseDefinition, knowledge: KnowledgeStore,
+) -> tuple[list[dict], dict[str, BasisEntry] | None] | str:
+    items = validate_feedback_items(stored["items"], state, case, knowledge)
+    if isinstance(items, str):
+        return items
+    snapshot = stored.get("basis_snapshot")
+    if snapshot is None:
+        return items, None
+    try:
+        entries = knowledge.saved_entries(snapshot, items, case.case_id, case.version)
+    except (ValueError, TypeError, KeyError):
+        return "stored teaching-basis snapshot failed integrity or applicability validation"
+    if snapshot["status"] != stored["basis_status"]:
+        return "stored teaching-basis status does not match feedback"
+    return items, entries
 
 
 def _event_digest(event: Event, case: CaseDefinition) -> dict[str, Any]:

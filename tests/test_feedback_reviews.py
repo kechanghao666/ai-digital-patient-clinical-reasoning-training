@@ -7,6 +7,7 @@ import requests
 from streamlit.testing.v1 import AppTest
 
 from app.integration.feedback import FeedbackStore
+from app.integration.knowledge import KnowledgeStore
 from app.integration.tools import FEEDBACK_STAGES
 from app.storage import ConcurrentUpdateError
 from test_feedback_contract import sealed
@@ -17,8 +18,10 @@ TEACHER = {"X-Owner-Id": "teacher-reviewer"}
 
 
 def payload(state, items, **changes):
+    snapshot = KnowledgeStore(ROOT / "knowledge").snapshot(items, state.case_id, state.case_version)
     return {"owner_id": state.owner_id, "request_id": "review-1", "expected_revision": 0,
-            "reason": "补齐五环节评语并核对引用。", "items": copy.deepcopy(items), **changes}
+            "reason": "补齐五环节评语并核对引用。", "items": copy.deepcopy(items),
+            "basis_hashes": {entry["basis_id"]: entry["content_hash"] for entry in snapshot["entries"]}, **changes}
 
 
 def read(env, state, headers=TEACHER):

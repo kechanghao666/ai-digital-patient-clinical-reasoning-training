@@ -10,7 +10,7 @@ from test_teacher_cases import TEACHER, new_case
 
 def test_stemi_coverage_counts_clinical_entries_only():
     store = KnowledgeStore(ROOT / "knowledge")
-    coverage = store.coverage("STEMI-001")
+    coverage = store.coverage("STEMI-001", 1)
     assert not coverage["missing_clinical_stages"]
     assert coverage["guidance_ids"] == ["kb_feedback_principles"]
     assert all(ids and "kb_feedback_principles" not in ids for ids in coverage["clinical_by_stage"].values())
@@ -19,7 +19,7 @@ def test_stemi_coverage_counts_clinical_entries_only():
 
 @pytest.mark.parametrize("case_id", ["APPY-001", "STROKE-001", "CAP-001", "DKA-001", "TEACH-COPY"])
 def test_general_feedback_rules_do_not_fill_missing_clinical_coverage(case_id):
-    coverage = KnowledgeStore(ROOT / "knowledge").coverage(case_id)
+    coverage = KnowledgeStore(ROOT / "knowledge").coverage(case_id, 1)
     assert coverage["missing_clinical_stages"] == list(STAGES)
     assert not any(coverage["clinical_by_stage"].values())
     assert coverage["guidance_ids"] == ["kb_feedback_principles"]

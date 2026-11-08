@@ -19,7 +19,7 @@ from .disclosure import classify_and_authorize
 from .integration.feedback import FeedbackUnavailable
 from .integration.nexent_client import NexentError
 from .integration.runtime import IntegrationRuntime
-from .integration.tools import validate_feedback_items
+from .integration.tools import validate_feedback_record
 from .models import (
     ActionKind,
     ActionRequest,
@@ -493,27 +493,34 @@ def get_feedback(session_id: str, owner_id: str = Depends(current_owner)) -> dic
 
 
 def _public_feedback(stored: dict[str, Any], state: SessionState, case: CaseDefinition) -> dict[str, Any]:
-    items = validate_feedback_items(stored["items"], state, case, RUNTIME.knowledge)
-    if isinstance(items, str):
+    checked = validate_feedback_record(stored, state, case, RUNTIME.knowledge)
+    if isinstance(checked, str):
         raise HTTPException(status_code=409, detail="已存反馈不符合当前五环节与安全规则，请教师复核；原记录保持不变。")
+    items, saved_entries = checked
     forbidden = diagnosis_leak_terms(case) | {"".join((case.hidden_diagnosis or "").casefold().split())}
     forbidden.discard("")
     basis = []
     for basis_id in dict.fromkeys(basis_id for item in items for basis_id in item["basis_ids"]):
-        entry = RUNTIME.knowledge.get(basis_id, case.case_id)
+        if saved_entries is None:
+            basis.append({"basis_id": basis_id, "title": "教学依据（历史版本未留存）", "sources": [],
+                          "restricted": False, "revision": None, "content_hash": None})
+            continue
+        entry = saved_entries[basis_id]
         title_hidden = any(term in "".join(entry.title.casefold().split()) for term in forbidden)
         sources = [source for source in entry.sources
                    if not any(term in "".join(source.casefold().split()) for term in forbidden)]
         basis.append({"basis_id": basis_id,
                       "title": "教学依据（题名含参考答案，已隐藏）" if title_hidden else entry.title,
-                      "sources": sources, "restricted": title_hidden or len(sources) != len(entry.sources)})
+                      "sources": sources, "restricted": title_hidden or len(sources) != len(entry.sources),
+                      "revision": entry.revision, "content_hash": entry.content_hash})
     return {
         "source": stored["source"],
         "basis_status": stored["basis_status"],
         "items": items,
         "teaching_basis": basis,
+        "basis_provenance": "snapshot" if saved_entries is not None else "legacy_unversioned",
         "review_revision": stored.get("review_revision", 0),
-        "basis_coverage": {key: value for key, value in RUNTIME.knowledge.coverage(case.case_id).items()
+        "basis_coverage": {key: value for key, value in RUNTIME.knowledge.coverage(case.case_id, case.version).items()
                            if key in {"status", "missing_clinical_stages", "notice"}},
         "notice": "反馈基于原封存规则评分，教师评分裁定独立展示；反馈与教学依据均为未经医学审核的教学草稿。",
     }

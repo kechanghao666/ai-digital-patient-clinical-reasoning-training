@@ -1,6 +1,6 @@
 {
   "kb_id": "teaching_basis",
-  "version": 1,
+  "version": 2,
   "status": "draft_unreviewed",
   "audience": "feedback_chain_only",
   "notice": "教学依据为项目自行概括的要点，不含指南逐字摘录；未经医学审核，不得作为诊疗依据。引用条目仅给出公开文献题名，页码与条款待审核者对照原文。禁止挂载到学生问诊智能体或其检索库。",
@@ -10,92 +10,256 @@
       "basis_id": "kb_chest_pain_history",
       "title": "缺血性胸痛的病史采集要点",
       "file": "kb_chest_pain_history.md",
-      "tags": ["胸痛", "病史采集", "性质", "放射", "诱因", "STEMI"],
-      "applies_to_cases": ["STEMI-001"],
-      "stages": ["病史采集"],
-      "sources": ["2021 AHA/ACC Guideline for the Evaluation and Diagnosis of Chest Pain（题名，条款待核对）"]
+      "tags": [
+        "胸痛",
+        "病史采集",
+        "性质",
+        "放射",
+        "诱因",
+        "STEMI"
+      ],
+      "applies_to_cases": [
+        "STEMI-001"
+      ],
+      "stages": [
+        "病史采集"
+      ],
+      "sources": [
+        "2021 AHA/ACC Guideline for the Evaluation and Diagnosis of Chest Pain（题名，条款待核对）"
+      ],
+      "revision": 1,
+      "applies_to_versions": {
+        "STEMI-001": [
+          1,
+          2
+        ]
+      }
     },
     {
       "basis_id": "kb_ecg_first",
       "title": "疑似急性冠脉综合征应尽早完成心电图",
       "file": "kb_ecg_first.md",
-      "tags": ["心电图", "检查选择", "优先级", "ACS", "STEMI"],
-      "applies_to_cases": ["STEMI-001"],
-      "stages": ["检查选择"],
+      "tags": [
+        "心电图",
+        "检查选择",
+        "优先级",
+        "ACS",
+        "STEMI"
+      ],
+      "applies_to_cases": [
+        "STEMI-001"
+      ],
+      "stages": [
+        "检查选择"
+      ],
       "sources": [
         "2023 ESC Guidelines for the management of acute coronary syndromes（题名，条款待核对）",
         "2021 AHA/ACC Guideline for the Evaluation and Diagnosis of Chest Pain（题名，条款待核对）"
-      ]
+      ],
+      "revision": 1,
+      "applies_to_versions": {
+        "STEMI-001": [
+          1,
+          2
+        ]
+      }
     },
     {
       "basis_id": "kb_troponin_role",
       "title": "肌钙蛋白的作用与不应等待的情形",
       "file": "kb_troponin_role.md",
-      "tags": ["肌钙蛋白", "检查选择", "STEMI", "再灌注"],
-      "applies_to_cases": ["STEMI-001"],
-      "stages": ["检查选择", "诊断"],
-      "sources": ["2023 ESC Guidelines for the management of acute coronary syndromes（题名，条款待核对）"]
+      "tags": [
+        "肌钙蛋白",
+        "检查选择",
+        "STEMI",
+        "再灌注"
+      ],
+      "applies_to_cases": [
+        "STEMI-001"
+      ],
+      "stages": [
+        "检查选择",
+        "诊断"
+      ],
+      "sources": [
+        "2023 ESC Guidelines for the management of acute coronary syndromes（题名，条款待核对）"
+      ],
+      "revision": 1,
+      "applies_to_versions": {
+        "STEMI-001": [
+          1,
+          2
+        ]
+      }
     },
     {
       "basis_id": "kb_stemi_ecg_criteria",
       "title": "STEMI的心电图诊断思路",
       "file": "kb_stemi_ecg_criteria.md",
-      "tags": ["STEMI", "ST段抬高", "诊断", "相邻导联", "下壁"],
-      "applies_to_cases": ["STEMI-001"],
-      "stages": ["诊断"],
+      "tags": [
+        "STEMI",
+        "ST段抬高",
+        "诊断",
+        "相邻导联",
+        "下壁"
+      ],
+      "applies_to_cases": [
+        "STEMI-001"
+      ],
+      "stages": [
+        "诊断"
+      ],
       "sources": [
         "Fourth Universal Definition of Myocardial Infarction (2018)（题名，条款待核对）",
         "急性ST段抬高型心肌梗死诊断和治疗指南（2019，中华医学会心血管病学分会）（题名，条款待核对）"
-      ]
+      ],
+      "revision": 1,
+      "applies_to_versions": {
+        "STEMI-001": [
+          1,
+          2
+        ]
+      }
     },
     {
       "basis_id": "kb_ddx_aortic_dissection",
       "title": "胸痛鉴别：主动脉夹层",
       "file": "kb_ddx_aortic_dissection.md",
-      "tags": ["鉴别诊断", "主动脉夹层", "撕裂样", "再灌注", "抗栓"],
-      "applies_to_cases": ["STEMI-001"],
-      "stages": ["鉴别诊断"],
-      "sources": ["2022 ACC/AHA Guideline for the Diagnosis and Management of Aortic Disease（题名，条款待核对）"]
+      "tags": [
+        "鉴别诊断",
+        "主动脉夹层",
+        "撕裂样",
+        "再灌注",
+        "抗栓"
+      ],
+      "applies_to_cases": [
+        "STEMI-001"
+      ],
+      "stages": [
+        "鉴别诊断"
+      ],
+      "sources": [
+        "2022 ACC/AHA Guideline for the Diagnosis and Management of Aortic Disease（题名，条款待核对）"
+      ],
+      "revision": 1,
+      "applies_to_versions": {
+        "STEMI-001": [
+          1,
+          2
+        ]
+      }
     },
     {
       "basis_id": "kb_ddx_pulmonary_embolism",
       "title": "胸痛鉴别：急性肺栓塞",
       "file": "kb_ddx_pulmonary_embolism.md",
-      "tags": ["鉴别诊断", "肺栓塞", "呼吸困难", "D-二聚体", "危险因素"],
-      "applies_to_cases": ["STEMI-001"],
-      "stages": ["鉴别诊断"],
-      "sources": ["2019 ESC Guidelines for the diagnosis and management of acute pulmonary embolism（题名，条款待核对）"]
+      "tags": [
+        "鉴别诊断",
+        "肺栓塞",
+        "呼吸困难",
+        "D-二聚体",
+        "危险因素"
+      ],
+      "applies_to_cases": [
+        "STEMI-001"
+      ],
+      "stages": [
+        "鉴别诊断"
+      ],
+      "sources": [
+        "2019 ESC Guidelines for the diagnosis and management of acute pulmonary embolism（题名，条款待核对）"
+      ],
+      "revision": 1,
+      "applies_to_versions": {
+        "STEMI-001": [
+          1,
+          2
+        ]
+      }
     },
     {
       "basis_id": "kb_reperfusion_timing",
       "title": "STEMI再灌注的时间目标",
       "file": "kb_reperfusion_timing.md",
-      "tags": ["再灌注", "延误", "治疗", "PCI", "溶栓", "STEMI"],
-      "applies_to_cases": ["STEMI-001"],
-      "stages": ["治疗"],
+      "tags": [
+        "再灌注",
+        "延误",
+        "治疗",
+        "PCI",
+        "溶栓",
+        "STEMI"
+      ],
+      "applies_to_cases": [
+        "STEMI-001"
+      ],
+      "stages": [
+        "治疗"
+      ],
       "sources": [
         "2023 ESC Guidelines for the management of acute coronary syndromes（题名，条款待核对）",
         "急性ST段抬高型心肌梗死诊断和治疗指南（2019，中华医学会心血管病学分会）（题名，条款待核对）"
-      ]
+      ],
+      "revision": 1,
+      "applies_to_versions": {
+        "STEMI-001": [
+          1,
+          2
+        ]
+      }
     },
     {
       "basis_id": "kb_aspirin_consideration",
       "title": "阿司匹林使用的教学考虑",
       "file": "kb_aspirin_consideration.md",
-      "tags": ["阿司匹林", "治疗", "禁忌", "过敏", "出血"],
-      "applies_to_cases": ["STEMI-001"],
-      "stages": ["治疗", "病史采集"],
-      "sources": ["2023 ESC Guidelines for the management of acute coronary syndromes（题名，条款待核对）"]
+      "tags": [
+        "阿司匹林",
+        "治疗",
+        "禁忌",
+        "过敏",
+        "出血"
+      ],
+      "applies_to_cases": [
+        "STEMI-001"
+      ],
+      "stages": [
+        "治疗",
+        "病史采集"
+      ],
+      "sources": [
+        "2023 ESC Guidelines for the management of acute coronary syndromes（题名，条款待核对）"
+      ],
+      "revision": 1,
+      "applies_to_versions": {
+        "STEMI-001": [
+          1,
+          2
+        ]
+      }
     },
     {
       "basis_id": "kb_feedback_principles",
       "kind": "feedback_guidance",
       "title": "训练反馈的撰写原则",
       "file": "kb_feedback_principles.md",
-      "tags": ["反馈", "改进建议", "扣分说明"],
-      "applies_to_cases": ["*"],
-      "stages": ["病史采集", "检查选择", "鉴别诊断", "诊断", "治疗"],
-      "sources": ["项目自拟的反馈撰写规范"]
+      "tags": [
+        "反馈",
+        "改进建议",
+        "扣分说明"
+      ],
+      "applies_to_cases": [
+        "*"
+      ],
+      "stages": [
+        "病史采集",
+        "检查选择",
+        "鉴别诊断",
+        "诊断",
+        "治疗"
+      ],
+      "sources": [
+        "项目自拟的反馈撰写规范"
+      ],
+      "revision": 1
     }
   ]
 }

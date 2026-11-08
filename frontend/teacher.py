@@ -240,6 +240,8 @@ def render_feedback_review(api):
         return
     st.write(f"{record['case']['title']} · v{record['case']['version']} · 反馈复核第{record['current_revision']}版")
     st.caption(f"当前载入：{record['owner_id']} · {record['session_id']}")
+    if record.get("basis_provenance") == "legacy_unversioned":
+        st.warning("此历史反馈未留存依据版本。下方依据用于本次复核；保存后形成新的引用快照，不补写原始记录。")
     if record.get("basis_coverage", {}).get("missing_clinical_stages"):
         st.warning("缺少适用专科临床依据：" + "、".join(record["basis_coverage"]["missing_clinical_stages"]) + "。通用反馈规范不能替代。")
     if record["validation_error"]:
@@ -253,6 +255,7 @@ def render_feedback_review(api):
     with st.expander("适用教学依据与来源（未医学审核）"):
         for entry in record["teaching_basis"]:
             st.write(f"{entry['basis_id']} · {entry['title']}")
+            st.caption(f"依据修订 {entry['revision']} · 适用当前病例版本")
             st.caption("适用环节：" + "、".join(entry["stages"]))
             st.write(entry["text"])
             for source in entry["sources"]:
@@ -290,7 +293,9 @@ def render_feedback_review(api):
         save = st.form_submit_button("保存反馈复核版本", type="primary")
     if save:
         payload = {"owner_id": record["owner_id"], "expected_revision": record["current_revision"],
-                   "reason": reason, "items": items}
+                   "reason": reason, "items": items,
+                   "basis_hashes": {entry["basis_id"]: entry["content_hash"] for entry in record["teaching_basis"]
+                                    if any(entry["basis_id"] in item["basis_ids"] for item in items)}}
         pending = st.session_state.get("feedback_review_pending")
         if not pending or pending["payload"] != payload:
             pending = {"payload": payload, "request_id": str(uuid.uuid4())}
