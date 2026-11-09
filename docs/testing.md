@@ -13,7 +13,24 @@ python -m compileall -q backend/app frontend tests
 
 CI使用Python 3.11、按哈希安装requirements.lock，并运行上述检查和独立依赖审计。结果以对应提交的[GitHub Actions](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/actions)为准，不沿用其他提交的通过结论。
 
-## 当前结果
+## 2026-11-09 项目独立复核
+
+本轮核对隔离副本68个源码/配置文件与当前工程一致，完整414项通过（54.92秒）。原库只读完整性ok、30训练/24封存，SHA256未变。隔离反例再次确认：DKA仅执行合并动作该项2/2（不是整个治疗阶段满分），五例漏检查后wait240均initial；这是待专业完善的规则/覆盖缺口，不计作新修复。原始输出project-current-review-tests.txt在既有项目外验证目录。
+
+## 2026-11-09 本机恢复验证
+
+项目现有.venv已改用D:\AI\_runtimes\patient311的Python3.11.18。91个应用包版本前后完全一致，包兼容性及asyncio/FastAPI/Streamlit/PyArrow导入通过。项目外副本完整414项通过（53.04秒），FastAPI /health及Streamlit /_stcore/health均HTTP200，探测进程已停止。原业务库与锁文件哈希未变；运行副本与日志位于项目外work/patient-repair-check-20261109。旧启动文件备份于work/patient-env-before-repair-20261109。未改系统策略，旧共享uv解释器仍受阻；当前恢复来自独立受信任发行渠道环境。
+
+完整浏览器人工操作、无障碍、真实平台及医学/人员评测仍未执行。
+
+## 2026-11-08 验证历史
+
+工程基线961d12f的[Actions 42486682414](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/actions/runs/42486682414)确认414项通过（35.69秒）、编译及依赖审计成功。
+
+2026-11-08独立复核使用跟踪源码隔离副本，完整回归在收集阶段20项错误，未进入用例执行。新进程import asyncio明确报_overlapped被Windows应用控制策略阻止，3077事件吻合；首次收集的base_events NameError异常链待环境恢复后确认。本次import pyarrow成功，不证明页面已恢复。没有绕过策略、放宽断言或宣布本机通过。恢复后须完整复验基础导入、414项、服务启动和师生页面；历史402通过/12失败仍保留如下。
+
+## 历史实施结果
+
 
 2026-11-08病例编写边界实施：本批新增17项回归，总计414项。本机完整运行402通过、12项页面测试失败（90.42秒）；失败日志涉及Windows应用控制阻止PyArrow DLL加载，不能记作本机全绿。完整回归、编译及依赖审计以对应提交的GitHub Actions为准，远端通过也不证明本机教师页面已恢复。
 
