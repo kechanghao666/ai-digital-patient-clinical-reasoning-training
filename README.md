@@ -102,6 +102,6 @@ SQLite当前固定保存在 `backend/data/app.db`。`backend/.env.example`仅列
 
 过程仓库：[GitHub](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training)。官方Fork：[kechanghao/AgentsHub](https://gitcode.com/kechanghao/AgentsHub)，课题目录为 `行业智能体/医疗/AI数字病人临床思维训练/`。
 
-2026-11-09 09:17已收到报名成功公开回复（atomgit_01），D按11月9日安排；按D+3准备11月12日前完成启动手续、D+30准备12月9日前Demo。过程登记和小助手管理员权限仍需核实。启动材料上传不代表官方验收；最终须完成真实平台、评测及完整交付，再向官方仓库提交PR并合入。具体节点见[开发计划](docs/milestones.md)。
+2026-11-09 09:17已收到报名成功公开回复（atomgit_01），D按11月9日安排；按D+3准备11月12日前完成启动手续、D+30准备12月9日前Demo。[11月10日03:47启动反馈](https://gitcode.com/org/ModelEngine/discussions/26#discussion-reply-fe588053eddc46e0b4e1d71c4e8fb863)已公开核实；已向atomgit_01发出维护者邀请（负责人陈述），邀请接受、角色认可、过程登记及GitHub CI认可仍待确认。启动材料上传不代表官方验收；最终须完成真实平台、评测及完整交付，再向官方仓库提交PR并合入。具体节点见[开发计划](docs/milestones.md)。
 
 项目使用[MIT许可证](LICENSE)。官方依据：[活动公告](https://gitcode.com/org/ModelEngine/discussions/26)、[需求包](https://atomgit.com/ModelEngine/AgentsHub/blob/main/需求包详情与交付要求.md)。

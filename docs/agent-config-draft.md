@@ -12,7 +12,7 @@
 | 步数 | max_steps | 以实际闭环及超时验证确定 |
 | 工具 | tools | 病例/状态/评分按权限授权，真实注册待完成 |
 | 子智能体 | managed_agents等 | 问诊与封存后反馈隔离，待联调 |
-| MCP | mcp_info等 | 可信服务已实现：病人侧 get_turn_context / submit_fact_selection；反馈侧 get_sealed_review / search_teaching_basis / submit_feedback；URL、传输与授权头待实例验证，不写密钥。提示词要点见 nexent-integration.md |
+| MCP | mcp_info等 | 可信服务已实现：病人侧 get_turn_context / submit_fact_selection；反馈侧 get_sealed_review / search_teaching_basis / submit_feedback；URL、传输与授权头待实例验证，不写密钥。提示词要点见[Nexent集成说明](nexent-integration.md) |
 | 知识挂载 | 目标版本实际导出为准 | 教学依据与隐藏完整病例分离 |
 
 最终顺序：配置依赖→创建调试→真实验证→平台导出→检查敏感信息与完整性→干净实例重新导入→保存最终agent.json到官方课题目录。

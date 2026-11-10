@@ -2,7 +2,7 @@
 
 活动：魔擎开发者激励1期-基于Nexent的智能体开发。课题1，医疗健康方向，AtomGit账号kechanghao。此目录为开发阶段骨架，尚非可导入智能体成果。
 
-过程仓库：https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training 。2026-11-09已收到公开报名成功回复；过程仓库登记及小助手管理员权限仍待核实。
+过程仓库：https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training 。2026-11-09已收到公开报名成功回复；[11月10日启动反馈](https://gitcode.com/org/ModelEngine/discussions/26#discussion-reply-fe588053eddc46e0b4e1d71c4e8fb863)已核实；已向atomgit_01发维护者邀请（负责人陈述），接受、角色认可及过程登记/CI认可仍待确认。
 
 - agent.json：待真实Nexent调试后由平台导出，当前不制造手写占位文件。
 - README.md：最终补全平台、模型、工具、知识库、安装、导入、使用及复现。
