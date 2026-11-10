@@ -13,6 +13,14 @@ python -m compileall -q backend/app frontend tests
 
 CI使用Python 3.11、按哈希安装requirements.lock，并运行上述检查和独立依赖审计。结果以对应提交的[GitHub Actions](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/actions)为准，不沿用其他提交的通过结论。
 
+## 2026-11-10 处置评分事前证据批
+
+新增18项工程回归，覆盖实际回报早于首次执行、开单/待回报不计、零延迟同分钟的事件顺序、多项缺一、无关/失败结果、计划与执行区别、晚到结果和重复执行、旧会话版本/封存分数，以及教师高级编辑保存。原病例与业务库保持，未新增依赖。
+
+本批验证中首轮430项通过（78.50秒）；补两项后两次全量均431通过/1失败，均为既有test_deadline_cancels_submitted_turn_and_same_request_retries_once的feedback正常重试阶段超出300ms人工预算；该用例单独重跑2项通过。失败日志在项目外保留。将这个用例的成功重试阶段恢复为测试环境原有5秒功能预算，并重建runtime读取同一持久库；首轮失败仍使用300ms，取消凭证、不写业务状态、同请求只运行一次等断言保留。专门网络截止测试的300ms预算和450ms返回上限，以及产品客户端/默认时限均未修改。此调整不构成真实平台性能通过证据。
+
+最终全量432项通过（73.49秒），相关专项52项通过（15.62秒），编译通过；uv检查91个已安装包依赖兼容，无新增依赖。远端CI以本批对应提交结果为准。临床审核、数值安全性及真实模型仍待验证。
+
 ## 2026-11-10 当前验证基线
 
 从edcc15b导出跟踪文件的隔离副本运行，414项通过（56.78秒），编译通过。对应[CI 42675570493](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/actions/runs/42675570493)测试、编译及依赖审计成功。此后仅文档和忽略规则修改，未重复运行同一回归。53处相对文件链接存在，原库完整性ok、30训练/24封存及哈希未变。

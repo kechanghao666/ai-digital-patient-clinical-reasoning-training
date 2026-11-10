@@ -215,6 +215,9 @@ def test_deadline_cancels_submitted_turn_and_same_request_retries_once(tmp_path,
         assert env.repository.get(sid, "demo-integration").model_dump_json() == original
         assert runtime.feedback_store.get(sid, "demo-integration") is None
         script["mode"] = "success"
+        # Retry persistence is functional; the 300ms stall budget above is not a throughput target.
+        retry_runtime = IntegrationRuntime(replace(settings, total_timeout_s=env.settings.total_timeout_s))
+        monkeypatch.setattr(main, "RUNTIME", retry_runtime)
         for _ in range(2):
             result = env.client.post(path, headers=env.headers, json=payload)
             assert result.status_code == 200, result.text

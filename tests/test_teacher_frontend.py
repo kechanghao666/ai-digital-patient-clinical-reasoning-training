@@ -57,6 +57,25 @@ def test_malformed_case_configuration_is_not_saved(tmp_path, monkeypatch):
     assert api.store.versions("TEACH-BAD-UI") == []
 
 
+def test_teacher_can_save_prior_result_requirements_in_advanced_editor(tmp_path, monkeypatch):
+    import json
+
+    api, page = teacher_page(tmp_path, monkeypatch)
+    text(page, "病例编号").set_value("TEACH-PRIOR-UI")
+    page.checkbox(key="case_editor_advanced").check()
+    case = page.session_state["teacher_case"]
+    rubric = case["rubric"]
+    treatment = next(r for r in rubric if r["evidence_type"] == "treatment_execution")
+    exam_id = next(e["exam_id"] for e in case["exams"] if e.get("configured", True) and e.get("result"))
+    treatment["required_prior_exam_ids"] = [exam_id]
+    page.text_area(key="case_editor_rubric").set_value(json.dumps(rubric, ensure_ascii=False))
+    button(page, "保存新版本草稿").click().run()
+    assert not page.exception, page.exception
+    stored = api.store.get("TEACH-PRIOR-UI")
+    assert next(r for r in stored.rubric if r.item_id == treatment["item_id"]).required_prior_exam_ids == [exam_id]
+    assert stored.review_status.value == "draft"
+
+
 def test_inactive_advanced_configuration_does_not_override_tables(tmp_path, monkeypatch):
     api, page = teacher_page(tmp_path, monkeypatch)
     text(page, "病例编号").set_value("TEACH-TABLE-UI")

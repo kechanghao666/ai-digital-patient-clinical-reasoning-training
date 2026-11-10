@@ -100,15 +100,21 @@ def _event_supports_text(event, text: str, case) -> bool:
     )
 
 
+def _exam_result_keys(event) -> set[str]:
+    if event.action in {ActionKind.WAIT, ActionKind.EXECUTE_TREATMENT}:
+        return set(event.result.get("ready_exam_ids", []))
+    if event.action == ActionKind.ORDER_EXAM and event.result.get("state") == "ready":
+        return {event.payload["exam_id"]}
+    return set()
+
+
 def _event_keys(event) -> set[str]:
     """Fact ids and exam ids that the student actually learned from this event."""
     if event.action == ActionKind.ASK:
         return set(event.payload.get("matched_fact_ids", []))
     if event.action in {ActionKind.WAIT, ActionKind.EXECUTE_TREATMENT}:
-        return set(event.result.get("ready_exam_ids", [])) | set(event.fact_ids_revealed)
-    if event.action == ActionKind.ORDER_EXAM and event.result.get("state") == "ready":
-        return {event.payload["exam_id"]}
-    return set()
+        return _exam_result_keys(event) | set(event.fact_ids_revealed)
+    return _exam_result_keys(event)
 
 
 def _matching_keys(event, text, case) -> set[str]:
@@ -306,7 +312,21 @@ def score_session(state: SessionState, case) -> ScoreSnapshot:
                 and event.executed
             ]
             hit = bool(evidence)
-            if not hit and any(
+            if hit and rubric.required_prior_exam_ids:
+                first_execution = next(event for event in events if event.event_id == evidence[0])
+                required = set(rubric.required_prior_exam_ids)
+                prior_results = [event for event in events if event.seq < first_execution.seq and event.executed
+                                 and required.intersection(_exam_result_keys(event))]
+                obtained = set().union(*(_exam_result_keys(event) for event in prior_results))
+                prior_ids = {event.event_id for event in prior_results}
+                evidence = [event.event_id for event in events
+                            if event.event_id in evidence or event.event_id in prior_ids]
+                if required - obtained:
+                    hit = False
+                    needs_review = True
+                    reason = "首次执行处置前未取得病例量表要求的全部检查结果，需教师复核"
+                    improvement = rubric.improvement or "请核对处置首次执行前已回报的检查证据；事后补检查或再次执行不补回事前证据。"
+            if not evidence and any(
                 event.action == ActionKind.PLAN_TREATMENT and event.payload.get("treatment_id") == rubric.item_id
                 for event in events
             ):

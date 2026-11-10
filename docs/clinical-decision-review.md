@@ -62,3 +62,7 @@
 来源核对（2026-11-08）：[2024高血糖危象共识](https://pmc.ncbi.nlm.nih.gov/articles/PMC11272983/)Potassium段支持将血钾评估与胰岛素安全条件纳入候选；本批不照搬剂量或自动批准本病例。已取得[AHA/ASA 2026卒中指南官方入口](https://professional.heart.org/en/guidelines-statements/2026-guideline-for-the-early-management-of-patients-with-acute-ischemic-strokestr0000000000000513)及[原指南检索内容](https://www.ahajournals.org/doi/10.1161/STR.0000000000000513)，涉及起病/最后正常与影像评估的章节可作为后续定位起点；尚未完整通读、确认中国教学适用性或完成医学审核，未更新运行中的治疗窗口。
 
 共享机制实现前先核对models、case_authoring、state_machine、scoring及教师高级编辑调用方：当前通用precondition表达式未实现，不能只在JSON新增一个看似有效的前置字段。先根据获确认的候选选最小可执行机制，未知配置继续拒绝，并为合法/缺证据/已知禁忌/重复请求/旧版本分别补回归。
+
+## 2026-11-10 工程机制增量
+
+共享量表已支持`required_prior_exam_ids`，可在后续经审核的新版本中表达“首次执行前已取得指定检查结果”。未知、重复、未配置或无结果的检查引用由模型、保存及校验入口拒绝。机制覆盖缺失、待回报、即时回报、回报后执行、部分缺失及事后补查重试；旧病例及历史分数不改。它只提供事件证据约束，不校验结果数值和临床适用性，尚未在运行中的DKA v1启用，也不代表N02已关闭。DKA动作拆分、安全值与例外、卒中时轴以及五科错误分支仍按候选表提交专业核对。

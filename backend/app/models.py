@@ -160,6 +160,7 @@ class RubricItem(BaseModel):
     critical: bool = False
     latest_workflow: None = None
     ordering_constraint: Literal["any", "first_exam_before_wait"] = "any"
+    required_prior_exam_ids: list[str] = Field(default_factory=list)
     diagnosis: DiagnosisSpec | None = None
     differential: DifferentialRule | None = None
     # Shown to the student when the item is missed; defaults are generated from the item type.
@@ -272,6 +273,15 @@ class CaseDefinition(BaseModel):
                 raise ValueError("ordering_constraint is only valid for exam_order rubrics")
             if rubric.evidence_type == "treatment_execution" and rubric.item_id not in treatment_ids_set:
                 raise ValueError(f"rubric references unknown treatment: {rubric.item_id}")
+            if rubric.required_prior_exam_ids:
+                if rubric.evidence_type != "treatment_execution":
+                    raise ValueError("required_prior_exam_ids is only valid for treatment_execution rubrics")
+                if len(rubric.required_prior_exam_ids) != len(set(rubric.required_prior_exam_ids)):
+                    raise ValueError("required_prior_exam_ids must be unique")
+                available = {exam.exam_id for exam in self.exams
+                             if exam.configured and exam.result and exam.result.strip()}
+                if set(rubric.required_prior_exam_ids) - available:
+                    raise ValueError("required_prior_exam_ids must reference configured exams with nonempty results")
             if rubric.evidence_type == "diagnosis" and rubric.diagnosis is None:
                 raise ValueError(f"diagnosis rubric {rubric.item_id} requires a diagnosis spec")
             if rubric.evidence_type != "diagnosis" and rubric.diagnosis is not None:

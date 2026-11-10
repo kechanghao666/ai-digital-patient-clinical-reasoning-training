@@ -133,6 +133,7 @@ def render_teacher(api):
             advanced = st.checkbox("直接编辑完整结构化配置（覆盖上方表格）", key="case_editor_advanced")
             st.caption("启用后以下配置优先于表格；修改后先执行校验。病例事实与参考答案仅用于教师编辑。")
             st.caption("检查须显式开单；当前不支持检查前置表达式或评分阶段截止配置。披露级别与主动回答标记仅作编写备注，不会绕过逐问披露。")
+            st.caption("处置评分可配置required_prior_exam_ids（检查ID列表），要求首次执行前已回报全部指定结果；仅开单或事后补查不计。此条件不判断数值安全性或处置适用性，临床规则仍须审核。")
             st.caption("即时演进的触发名须对应某项处置的trigger；延误规则须指定已配置检查。取消条件中的治疗ID或trigger只匹配实际执行，显式动作名可匹配计划等事件。")
             content = {}
             for field, label in (("facts", "症状与体征"), ("exams", "检查结果"), ("treatments", "模拟处置"),
