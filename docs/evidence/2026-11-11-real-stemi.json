@@ -1,0 +1,187 @@
+{
+  "checked_at": "2026-11-11T00:20:05+08:00",
+  "code_sha": "96cebebf4224c2750810a85d3a66f5680baac43d",
+  "scope": "isolated STEMI engineering integration; no real patient or student",
+  "clinical_review": "draft",
+  "formal_acceptance": false,
+  "complete": false,
+  "platform_image_version": "v2.8.4",
+  "models": [
+    "qwen-plus",
+    "qwen3.7-text-embedding"
+  ],
+  "mcp_authentication": "Bearer; unauthorized request rejected",
+  "knowledge_search_results": 3,
+  "memory": {
+    "MEMORY_SWITCH": "N",
+    "MEMORY_AGENT_SHARE": "never",
+    "DREAMING_SWITCH": "N"
+  },
+  "requests": [
+    {
+      "method": "POST",
+      "path": "/api/sessions/{session_id}/ask",
+      "status": 200,
+      "elapsed_ms": 15
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/{session_id}/ask",
+      "status": 409,
+      "elapsed_ms": 0
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/{session_id}/ask",
+      "status": 200,
+      "elapsed_ms": 17016
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/{session_id}/ask",
+      "status": 200,
+      "elapsed_ms": 26953
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/{session_id}/action",
+      "status": 200,
+      "elapsed_ms": 0
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/{session_id}/action",
+      "status": 200,
+      "elapsed_ms": 16
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/{session_id}/action",
+      "status": 200,
+      "elapsed_ms": 0
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions/{session_id}",
+      "status": 200,
+      "elapsed_ms": 0
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/{session_id}/action",
+      "status": 200,
+      "elapsed_ms": 0
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/{session_id}/differential",
+      "status": 200,
+      "elapsed_ms": 16
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/{session_id}/action",
+      "status": 200,
+      "elapsed_ms": 16
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/{session_id}/action",
+      "status": 200,
+      "elapsed_ms": 15
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/{session_id}/action",
+      "status": 200,
+      "elapsed_ms": 0
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/{session_id}/seal",
+      "status": 200,
+      "elapsed_ms": 0
+    },
+    {
+      "method": "GET",
+      "path": "/api/sessions/{session_id}/score",
+      "status": 200,
+      "elapsed_ms": 0
+    },
+    {
+      "method": "POST",
+      "path": "/api/sessions/{session_id}/feedback",
+      "status": 504,
+      "elapsed_ms": 54828
+    }
+  ],
+  "mcp_calls": [
+    {
+      "tool": "get_sealed_review",
+      "ok": true,
+      "count": 2
+    },
+    {
+      "tool": "get_turn_context",
+      "ok": true,
+      "count": 3
+    },
+    {
+      "tool": "search_teaching_basis",
+      "ok": true,
+      "count": 5
+    },
+    {
+      "tool": "submit_fact_selection",
+      "ok": true,
+      "count": 3
+    }
+  ],
+  "first_valid_patient_answer_ms": 31390,
+  "first_visible_5s_requirement_met": false,
+  "feedback_attempts": [
+    {
+      "status": 504,
+      "elapsed_ms": 54781
+    },
+    {
+      "status": 504,
+      "elapsed_ms": 47204
+    },
+    {
+      "status": 502,
+      "elapsed_ms": 6720
+    },
+    {
+      "status": 502,
+      "elapsed_ms": 10220
+    }
+  ],
+  "provider_probe": {
+    "status": 403,
+    "code": "AccessDenied.Unpurchased",
+    "interpretation": "current credential not eligible for qwen-plus; exact account cause requires provider console verification"
+  },
+  "boundary_checks": {
+    "state_events_for_replay": {
+      "status": 200,
+      "passed": true
+    },
+    "sealed_write": {
+      "status": 400,
+      "passed": true
+    },
+    "foreign_owner": {
+      "status": 404,
+      "passed": true
+    },
+    "original_database_unchanged": true
+  },
+  "remaining": [
+    "successful real feedback with MCP submission and actual runtime KB retrieval",
+    "browser rendering timing and accessibility",
+    "five-specialty medical review",
+    "formal student/expert evaluation",
+    "clean deployment and exported agent import"
+  ]
+}
