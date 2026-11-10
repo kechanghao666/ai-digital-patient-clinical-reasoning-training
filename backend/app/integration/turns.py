@@ -157,6 +157,8 @@ class TurnStore:
         turn_id = uuid4().hex
         secret = secrets.token_urlsafe(24)
         with self.lock, self._connect() as connection:
+            # Replace the live turn atomically across API and MCP processes.
+            connection.execute("BEGIN IMMEDIATE")
             # Only one live turn per (session, kind): the previous one can no longer act.
             connection.execute(
                 "UPDATE turns SET status=?, cancel_reason=? WHERE session_id=? AND kind=? AND status IN (?, ?)",
@@ -173,6 +175,7 @@ class TurnStore:
                 ),
             )
             row = connection.execute("SELECT * FROM turns WHERE turn_id=?", (turn_id,)).fetchone()
+            connection.commit()
         return self._row_to_turn(row), f"{turn_id}.{secret}"
 
     def resolve(self, token: str, *, kind: str, allow: Iterable[str] = (OPEN,), now: float | None = None) -> Turn:
@@ -213,7 +216,8 @@ class TurnStore:
     def finalize(self, turn_id: str) -> bool:
         with self.lock, self._connect() as connection:
             updated = connection.execute(
-                "UPDATE turns SET status=? WHERE turn_id=? AND status=?", (FINALIZED, turn_id, SUBMITTED)
+                "UPDATE turns SET status=? WHERE turn_id=? AND status=? AND expires_at>=?",
+                (FINALIZED, turn_id, SUBMITTED, time.time()),
             )
             return updated.rowcount == 1
 
