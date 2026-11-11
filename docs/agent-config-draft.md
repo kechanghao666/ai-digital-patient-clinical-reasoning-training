@@ -20,6 +20,8 @@
 
 复现步骤：配置平台和模型权限→注册鉴权MCP并扫描工具→分别创建两个智能体及其工具白名单→上传并只向反馈智能体挂载草稿知识库→关闭共享记忆→开启运行metadata并发布版本→运行真实业务与失败边界→导出并检查敏感信息→在干净实例重新导入验证。最终导出不得含服务令牌、模型密钥、学生记录或本机专属地址凭据；资源映射及依赖配置须有操作说明。
 
+11月11日平台导出预检已取得两个原始草稿。导入文件对应导出响应的 `data` 对象，含 `agent_id`、`agent_info` 和 `mcp_info`。两个草稿均保留 `allow_chat_metadata=true`，分别包含2项和4项工具。MCP条目只有名称和地址，目标环境需另配鉴权，并映射模型与反馈知识库。原始草稿保存在受保护的本机目录，已检查未包含本次已知北向密钥与MCP令牌。新实例导入及导入后的真实联调待执行。
+
 工具和字段以目标实例OpenAPI及实际导出为准，不手工制造最终平台ID。详见[Nexent集成](nexent-integration.md)、[实测证据](evidence/2026-11-11-real-stemi.json)。
 
 官方来源：[AgentsHub](https://gitcode.com/ModelEngine/AgentsHub)、[操作指导](https://gitcode.com/ModelEngine/AgentsHub/blob/main/操作指导.md)。
