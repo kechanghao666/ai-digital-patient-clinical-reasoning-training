@@ -1,0 +1,115 @@
+{
+  "date": "2026-11-11",
+  "code_sha": "fb5bb10d139568215a7d5ff21c72a303f9407945",
+  "platform": "Nexent v2.8.4",
+  "import_scope": "new agents in existing local tenant with preconfigured models, MCP and knowledge index",
+  "patient_import_publish": [
+    200,
+    200
+  ],
+  "feedback_import_publish": [
+    200,
+    200
+  ],
+  "patient_trusted_tools": [
+    "get_turn_context",
+    "submit_fact_selection"
+  ],
+  "browser": {
+    "browser": "Microsoft Edge",
+    "checks": [
+      "student workspace and simulation notice",
+      "keyboard focus enters page",
+      "restore sealed training",
+      "sealed input disabled",
+      "student replay expanded",
+      "teacher case workspace",
+      "teacher loaded same sealed training for review"
+    ],
+    "unreachable_backend_error_visible": true,
+    "case_list_restored_after_reconnect": true,
+    "answer_visible_ms": 29547,
+    "answer_expected": true
+  },
+  "feedback_same_sealed_session_attempts": [
+    {
+      "model": "spark-x2.6-1.7b",
+      "variant": "original feedback prompt",
+      "status": 502,
+      "elapsed_ms": 18102,
+      "turn_state": "cancelled",
+      "trusted_calls": [],
+      "score_equal": true
+    },
+    {
+      "model": "spark-x2.6-4b",
+      "variant": "compact rows",
+      "status": 504,
+      "elapsed_ms": 54834,
+      "turn_state": "cancelled",
+      "trusted_calls": [
+        {
+          "tool": "get_sealed_review",
+          "accepted": true,
+          "detail": null,
+          "elapsed_ms": 19667
+        },
+        {
+          "tool": "submit_feedback",
+          "accepted": false,
+          "detail": "invalid_feedback",
+          "elapsed_ms": 50235
+        }
+      ],
+      "score_equal": true
+    },
+    {
+      "model": "spark-x2.6-4b",
+      "variant": "bind sealed evidence and teaching references in tool code",
+      "status": 504,
+      "elapsed_ms": 54827,
+      "turn_state": "cancelled",
+      "trusted_calls": [
+        {
+          "tool": "get_sealed_review",
+          "accepted": true,
+          "detail": null,
+          "elapsed_ms": 8738
+        },
+        {
+          "tool": "get_sealed_review",
+          "accepted": true,
+          "detail": null,
+          "elapsed_ms": 17379
+        }
+      ],
+      "score_equal": true
+    },
+    {
+      "model": "spark-x2.5-4b",
+      "variant": "explicit mandatory teaching reference",
+      "status": 504,
+      "elapsed_ms": 54817,
+      "turn_state": "cancelled",
+      "trusted_calls": [
+        {
+          "tool": "get_sealed_review",
+          "accepted": true,
+          "detail": null,
+          "elapsed_ms": 6462
+        },
+        {
+          "tool": "get_sealed_review",
+          "accepted": true,
+          "detail": null,
+          "elapsed_ms": 23077
+        }
+      ],
+      "score_equal": true
+    }
+  ],
+  "feedback_compact_model_rejection": "missing or empty teaching-basis ID list",
+  "feedback_rows_persisted": 0,
+  "independent_instance_import_verified": false,
+  "formal_acceptance": false
+}

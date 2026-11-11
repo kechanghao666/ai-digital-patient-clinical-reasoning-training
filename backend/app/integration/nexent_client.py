@@ -91,6 +91,8 @@ class NexentClient:
         first_event_ms: int | None = None
         first_final_event_ms: int | None = None
         conv_id: int | None = None
+        response_status: int | None = None
+        failure_event: str | None = None
         async with self._client(self.settings.first_event_timeout_s) as client:
             client_ready_ms = int((time.monotonic() - started) * 1000)
             try:
@@ -99,6 +101,7 @@ class NexentClient:
                 async with asyncio.timeout_at(work_deadline):
                     async with asyncio.timeout_at(min(work_deadline, started + self.settings.first_event_timeout_s)) as first_timer:
                         async with client.stream("POST", "/nb/v1/chat/run", json=body, headers=headers) as response:
+                            response_status = response.status_code
                             conv_id = _conversation_id(response.headers)
                             if response.status_code in (401, 403):
                                 raise NexentError("auth", "Nexent rejected the credentials")
@@ -133,6 +136,7 @@ class NexentClient:
                                     first_event_ms = int((time.monotonic() - started) * 1000)
                                     first_timer.reschedule(None)
                                 if event_type in {"error", "run_error", "failed"}:
+                                    failure_event = event_type
                                     raise NexentError("rejected", "Nexent reported a run error")
                                 if event_type == "final_answer":
                                     content = event.get("content")
@@ -146,6 +150,14 @@ class NexentClient:
                                         final_text = text if text else "".join(final_parts)
                                     else:
                                         final_text = text
+            except NexentError as exc:
+                logger.warning(
+                    "nexent_run_rejected kind=%s http_status=%s error_event=%s elapsed_ms=%d "
+                    "first_event_ms=%s first_final_event_ms=%s event_count=%d",
+                    exc.kind, response_status, failure_event, int((time.monotonic() - started) * 1000),
+                    first_event_ms, first_final_event_ms, sum(types.values()),
+                )
+                raise
             except (TimeoutError, httpx.TimeoutException) as exc:
                 stop_outcome = await self._best_effort_stop(client, conv_id, deadline)
                 logger.warning("nexent_run_failed kind=timeout elapsed_ms=%d client_ready_ms=%d first_event_ms=%s first_final_event_ms=%s event_count=%d stop_outcome=%s",

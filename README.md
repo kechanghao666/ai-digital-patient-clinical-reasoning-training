@@ -17,6 +17,7 @@
 | 继续开发、处理已知问题及官方节点 | [开发计划](docs/milestones.md) |
 | 核对指标与最终交付物 | [验收计划](docs/acceptance-plan.md) |
 | 核对五专科决策、时轴与待医学审核事项 | [决策审查表](docs/clinical-decision-review.md) |
+| 中期演示与医学审核 | [演示与独立复现](docs/stemi-demo.md)、[审核与验收记录](docs/clinical-review-and-evaluation.md) |
 | 配置平台、MCP及反馈链 | [Nexent集成](docs/nexent-integration.md)、[配置字段草案](docs/agent-config-draft.md) |
 | 运行验证及维护依赖 | [测试说明](docs/testing.md) |
 | 核对来源、许可与AI使用 | [第三方资源与AI工具披露](docs/third-party-and-ai-disclosure.md) |

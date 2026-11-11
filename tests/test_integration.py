@@ -652,6 +652,23 @@ def make_client(tmp_path, handler) -> NexentClient:
     return NexentClient(settings_for(tmp_path), httpx.MockTransport(handler))
 
 
+@pytest.mark.parametrize("status,event,kind", [(403, None, "auth"), (200, "run_error", "rejected")])
+def test_nexent_rejection_log_omits_remote_error_text(tmp_path, caplog, status, event, kind):
+    remote_detail = "private-provider-error"
+    if event:
+        payload = json.dumps({"type": event, "content": remote_detail})
+        response = httpx.Response(status, text=f"data: {payload}\n\n")
+    else:
+        response = httpx.Response(status, text=remote_detail)
+    client = make_client(tmp_path, lambda _: response)
+    with pytest.raises(NexentError) as raised:
+        client.run(agent_name="agent", query="private-query")
+    assert raised.value.kind == kind
+    assert f"kind={kind} http_status={status} error_event={event}" in caplog.text
+    assert remote_detail not in caplog.text
+    assert "private-query" not in caplog.text
+
+
 def test_client_complete_and_delta_modes(tmp_path):
     complete = make_client(
         tmp_path,
