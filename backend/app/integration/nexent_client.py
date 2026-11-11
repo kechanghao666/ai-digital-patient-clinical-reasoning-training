@@ -148,13 +148,15 @@ class NexentClient:
                                         final_text = text
             except (TimeoutError, httpx.TimeoutException) as exc:
                 stop_outcome = await self._best_effort_stop(client, conv_id, deadline)
-                logger.warning("nexent_run_failed kind=timeout elapsed_ms=%d client_ready_ms=%d first_event_ms=%s stop_outcome=%s",
-                               int((time.monotonic() - started) * 1000), client_ready_ms, first_event_ms, stop_outcome)
+                logger.warning("nexent_run_failed kind=timeout elapsed_ms=%d client_ready_ms=%d first_event_ms=%s first_final_event_ms=%s event_count=%d stop_outcome=%s",
+                               int((time.monotonic() - started) * 1000), client_ready_ms, first_event_ms,
+                               first_final_event_ms, sum(types.values()), stop_outcome)
                 raise NexentError("timeout", "Nexent did not complete within the time limit") from exc
             except httpx.TransportError as exc:
                 stop_outcome = await self._best_effort_stop(client, conv_id, deadline)
-                logger.warning("nexent_run_failed kind=unavailable elapsed_ms=%d client_ready_ms=%d first_event_ms=%s stop_outcome=%s",
-                               int((time.monotonic() - started) * 1000), client_ready_ms, first_event_ms, stop_outcome)
+                logger.warning("nexent_run_failed kind=unavailable elapsed_ms=%d client_ready_ms=%d first_event_ms=%s first_final_event_ms=%s event_count=%d stop_outcome=%s",
+                               int((time.monotonic() - started) * 1000), client_ready_ms, first_event_ms,
+                               first_final_event_ms, sum(types.values()), stop_outcome)
                 raise NexentError("unavailable", "Connection to Nexent was lost") from exc
         if time.monotonic() >= work_deadline:
             raise NexentError("timeout", "Nexent did not complete within the time limit")

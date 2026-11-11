@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 import time
 from collections import defaultdict
@@ -18,6 +19,9 @@ from .knowledge import KnowledgeStore
 from .nexent_client import NexentClient, NexentError
 from .tools import FEEDBACK_STAGES, validate_feedback_items
 from .turns import TurnStore
+
+
+logger = logging.getLogger(__name__)
 
 
 class FeedbackUnavailable(RuntimeError):
@@ -306,6 +310,10 @@ class FeedbackService:
         }
         if current.status != turn_states.SUBMITTED:
             self.turns.cancel(turn.turn_id, "no_feedback")
+            logger.warning(
+                "nexent_submission_missing role=feedback elapsed_ms=%d first_final_event_ms=%s tool_calls=%d successful_tool_calls=%d",
+                run.total_ms, run.first_final_event_ms, len(calls), sum(call["ok"] for call in calls),
+            )
             raise FeedbackUnavailable("no_feedback", "反馈未生成，请稍后重试")
         checked = validate_feedback_items((current.submission or {}).get("items"), state, case, self.knowledge)
         if isinstance(checked, str):

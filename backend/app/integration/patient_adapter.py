@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import logging
+
 from ..adapters import PatientSelection, PatientTurnRequest
 from .config import IntegrationSettings
 from .nexent_client import NexentClient, NexentError
 from . import turns as turn_states
 from .turns import TurnStore
+
+
+logger = logging.getLogger(__name__)
 
 
 class NexentPatientAdapter:
@@ -63,6 +68,10 @@ class NexentPatientAdapter:
         self.turns.cancel(turn.turn_id, "no_selection")
         if current.cancel_reason == "state_changed":
             raise NexentError("state_changed", "Session changed during the model run")
+        logger.warning(
+            "nexent_submission_missing role=patient elapsed_ms=%d first_final_event_ms=%s tool_calls=%d successful_tool_calls=%d",
+            run.total_ms, run.first_final_event_ms, len(calls), sum(call["ok"] for call in calls),
+        )
         raise NexentError("protocol", "Nexent did not submit a fact selection")
 
 

@@ -5,9 +5,9 @@
 | 项目 | 已核实配置与约束 |
 |---|---|
 | 平台 | 实际镜像v2.8.4；界面About版本与镜像标签分别记录 |
-| 病人智能体 | 内部名称digital_patient_stemi，已发布v2；只启用get_turn_context、submit_fact_selection；不挂载教学知识库 |
-| 反馈智能体 | 内部名称clinical_feedback_stemi，已发布v3；启用get_sealed_review、search_teaching_basis、submit_feedback及knowledge_base_search；仅封存后调用 |
-| 模型 | qwen-plus；嵌入qwen3.7-text-embedding，1024维。本轮真实问诊后调用返回403 / AccessDenied.Unpurchased，持续可用性未通过 |
+| 病人智能体 | 内部名称digital_patient_stemi，已发布v5；只启用get_turn_context、submit_fact_selection；不挂载教学知识库 |
+| 反馈智能体 | 内部名称clinical_feedback_stemi，已发布v5；启用get_sealed_review、search_teaching_basis、submit_feedback及knowledge_base_search；仅封存后调用 |
+| 模型 | 讯飞 MaaS spark-x2.6-4b；嵌入仍为qwen3.7-text-embedding，1024维。容器直连短请求成功，实际工具链待验证 |
 | 运行metadata | 两智能体必须allow_chat_metadata=true；否则当前北向请求会返回400 / 010105。回合凭证可进入模型上下文，授权由后端校验，不以提示词保密代替鉴权 |
 | 提示词 | 通过目标版本实际支持的prompt字段配置；病人仅选择候选事实；反馈五环节使用中文名称，结合真实事件、依据和非空改进建议，禁止改分或泄露答案 |
 | MCP | streamable-http；宿主机服务通过host.docker.internal供容器访问；Authorization携带服务Bearer令牌。凭据仅保存在受保护配置 |
