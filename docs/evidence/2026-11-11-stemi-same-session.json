@@ -1,0 +1,66 @@
+{
+  "date": "2026-11-11",
+  "scope": "one isolated synthetic STEMI session; patient and feedback attempts use the same session",
+  "code_sha": "48ee8c94f0b1bde35984e76e873f97479835dec8",
+  "platform_image_version": "v2.8.4",
+  "patient_agent_version": 9,
+  "feedback_agent_version": 15,
+  "model": "spark-x2.6-4b",
+  "patient_effective_answer_ms": 39343,
+  "completed_checks": [
+    "order exams",
+    "receive both results",
+    "save notes",
+    "submit differential and diagnosis",
+    "execute simulated treatment",
+    "seal and read score",
+    "read replay events"
+  ],
+  "replay_event_count": 10,
+  "feedback_attempts_same_request": [
+    {
+      "http_status": 504,
+      "elapsed_ms": 54843
+    },
+    {
+      "http_status": 504,
+      "elapsed_ms": 54844
+    }
+  ],
+  "trusted_turns": [
+    {
+      "kind": "patient",
+      "status": "finalized",
+      "cancel_reason": null,
+      "accepted_tools": [
+        "get_turn_context",
+        "submit_fact_selection"
+      ]
+    },
+    {
+      "kind": "feedback",
+      "status": "cancelled",
+      "cancel_reason": "run_failed",
+      "accepted_tools": [
+        "get_sealed_review"
+      ]
+    },
+    {
+      "kind": "feedback",
+      "status": "cancelled",
+      "cancel_reason": "run_failed",
+      "accepted_tools": [
+        "get_sealed_review"
+      ]
+    }
+  ],
+  "persisted_feedback_count": 0,
+  "score_equal_after_first_timeout": true,
+  "sealed_write_http_status": 400,
+  "unrelated_owner_feedback_http_status": 404,
+  "same_session_complete": false,
+  "clinical_review": "draft",
+  "formal_acceptance": false,
+  "score_equal_after_second_timeout": true,
+  "owner_feedback_read_after_second_timeout_http_status": 404
+}
