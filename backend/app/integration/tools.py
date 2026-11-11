@@ -175,7 +175,7 @@ class TrustedToolService:
                     "treatment": (state.treatment_submission or {}).get("treatment_id"),
                 },
                 "events": events,
-                "stage_basis": self._stage_basis(case, "临床思维 反馈 改进建议"),
+                "stage_basis": feedback_stage_basis(self.knowledge, case),
                 "note": (
                     "分数由系统给定，不得修改。五环节各提交一条评语和非空改进建议，"
                     "引用本环节教学依据；有事件时引用真实event_id，未操作时说明缺失，不编造事件。"
@@ -185,25 +185,12 @@ class TrustedToolService:
 
         return self._guard(turn_token, turn_states.FEEDBACK, "get_sealed_review", body)
 
-    def _stage_basis(self, case: CaseDefinition, query: str) -> dict[str, dict[str, str]]:
-        candidates = {}
-        for stage in FEEDBACK_STAGES:
-            matches = self.knowledge.search(
-                f"{query} {stage}", case.case_id, stage, limit=1, case_version=case.version,
-            )
-            if matches:
-                entry = matches[0]
-                candidates[stage] = {
-                    "basis_id": entry.basis_id, "title": entry.title, "excerpt": entry.text[:90],
-                }
-        return candidates
-
     def search_teaching_basis(self, turn_token: str, query: str, stage: str | None = None) -> dict[str, Any]:
         def body(turn: Turn, state: SessionState, case: CaseDefinition) -> dict[str, Any]:
             if not isinstance(query, str) or not query.strip() or len(query) > 200:
                 return _fail("invalid_query", "query must be a non-empty string of at most 200 characters")
             entries = self.knowledge.search(query, case.case_id, stage, case_version=case.version)
-            stage_basis = self._stage_basis(case, query) if stage is None else {}
+            stage_basis = feedback_stage_basis(self.knowledge, case, query) if stage is None else {}
             return {
                 "stage_basis": stage_basis,
                 "ok": True,
@@ -223,9 +210,38 @@ class TrustedToolService:
 
         return self._guard(turn_token, turn_states.FEEDBACK, "search_teaching_basis", body)
 
-    def submit_feedback(self, turn_token: str, items: list[dict[str, Any]]) -> dict[str, Any]:
+    def submit_feedback(
+        self, turn_token: str, items: list[dict[str, Any]], use_stage_basis: bool = False
+    ) -> dict[str, Any]:
         def body(turn: Turn, state: SessionState, case: CaseDefinition) -> dict[str, Any]:
-            problem = validate_feedback_items(items, state, case, self.knowledge)
+            submission = items
+            if use_stage_basis:
+                snapshot = state.score_snapshot
+                if snapshot is None:
+                    return _fail("no_score", "sealed score snapshot is not available")
+                basis = feedback_stage_basis(self.knowledge, case)
+                if set(basis) != set(FEEDBACK_STAGES):
+                    return _fail("basis_unavailable", "each stage requires applicable teaching basis")
+                if not isinstance(items, list) or len(items) != len(FEEDBACK_STAGES) or any(
+                    not isinstance(item, dict)
+                    or set(item) != {"stage", "comment", "improvement"}
+                    or not isinstance(item["stage"], str)
+                    or item["stage"] not in FEEDBACK_STAGES
+                    for item in items
+                ):
+                    return _fail("invalid_feedback", "compact items require stage, comment and improvement only")
+                submission = [
+                    {
+                        **item,
+                        "basis_ids": [basis[item["stage"]]["basis_id"]],
+                        "evidence_event_ids": [
+                            event_id for score in snapshot.items if score.stage == item["stage"]
+                            for event_id in score.evidence_event_ids
+                        ],
+                    }
+                    for item in items
+                ]
+            problem = validate_feedback_items(submission, state, case, self.knowledge)
             if isinstance(problem, str):
                 return _fail("invalid_feedback", problem)
             if not self.turns.submit(turn.turn_id, {"items": problem, "basis_snapshot": self.knowledge.snapshot(problem, case.case_id, case.version)}):
@@ -233,6 +249,20 @@ class TrustedToolService:
             return {"ok": True, "accepted_items": len(problem)}
 
         return self._guard(turn_token, turn_states.FEEDBACK, "submit_feedback", body)
+
+
+def feedback_stage_basis(knowledge: KnowledgeStore, case: CaseDefinition, query: str = "临床思维 反馈 改进建议") -> dict[str, dict[str, str]]:
+    candidates = {}
+    for stage in FEEDBACK_STAGES:
+        matches = knowledge.search(
+            f"{query} {stage}", case.case_id, stage, limit=1, case_version=case.version,
+        )
+        if matches:
+            entry = matches[0]
+            candidates[stage] = {
+                "basis_id": entry.basis_id, "title": entry.title, "excerpt": entry.text[:90],
+            }
+    return candidates
 
 
 def validate_feedback_items(

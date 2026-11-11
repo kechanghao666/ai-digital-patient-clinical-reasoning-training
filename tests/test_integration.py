@@ -75,7 +75,7 @@ def settings_for(tmp_path: Path, **overrides) -> IntegrationSettings:
 class Env:
     """Scripted Nexent fake plus an API client wired to temporary stores."""
 
-    def __init__(self, tmp_path: Path, monkeypatch, agent=None, mode: str = "nexent"):
+    def __init__(self, tmp_path: Path, monkeypatch, agent=None, mode: str = "nexent", feedback_protocol: str = "review_tool"):
         self.runs: list[dict] = []
         self.stops: list[str] = []
         self.requests: list[httpx.Request] = []
@@ -85,7 +85,7 @@ class Env:
         monkeypatch.setenv("APP_ENV", "development")
         monkeypatch.setattr(main, "REPOSITORY", self.repository)
         monkeypatch.setattr(main, "MACHINE", StateMachine(cases, self.repository))
-        self.settings = settings_for(tmp_path, mode=mode)
+        self.settings = settings_for(tmp_path, mode=mode, feedback_protocol=feedback_protocol)
         self.runtime = IntegrationRuntime(self.settings, httpx.MockTransport(self._handle))
         monkeypatch.setattr(main, "RUNTIME", self.runtime)
         self.service = TrustedToolService(
@@ -380,7 +380,7 @@ def test_tool_signatures_never_accept_authoritative_fields():
         "submit_fact_selection": {"turn_token", "fact_ids"},
         "get_sealed_review": {"turn_token"},
         "search_teaching_basis": {"turn_token", "query", "stage"},
-        "submit_feedback": {"turn_token", "items"},
+        "submit_feedback": {"turn_token", "items", "use_stage_basis"},
     }
     forbidden = {"session_id", "owner_id", "case_id", "case_version", "score", "facts", "hidden_diagnosis"}
     assert not forbidden & set().union(*tools.values())
@@ -489,6 +489,8 @@ def _play_and_seal(env: Env) -> str:
 
 def feedback_agent(items_factory=None, record=None):
     def agent(request, body, service):
+        assert "search_teaching_basis" in body["query"]
+        assert "knowledge_base_search" not in body["query"]
         token = token_of(body)
         review = service.get_sealed_review(token)
         assert review["ok"], review
@@ -757,6 +759,11 @@ def test_settings_validation(monkeypatch):
     monkeypatch.setenv("NEXENT_TOTAL_TIMEOUT_S", "30")
     monkeypatch.setenv("NEXENT_MODE", " NEXENT ")
     assert IntegrationSettings.from_env().uses_nexent
+    monkeypatch.setenv("NEXENT_FEEDBACK_PROTOCOL", "compact")
+    assert IntegrationSettings.from_env().feedback_protocol == "compact"
+    monkeypatch.setenv("NEXENT_FEEDBACK_PROTOCOL", "unknown")
+    with pytest.raises(ValueError, match="NEXENT_FEEDBACK_PROTOCOL"):
+        IntegrationSettings.from_env()
 
 
 # ------------------------------------------------------------------------- MCP transport auth
@@ -809,3 +816,41 @@ def test_second_specialty_uses_the_same_trusted_chain(tmp_path, monkeypatch):
     session = env.repository.get(sid, "demo-integration")
     assert session.case_id == "APPY-001"
     assert session.events[0].result["adapter"]["source"] == "nexent"
+
+
+def test_compact_feedback_binds_sealed_references_without_model_ids(tmp_path, monkeypatch):
+    env = Env(tmp_path, monkeypatch, agent=select("f_pain_character"), feedback_protocol="compact")
+    sid = _play_and_seal(env)
+    original = env.repository.get(sid, env.headers["X-Owner-Id"])
+
+    def agent(_, body, service):
+        assert "use_stage_basis=True" in body["query"]
+        assert "STEMI" not in body["query"]
+        assert all(stage in body["query"] for stage in FEEDBACK_STAGES)
+        items = [
+            {"stage": stage, "comment": "复核本环节记录。", "improvement": "补充可核对的依据。"}
+            for stage in FEEDBACK_STAGES
+        ]
+        invalid = [dict(items[0], basis_ids=["bad"]), *items[1:]]
+        assert service.submit_feedback(token_of(body), invalid, True)["error"] == "invalid_feedback"
+        assert service.submit_feedback(token_of(body), items, True) == {"ok": True, "accepted_items": 5}
+        return ok_response("反馈已提交")
+
+    env.agent = agent
+    endpoint = f"/api/sessions/{sid}/feedback"
+    response = env.client.post(endpoint, headers=env.headers, json={"request_id": "compact"})
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert result["source"] == "nexent"
+    for item in result["items"]:
+        assert item["basis_ids"]
+        for basis_id in item["basis_ids"]:
+            assert item["stage"] in env.service.knowledge.entries[basis_id].stages
+        expected = {
+            event_id for score in original.score_snapshot.items if score.stage == item["stage"]
+            for event_id in score.evidence_event_ids
+        }
+        assert set(item["evidence_event_ids"]) == expected
+    assert env.client.get(endpoint, headers=env.headers).json() == result
+    assert env.client.post(endpoint, headers=env.headers, json={"request_id": "compact"}).json() == result
+    assert env.repository.get(sid, env.headers["X-Owner-Id"]) == original
