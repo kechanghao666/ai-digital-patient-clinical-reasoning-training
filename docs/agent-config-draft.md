@@ -5,9 +5,9 @@
 | 项目 | 已核实配置与约束 |
 |---|---|
 | 平台 | 实际镜像v2.8.4；界面About版本与镜像标签分别记录 |
-| 病人智能体 | 内部名称digital_patient_stemi，已发布v5；只启用get_turn_context、submit_fact_selection；不挂载教学知识库 |
-| 反馈智能体 | 内部名称clinical_feedback_stemi，已发布v5；启用get_sealed_review、search_teaching_basis、submit_feedback及knowledge_base_search；仅封存后调用 |
-| 模型 | 讯飞 MaaS spark-x2.6-4b；嵌入仍为qwen3.7-text-embedding，1024维。容器直连短请求成功，实际工具链待验证 |
+| 病人智能体 | 内部名称digital_patient_stemi，已发布v9；只启用get_turn_context、submit_fact_selection；不挂载教学知识库 |
+| 反馈智能体 | 内部名称clinical_feedback_stemi，已发布v13；启用get_sealed_review、search_teaching_basis、submit_feedback及knowledge_base_search；仅封存后调用 |
+| 模型 | 病人与反馈均使用 spark-x2.6-4b；嵌入 qwen3.7-text-embedding（1024维）。四个星火候选已配置本地上下文16384、输入14336、输出及预留2048，运行日志已验证实际输出预算2048 |
 | 运行metadata | 两智能体必须allow_chat_metadata=true；否则当前北向请求会返回400 / 010105。回合凭证可进入模型上下文，授权由后端校验，不以提示词保密代替鉴权 |
 | 提示词 | 通过目标版本实际支持的prompt字段配置；病人仅选择候选事实；反馈五环节使用中文名称，结合真实事件、依据和非空改进建议，禁止改分或泄露答案 |
 | MCP | streamable-http；宿主机服务通过host.docker.internal供容器访问；Authorization携带服务Bearer令牌。凭据仅保存在受保护配置 |
@@ -25,3 +25,5 @@
 工具和字段以目标实例OpenAPI及实际导出为准，不手工制造最终平台ID。详见[Nexent集成](nexent-integration.md)、[实测证据](evidence/2026-11-11-real-stemi.json)。
 
 官方来源：[AgentsHub](https://gitcode.com/ModelEngine/AgentsHub)、[操作指导](https://gitcode.com/ModelEngine/AgentsHub/blob/main/操作指导.md)。
+
+当前导出预检版本为病人v9与反馈v13，两者的模型、MCP及知识库挂载按角色复核。部署反馈工具后，教学依据检索项提供 stages 字段。stage=None 时额外返回按环节分组的 stage_basis，每环节最多一条简短候选。反馈须引用适用环节的依据。

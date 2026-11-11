@@ -492,8 +492,16 @@ def feedback_agent(items_factory=None, record=None):
         token = token_of(body)
         review = service.get_sealed_review(token)
         assert review["ok"], review
+        assert "diagnosis" not in review["submissions"]
+        assert all("diagnosis" not in event for event in review["events"])
+        assert all(item["description"] == "诊断结论" for item in review["score"]["items"] if item["stage"] == "诊断")
         basis = service.search_teaching_basis(token, "心电图 优先 检查选择", "检查选择")
         assert basis["ok"] and basis["results"]
+        assert all("检查选择" in entry["stages"] for entry in basis["results"])
+        grouped = service.search_teaching_basis(token, "病史 检查 鉴别 诊断 治疗 反馈")
+        assert set(grouped["stage_basis"]) == set(FEEDBACK_STAGES)
+        for stage, entry in grouped["stage_basis"].items():
+            assert stage in service.knowledge.entries[entry["basis_id"]].stages
         event_ids = [e["event_id"] for e in review["events"]]
         items = (
             items_factory(review, basis, event_ids)

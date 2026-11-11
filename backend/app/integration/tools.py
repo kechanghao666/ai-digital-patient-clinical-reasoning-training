@@ -5,6 +5,7 @@ from typing import Any, Callable
 from ..adapters import diagnosis_leak_terms
 from ..case_store import CaseStore
 from ..models import ActionKind, CaseDefinition, Event, SessionState
+from ..scoring import student_score_snapshot
 from ..storage import SessionRepository
 from . import turns as turn_states
 from .knowledge import BasisEntry, KnowledgeStore
@@ -138,9 +139,12 @@ class TrustedToolService:
             snapshot = state.score_snapshot
             if snapshot is None:
                 return _fail("no_score", "sealed score snapshot is not available")
+            snapshot = student_score_snapshot(snapshot, case)
             rubric = {item.item_id: item for item in case.rubric}
             seal_seq = state.seal_seq if state.seal_seq is not None else len(state.events)
             events = [_event_digest(event, case) for event in state.events[:seal_seq]]
+            for event in events:
+                event.pop("diagnosis", None)
             return {
                 "ok": True,
                 "case": {"title": case.title, "specialty": case.specialty, "learning_goals": case.learning_goals},
@@ -152,7 +156,10 @@ class TrustedToolService:
                         {
                             "item_id": item.item_id,
                             "stage": item.stage,
-                            "description": rubric[item.item_id].description if item.item_id in rubric else "",
+                            "description": (
+                                "诊断结论" if item.stage == "诊断"
+                                else rubric[item.item_id].description if item.item_id in rubric else ""
+                            ),
                             "hit": item.hit,
                             "score": item.score,
                             "max_score": item.max_score,
@@ -163,7 +170,7 @@ class TrustedToolService:
                     ],
                 },
                 "submissions": {
-                    "diagnosis": (state.diagnosis_submission or {}).get("diagnosis"),
+                    "diagnosis_submitted": state.diagnosis_submission is not None,
                     "differential": (state.differential_submission or {}).get("candidates", []),
                     "treatment": (state.treatment_submission or {}).get("treatment_id"),
                 },
@@ -182,7 +189,20 @@ class TrustedToolService:
             if not isinstance(query, str) or not query.strip() or len(query) > 200:
                 return _fail("invalid_query", "query must be a non-empty string of at most 200 characters")
             entries = self.knowledge.search(query, case.case_id, stage, case_version=case.version)
+            stage_basis = {}
+            if stage is None:
+                for feedback_stage in FEEDBACK_STAGES:
+                    matches = self.knowledge.search(
+                        f"{query} {feedback_stage}", case.case_id, feedback_stage,
+                        limit=1, case_version=case.version,
+                    )
+                    if matches:
+                        entry = matches[0]
+                        stage_basis[feedback_stage] = {
+                            "basis_id": entry.basis_id, "title": entry.title, "excerpt": entry.text[:90],
+                        }
             return {
+                "stage_basis": stage_basis,
                 "ok": True,
                 "status": self.knowledge.status,
                 "results": [
@@ -191,6 +211,7 @@ class TrustedToolService:
                         "title": e.title,
                         "text": e.text,
                         "sources": list(e.sources),
+                        "stages": list(e.stages),
                         "revision": e.revision, "content_hash": e.content_hash,
                     }
                     for e in entries
