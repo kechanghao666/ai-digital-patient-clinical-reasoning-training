@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-11",
+  "scope": "one sealed synthetic STEMI training session",
+  "platform_image_version": "v2.8.4",
+  "agent_version": 15,
+  "model": "spark-x2.6-4b",
+  "status": 200,
+  "elapsed_ms": 51531,
+  "source": "nexent",
+  "stages": [
+    "病史采集",
+    "检查选择",
+    "鉴别诊断",
+    "诊断",
+    "治疗"
+  ],
+  "trusted_calls": [
+    "get_sealed_review",
+    "submit_feedback"
+  ],
+  "platform_knowledge_tool_invoked": true,
+  "persisted_feedback_count": 1,
+  "readback_and_retry_equal": true,
+  "unrelated_owner_status": 404,
+  "formal_acceptance": false
+}

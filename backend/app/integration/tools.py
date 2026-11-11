@@ -175,6 +175,7 @@ class TrustedToolService:
                     "treatment": (state.treatment_submission or {}).get("treatment_id"),
                 },
                 "events": events,
+                "stage_basis": self._stage_basis(case, "临床思维 反馈 改进建议"),
                 "note": (
                     "分数由系统给定，不得修改。五环节各提交一条评语和非空改进建议，"
                     "引用本环节教学依据；有事件时引用真实event_id，未操作时说明缺失，不编造事件。"
@@ -184,23 +185,25 @@ class TrustedToolService:
 
         return self._guard(turn_token, turn_states.FEEDBACK, "get_sealed_review", body)
 
+    def _stage_basis(self, case: CaseDefinition, query: str) -> dict[str, dict[str, str]]:
+        candidates = {}
+        for stage in FEEDBACK_STAGES:
+            matches = self.knowledge.search(
+                f"{query} {stage}", case.case_id, stage, limit=1, case_version=case.version,
+            )
+            if matches:
+                entry = matches[0]
+                candidates[stage] = {
+                    "basis_id": entry.basis_id, "title": entry.title, "excerpt": entry.text[:90],
+                }
+        return candidates
+
     def search_teaching_basis(self, turn_token: str, query: str, stage: str | None = None) -> dict[str, Any]:
         def body(turn: Turn, state: SessionState, case: CaseDefinition) -> dict[str, Any]:
             if not isinstance(query, str) or not query.strip() or len(query) > 200:
                 return _fail("invalid_query", "query must be a non-empty string of at most 200 characters")
             entries = self.knowledge.search(query, case.case_id, stage, case_version=case.version)
-            stage_basis = {}
-            if stage is None:
-                for feedback_stage in FEEDBACK_STAGES:
-                    matches = self.knowledge.search(
-                        f"{query} {feedback_stage}", case.case_id, feedback_stage,
-                        limit=1, case_version=case.version,
-                    )
-                    if matches:
-                        entry = matches[0]
-                        stage_basis[feedback_stage] = {
-                            "basis_id": entry.basis_id, "title": entry.title, "excerpt": entry.text[:90],
-                        }
+            stage_basis = self._stage_basis(case, query) if stage is None else {}
             return {
                 "stage_basis": stage_basis,
                 "ok": True,

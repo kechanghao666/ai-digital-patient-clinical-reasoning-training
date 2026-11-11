@@ -283,8 +283,8 @@ class FeedbackService:
             run = self.client().run(
                 agent_name=self.settings.feedback_agent_name,
                 query=(
-                    "【系统回合】训练已封存。读取 get_sealed_review，调用 knowledge_base_search 检索，"
-                    "一次调用 search_teaching_basis（stage=None），从 stage_basis 读取五环节依据，"
+                    "【系统回合】训练已封存。一次调用 get_sealed_review 读取评分、事件和 stage_basis 中的五环节依据，"
+                    "调用 knowledge_base_search 检索，"
                     "再调用 submit_feedback，按病史采集、检查选择、鉴别诊断、诊断、治疗各提交一条评语，"
                     "每条必须有非空改进建议，且引用的教学依据 stages 必须包含该环节；不得公布参考诊断或编造事件。"
                     f"turn_token 为 {token}。"

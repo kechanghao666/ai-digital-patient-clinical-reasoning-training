@@ -492,6 +492,9 @@ def feedback_agent(items_factory=None, record=None):
         token = token_of(body)
         review = service.get_sealed_review(token)
         assert review["ok"], review
+        assert set(review["stage_basis"]) == set(FEEDBACK_STAGES)
+        for stage, entry in review["stage_basis"].items():
+            assert stage in service.knowledge.entries[entry["basis_id"]].stages
         assert "diagnosis" not in review["submissions"]
         assert all("diagnosis" not in event for event in review["events"])
         assert all(item["description"] == "诊断结论" for item in review["score"]["items"] if item["stage"] == "诊断")
