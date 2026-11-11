@@ -255,10 +255,10 @@ def feedback_stage_basis(knowledge: KnowledgeStore, case: CaseDefinition, query:
     candidates = {}
     for stage in FEEDBACK_STAGES:
         matches = knowledge.search(
-            f"{query} {stage}", case.case_id, stage, limit=1, case_version=case.version,
+            f"{query} {stage}", case.case_id, stage, limit=5, case_version=case.version,
         )
-        if matches:
-            entry = matches[0]
+        entry = next((item for item in matches if item.kind == "clinical"), None) or (matches[0] if matches else None)
+        if entry:
             candidates[stage] = {
                 "basis_id": entry.basis_id, "title": entry.title, "excerpt": entry.text[:90],
             }

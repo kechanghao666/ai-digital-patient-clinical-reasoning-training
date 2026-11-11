@@ -17,6 +17,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import main
+from app.adapters import diagnosis_leak_terms
 from app.case_store import CaseStore
 from app.integration.config import IntegrationSettings
 from app.integration.knowledge import KnowledgeStore
@@ -822,10 +823,12 @@ def test_compact_feedback_binds_sealed_references_without_model_ids(tmp_path, mo
     env = Env(tmp_path, monkeypatch, agent=select("f_pain_character"), feedback_protocol="compact")
     sid = _play_and_seal(env)
     original = env.repository.get(sid, env.headers["X-Owner-Id"])
+    case = CaseStore(ROOT / "cases").get(original.case_id, original.case_version)
 
     def agent(_, body, service):
         assert "use_stage_basis=True" in body["query"]
-        assert "STEMI" not in body["query"]
+        normalized_query = "".join(body["query"].casefold().split())
+        assert all(term not in normalized_query for term in diagnosis_leak_terms(case))
         assert all(stage in body["query"] for stage in FEEDBACK_STAGES)
         items = [
             {"stage": stage, "comment": "复核本环节记录。", "improvement": "补充可核对的依据。"}

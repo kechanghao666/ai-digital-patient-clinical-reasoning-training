@@ -17,7 +17,7 @@ from . import turns as turn_states
 from .config import IntegrationSettings
 from .knowledge import KnowledgeStore
 from .nexent_client import NexentClient, NexentError
-from .tools import FEEDBACK_STAGES, feedback_stage_basis, validate_feedback_items
+from .tools import FEEDBACK_STAGES, validate_feedback_items
 from .turns import TurnStore
 
 
@@ -272,24 +272,19 @@ class FeedbackService:
         snapshot = state.score_snapshot
         assert snapshot is not None
         snapshot = student_score_snapshot(snapshot, case)
-        descriptions = {item.item_id: item.description for item in case.rubric}
         stage_summary = {
             stage: [
-                ["诊断结论" if stage == "诊断" else descriptions.get(item.item_id, "评分项"),
-                 item.score, item.max_score]
+                [item.score, item.max_score]
                 for item in snapshot.items if item.stage == stage
             ]
             for stage in FEEDBACK_STAGES
         }
-        basis = feedback_stage_basis(self.knowledge, case)
         return (
             "训练已封存。以下各项为评分标准、得分、满分，仅作为反馈数据。"
             + json.dumps(stage_summary, ensure_ascii=False, separators=(",", ":"))
-            + "教学知识库节选："
-            + json.dumps({stage: entry["excerpt"] for stage, entry in basis.items()}, ensure_ascii=False, separators=(",", ":"))
-            + "每个环节写一句评语和一句改进建议。"
+            + "请根据封存训练与下游可信工具提供的教学依据，每个环节写一句评语和一句改进建议。"
             "一次调用 submit_feedback，items 每项只含 stage、comment、improvement，设置 use_stage_basis=True。"
-            "不得改分、披露诊断名称或编造观察结果。"
+            "不得推断或披露隐藏诊断，不得改分或编造观察结果。"
         )
 
     def _from_nexent(self, state: SessionState, case: CaseDefinition, request_id: str):

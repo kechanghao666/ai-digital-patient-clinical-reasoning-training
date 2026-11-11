@@ -2,7 +2,7 @@
 
 ## 封存反馈紧凑协议
 
-NEXENT_FEEDBACK_PROTOCOL 默认 review_tool，可在隔离实例将其设为 compact，并为反馈智能体配置匹配的提示词。紧凑协议在北向请求中提供经筛选的封存评分与适用教学依据节选。智能体用 submit_feedback(turn_token, items, use_stage_basis=True) 提交五条，每条只包含 stage、comment、improvement。更新 MCP 后确认工具列表已识别该可选参数。review_tool 提示中要求调用的工具名为 search_teaching_basis，与 MCP 实际注册名一致。
+NEXENT_FEEDBACK_PROTOCOL 默认 review_tool，可在隔离实例将其设为 compact，并为反馈智能体配置匹配的提示词。紧凑协议仅在北向请求中提供过滤后的分环节数值评分，不把量表描述、教学依据原文或依据节选放进初始提示；可信服务端按封存病例版本和环节绑定教学依据及封存事件。智能体用 submit_feedback(turn_token, items, use_stage_basis=True) 提交五条，每条只包含 stage、comment、improvement。更新 MCP 后确认工具列表已识别该可选参数。review_tool 提示中要求调用的工具名为 search_teaching_basis，与 MCP 实际注册名一致。
 
 可信工具按当前病例版本和五个环节绑定依据，并从封存评分提取对应事件引用。保存前沿用五环节、引用有效性、依据版本一致性、回合有效期及防泄露校验。旧版智能体继续使用 review_tool 和原参数。紧凑流程使用后端教学知识库检索。Nexent 原生知识库调用及其耗时单独记录。
 
