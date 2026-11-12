@@ -313,6 +313,9 @@ class FeedbackService:
                 metadata={"turn_token": token, "role": "feedback"},
                 audit_metadata={"turn_id": turn.turn_id, "request_id": request_id},
                 idempotency_key=turn.turn_id,
+                trusted_completion=(
+                    lambda: self.turns.get(turn.turn_id).status == turn_states.SUBMITTED
+                ) if self.settings.feedback_protocol == "compact" else None,
             )
         except NexentError as exc:
             self.turns.cancel(turn.turn_id, "run_failed")
@@ -328,6 +331,7 @@ class FeedbackService:
             "platform_first_event_ms": run.first_event_ms,
             "platform_first_final_event_ms": run.first_final_event_ms,
             "total_ms": run.total_ms,
+            "trusted_completion": run.trusted_completion,
             "tool_calls": [{"tool": c["tool"], "ok": c["ok"]} for c in calls],
         }
         if current.status != turn_states.SUBMITTED:

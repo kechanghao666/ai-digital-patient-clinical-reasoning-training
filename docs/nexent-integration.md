@@ -2,6 +2,10 @@
 
 ## 封存反馈紧凑协议
 
+当前演示反馈v13使用[分轮提示](compact-feedback-prompt.txt)。同一模型响应不能同时包含代码动作和完成声明；必须先完成工具调用。后端在`execution_logs`或`execution_result`事件到达时核查本地可信回合，compact模式下已提交即可结束北向读取，仍须通过原有内容、依据快照与有效期校验后保存。远端事件内容不具有授权效力；普通review_tool和病人链继续要求原完成流程。
+
+停止请求为有界的尽力通知，最多0.25秒且不延长55秒总预算；不能据停止回执断言远端工作进程已经退出。记录`trusted_completion=true`，未收到最终文本时其时间为空。当前已连续3次重新生成成功（24.49、16.72、27.52秒），另一次模型首块超时仍失败；这些是接口工程结果，模型的临床恰当性表述仍需教师复核。见[本轮证据](evidence/2026-11-12-trusted-feedback-completion.json)。
+
 NEXENT_FEEDBACK_PROTOCOL 默认 review_tool，可在隔离实例将其设为 compact，并为反馈智能体配置匹配的提示词。紧凑协议仅在北向请求中提供过滤后的分环节数值评分，不把量表描述、教学依据原文或依据节选放进初始提示；可信服务端按封存病例版本和环节绑定教学依据及封存事件。智能体用 submit_feedback(turn_token, items, use_stage_basis=True) 提交五条，每条只包含 stage、comment、improvement。更新 MCP 后确认工具列表已识别该可选参数。review_tool 提示中要求调用的工具名为 search_teaching_basis，与 MCP 实际注册名一致。
 
 紧凑反馈智能体只启用`submit_feedback`；不挂接封存量表读取、知识库搜索或其他会返回参考答案原文的工具。更新MCP后先扫描工具，再检查智能体导出参数含`use_stage_basis`，最后重新发布并复核启用工具列表。仅验证MCP实时列表不能证明平台缓存和已发布版本同步。紧凑提示仅供评价得分及完成程度，不能仅凭分数断言诊疗合理性。
