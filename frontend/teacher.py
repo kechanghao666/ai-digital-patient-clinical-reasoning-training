@@ -252,7 +252,21 @@ def render_feedback_review(api):
     if record["original_validation_error"]:
         st.caption("原始反馈校验问题：" + record["original_validation_error"])
     with st.expander("封存评分、学生提交与事件证据", expanded=True):
-        st.json({key: record[key] for key in ("score_snapshot", "submissions", "case_notes", "events")})
+        score = record["score_snapshot"]
+        st.caption(f"封存原分 {score['total_score']:g} / {score['max_score']:g} · 原始记录保持不变")
+        st.dataframe(score["items"], width="stretch", hide_index=True,
+            column_config={"stage": "环节", "score": "得分", "max_score": "满分", "reason": "评分说明",
+                           "improvement": "改进建议", "item_id": None, "evidence_event_ids": None, "hit": None})
+        st.markdown("**学生病历**")
+        st.text(record["case_notes"] or "未填写病历记录")
+        st.markdown("**学生诊断**")
+        st.text(record["submissions"].get("diagnosis") or "未提交诊断")
+        st.caption("事件编号与下方复核表单一致；完整提交、结果及引用可展开原始证据核对。")
+        st.dataframe([{"序号": event["seq"], "事件编号": event["event_id"],
+                       "动作": event["action"], "模拟分钟": event["sim_time"], "提问": event.get("question", "")}
+                      for event in record["events"]], width="stretch", hide_index=True)
+        with st.expander("完整原始证据（只读）"):
+            st.json({key: record[key] for key in ("score_snapshot", "submissions", "case_notes", "events")})
     with st.expander("原始反馈与历次复核（只读）"):
         st.json({"original": record["original"], "reviews": record["reviews"]})
     with st.expander("适用教学依据与来源（未医学审核）"):

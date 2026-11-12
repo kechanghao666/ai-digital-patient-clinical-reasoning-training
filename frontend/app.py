@@ -28,9 +28,7 @@ if st.session_state.get("identity_context") != context:
             del st.session_state[key]
     st.session_state.identity_context = context
 st.title("AI数字病人临床思维训练")
-st.html('<div class="clinic-banner"><p class="clinic-eyebrow">CLINICAL REASONING · 医学教学</p>'
-        '<strong>在可重复的病例中，练习每一步临床判断</strong>'
-        '<p>从问诊与检查，到诊断、模拟处置和复盘。关注依据，也关注过程。</p></div>')
+st.caption("医学教学工作台 · 问诊、判断与复盘")
 st.warning("教学模拟环境，非真实患者，不用于真实诊疗。病例与教学依据尚未通过医学审核。仅供参考，以医师及评审专家意见为准。", icon=":material/info:")
 error_slot = st.empty()
 
@@ -280,59 +278,65 @@ else:
     a.metric("模拟时间", f"{state['sim_time_minutes']} 分钟")
     b.metric("已记录操作", len(state.get("events", [])))
     c.metric("训练状态", "已封存" if state["sealed"] else "进行中")
-    st.caption("01 病史采集　→　02 检查选择　→　03 鉴别诊断　→　04 诊断　→　05 模拟治疗与复盘")
-    left, right = st.columns(2)
-    with left:
-        st.subheader("问诊")
-        for event in state.get("events", []):
-            if event["action"] == "ask":
-                with st.chat_message("user"):
-                    st.write(event["intent"])
-                with st.chat_message("assistant", avatar=":material/person:"):
-                    st.write(event.get("result", {}).get("answer", ""))
-                    timing = st.session_state.get("answer_timing", {})
-                    if timing.get("session_id") == state["session_id"] and timing.get("event_id") == event["event_id"]:
-                        st.caption(f"本次回答请求用时 {timing['response_received_ms'] / 1000:.2f} 秒",
-                                   help="从前端发出请求到收到有效回答，不含浏览器绘制时间。")
-        question = st.text_input("向患者提问", key="question", disabled=readonly)
-        if st.button("提交问题", disabled=readonly) and question:
-            with st.spinner("患者正在回答，请稍候…"):
-                result = mutate(
-                    "POST", f"/api/sessions/{state['session_id']}/ask", "ask", {"question": question},
-                )
-            if result:
-                st.rerun()
-        st.subheader("检查开单")
-        exam_id = st.selectbox(
-            "检查项目",
-            list(exam_names),
-            format_func=lambda value: exam_names.get(value, value),
-            disabled=readonly or not exam_names,
-        )
-        if st.button("确认开单", disabled=readonly or not exam_names):
-            result = action_mutation(state["session_id"], "order_exam", {"exam_id": exam_id})
-            if result:
-                st.rerun()
-        wait_minutes = st.number_input("显式等待模拟分钟", min_value=0, max_value=240, value=5, disabled=readonly)
-        if st.button("推进模拟时间", disabled=readonly):
-            result = action_mutation(state["session_id"], "wait", {"minutes": wait_minutes})
-            if result:
-                st.rerun()
-    with right:
-        st.subheader("检查结果")
-        if not state["orders"]:
-            st.info("尚未开立检查。开单后，按回报时间推进模拟时钟。")
-        order_labels = {"pending": "等待回报", "ready": "已回报", "failed": "检查失败", "not_configured": "未配置结果", "not_ordered": "尚未开立"}
-        for order in state["orders"]:
-            st.write(
-                f"{order['exam_name']}：{order_labels.get(order['state'], order['state'])} "
-                f"（采样 {order['sample_sim_time']} 分钟，回报 {order['return_sim_time']} 分钟）"
+    for update in state.get("clinical_updates", []):
+        st.warning(f"病情变化：{update}")
+    intake, reasoning, treatment, review = st.tabs(
+        ["问诊与检查", "病历与判断", "模拟处置", "反馈与回放"],
+        default="反馈与回放" if state["sealed"] else "问诊与检查",
+        key=f"training_tabs_{state['session_id']}_{state['sealed']}",
+    )
+    with intake:
+        left, right = st.columns([3, 2], gap="large")
+        with left:
+            st.subheader("问诊")
+            for event in state.get("events", []):
+                if event["action"] == "ask":
+                    with st.chat_message("user"):
+                        st.write(event["intent"])
+                    with st.chat_message("assistant", avatar=":material/person:"):
+                        st.write(event.get("result", {}).get("answer", ""))
+                        timing = st.session_state.get("answer_timing", {})
+                        if timing.get("session_id") == state["session_id"] and timing.get("event_id") == event["event_id"]:
+                            st.caption(f"本次回答请求用时 {timing['response_received_ms'] / 1000:.2f} 秒",
+                                       help="从前端发出请求到收到有效回答，不含浏览器绘制时间。")
+            question = st.text_input("向患者提问", key="question", disabled=readonly)
+            if st.button("提交问题", disabled=readonly) and question:
+                with st.spinner("患者正在回答，请稍候…"):
+                    result = mutate(
+                        "POST", f"/api/sessions/{state['session_id']}/ask", "ask", {"question": question},
+                    )
+                if result:
+                    st.rerun()
+        with right:
+            st.subheader("检查开单")
+            exam_id = st.selectbox(
+                "检查项目",
+                list(exam_names),
+                format_func=lambda value: exam_names.get(value, value),
+                disabled=readonly or not exam_names,
             )
-            if order["result"]:
-                st.success(order["result"])
-        for update in state.get("clinical_updates", []):
-            st.warning(f"病情变化：{update}")
-        st.subheader("诊断与治疗")
+            if st.button("确认开单", disabled=readonly or not exam_names):
+                result = action_mutation(state["session_id"], "order_exam", {"exam_id": exam_id})
+                if result:
+                    st.rerun()
+            wait_minutes = st.number_input("显式等待模拟分钟", min_value=0, max_value=240, value=5, disabled=readonly)
+            if st.button("推进模拟时间", disabled=readonly):
+                result = action_mutation(state["session_id"], "wait", {"minutes": wait_minutes})
+                if result:
+                    st.rerun()
+            st.subheader("检查结果")
+            if not state["orders"]:
+                st.info("尚未开立检查。开单后，按回报时间推进模拟时钟。")
+            order_labels = {"pending": "等待回报", "ready": "已回报", "failed": "检查失败", "not_configured": "未配置结果", "not_ordered": "尚未开立"}
+            for order in state["orders"]:
+                st.write(
+                    f"{order['exam_name']}：{order_labels.get(order['state'], order['state'])} "
+                    f"（采样 {order['sample_sim_time']} 分钟，回报 {order['return_sim_time']} 分钟）"
+                )
+                if order["result"]:
+                    st.success(order["result"])
+    with reasoning:
+        st.subheader("病历与判断")
         notes = st.text_area(
             "病历记录",
             value=state.get("case_notes", ""),
@@ -417,6 +421,9 @@ else:
                 {"diagnosis": diagnosis},
             ):
                 st.rerun()
+    with treatment:
+        st.subheader("模拟处置")
+        st.caption("选择本次模拟动作，明确确认后提交。完成全部记录后再封存训练。")
         treatment_id = st.selectbox(
             "治疗动作",
             list(treatment_names),
@@ -446,7 +453,10 @@ else:
                 st.rerun()
         if not state["sealed"]:
             st.caption("封存后不能修改本次训练，请先核对病历、诊断和实际执行的处置。")
-        if not state["sealed"] and st.button("提交训练并封存", type="primary", disabled=readonly):
+        unsaved_notes = notes != state.get("case_notes", "")
+        if not readonly and unsaved_notes:
+            st.warning("病历有未保存修改，请回到“病历与判断”保存后再封存。")
+        if not state["sealed"] and st.button("提交训练并封存", type="primary", disabled=readonly or unsaved_notes):
             result = mutate(
                 "POST",
                 f"/api/sessions/{state['session_id']}/seal",
@@ -456,123 +466,126 @@ else:
             if result:
                 st.success("训练已封存，规则评分已生成；可继续生成分环节反馈。")
                 st.rerun()
-    if state["sealed"]:
-        st.info("本训练已封存，当前页面为只读反馈。")
-        st.divider()
-        st.subheader("训练反馈")
-        with st.expander("向教师提供复核信息"):
-            st.caption("反馈需要复核时，将以下账号和完整训练编号提供给教师。")
-            st.code(f"学生账号：{OWNER}\n训练编号：{state['session_id']}", language=None)
-        snapshot = api("GET", f"/api/sessions/{state['session_id']}/score")
-        if snapshot:
-            st.caption("以下为封存时生成的原规则评分；教师裁定在下方独立展示。")
-            status_labels = {
-                "complete": "已完成自动评分",
-                "needs_review": "待人工复核（包含暂计分，不作为最终成绩）",
-                "failed": "评分失败",
-            }
-            status = snapshot.get("status", "complete")
-            if status == "needs_review":
-                st.warning(status_labels[status])
-            elif status == "failed":
-                st.error(status_labels[status])
-            else:
-                st.success(status_labels.get(status, status))
-            st.metric("原规则总分", f"{snapshot['total_score']} / {snapshot['max_score']}")
-            stage_scores = {}
-            for item in snapshot["items"]:
-                totals = stage_scores.setdefault(item["stage"], [0, 0])
-                totals[0] += item["score"]
-                totals[1] += item["max_score"]
-            for stage, (got, total) in stage_scores.items():
-                st.progress(got / total if total else 0, text=f"{stage} · {got:g} / {total:g}")
-            st.dataframe(snapshot["items"], width="stretch", hide_index=True,
-                column_config={"stage": "环节", "score": "得分", "max_score": "满分", "reason": "评分说明",
-                               "improvement": "改进建议", "item_id": None, "evidence_event_ids": None, "hit": None})
-        feedback_cache = st.session_state.setdefault("feedback_by_session", {})
-        adjudicated = api("GET", f"/api/sessions/{state['session_id']}/score-review", allow_missing=True) if not stale else None
-        if adjudicated:
-            reviewed = adjudicated["reviewed_score"]
-            st.info(f"教师评分裁定第{adjudicated['revision']}版：{reviewed['total_score']:g} / {reviewed['max_score']:g}。原规则评分保留。")
-            st.caption(adjudicated["notice"])
-            st.dataframe(reviewed["items"], width="stretch", hide_index=True,
-                column_config={"stage": "环节", "score": "裁定得分", "max_score": "满分", "reason": "教师裁定说明",
-                               "improvement": "改进建议", "item_id": None, "evidence_event_ids": None, "hit": None})
-        if st.button("刷新已存反馈与教师复核", disabled=stale):
-            feedback_cache.pop(state["session_id"], None)
-        if state["session_id"] not in feedback_cache and not stale:
-            stored_feedback = api("GET", f"/api/sessions/{state['session_id']}/feedback", allow_missing=True)
-            if stored_feedback:
-                feedback_cache[state["session_id"]] = stored_feedback
-        if st.button("生成分环节改进反馈", disabled=stale):
-            generated = mutate(
-                "POST", f"/api/sessions/{state['session_id']}/feedback", "feedback", {}
-            )
-            if generated:
-                feedback_cache[state["session_id"]] = generated
-        shown = feedback_cache.get(state["session_id"])
-        if shown and shown.get("source") == "nexent":
-            st.warning("模型反馈草稿已生成，待教师复核后展示。请将训练编号提供给教师，复核后点击刷新。")
-            shown = None
-        if shown:
-            st.caption(shown.get("notice", ""))
-            if shown.get("basis_provenance") == "legacy_unversioned":
-                st.warning("历史反馈未留存教学依据版本，无法确认生成时的来源。请教师核对；当前知识库不能替代历史依据。")
-            if shown.get("basis_coverage", {}).get("missing_clinical_stages"):
-                st.warning("以下环节尚缺专科临床依据：" + "、".join(shown["basis_coverage"]["missing_clinical_stages"])
-                           + "。通用反馈规范只用于组织评语，请教师核对。")
-            if shown.get("review_revision"):
-                st.info(f"当前展示教师反馈复核第{shown['review_revision']}版；封存分数与评分复核状态保持不变。")
-            basis = {entry["basis_id"]: entry for entry in shown.get("teaching_basis", [])}
-            for item in shown["items"]:
-                st.markdown(f"**{item['stage']}**：{item['comment']}")
-                if item.get("improvement"):
-                    st.markdown(f"- 改进建议：{item['improvement']}")
-                with st.expander(f"{item['stage']} · 教学依据与来源（未审核）"):
-                    for basis_id in item.get("basis_ids", []):
-                        entry = basis.get(basis_id)
-                        if entry:
-                            st.write(entry["title"])
-                            if entry.get("revision"):
-                                st.caption(f"依据修订 {entry['revision']} · 来源按本次反馈生成时保存")
-                            for source in entry["sources"]:
-                                st.caption("来源：" + source)
-                            if entry.get("restricted"):
-                                st.caption("部分题名或来源含参考答案，供教师核对，未向学生展示。")
-                        else:
-                            st.caption("当前记录未提供可展示的来源，请教师核对。")
-        if st.button("开始新训练"):
-            return_to_library()
-    with st.expander("训练回放"):
-        action_labels = {"ask": "问诊", "order_exam": "检查开单", "wait": "等待回报", "update_notes": "保存病历",
-            "submit_differential": "提交鉴别诊断", "submit_diagnosis": "提交诊断", "plan_treatment": "计划处置",
-            "execute_treatment": "执行模拟处置", "seal": "封存训练"}
-        for event in state.get("events", []):
-            st.write(
-                f"#{event['seq']} · {action_labels.get(event['action'], event['action'])} · 模拟时间 {event['sim_time']} 分钟"
-            )
-            result = event.get("result") or {}
-            if event["intent"]:
-                st.write("提问：" + event["intent"])
-            if result.get("answer"):
-                st.write("患者回答：" + result["answer"])
-            if "advanced_minutes" in result:
-                st.write(f"推进模拟时间 {result['advanced_minutes']} 分钟")
-            if result.get("state"):
-                st.write("检查状态：" + order_labels.get(result["state"], result["state"]))
-            for exam in result.get("exam_results", []):
-                st.write(f"{exam['name']}：{exam['result']}")
-            if "diagnosis" in result:
-                st.write("提交诊断：" + result["diagnosis"])
-            for candidate in result.get("candidates", []):
-                st.write("鉴别候选：" + differential_labels.get(candidate["candidate_id"], "历史候选"))
-                st.write("支持证据：" + ("；".join(candidate["supporting_evidence"]) or "未填写"))
-                st.write("反对证据：" + ("；".join(candidate["opposing_evidence"]) or "未填写"))
-            if result.get("treatment"):
-                treatment = result["treatment"]
-                st.write("模拟处置：" + treatment_names.get(treatment.get("treatment_id"), "历史处置")
-                         + ("（已执行）" if result.get("executed") else "（仅计划）"))
-            for update in result.get("clinical_updates", []):
-                st.write("病情变化：" + update)
+    with review:
+        if not state["sealed"]:
+            st.info("完成训练并封存后，可查看评分和分环节反馈；下方可随时回放已记录的操作。")
+        if state["sealed"]:
+            st.info("本训练已封存，当前页面为只读反馈。")
+            st.divider()
+            st.subheader("训练反馈")
+            with st.expander("向教师提供复核信息"):
+                st.caption("反馈需要复核时，将以下账号和完整训练编号提供给教师。")
+                st.code(f"学生账号：{OWNER}\n训练编号：{state['session_id']}", language=None)
+            snapshot = api("GET", f"/api/sessions/{state['session_id']}/score")
+            if snapshot:
+                st.caption("以下为封存时生成的原规则评分；教师裁定在下方独立展示。")
+                status_labels = {
+                    "complete": "已完成自动评分",
+                    "needs_review": "待人工复核（包含暂计分，不作为最终成绩）",
+                    "failed": "评分失败",
+                }
+                status = snapshot.get("status", "complete")
+                if status == "needs_review":
+                    st.warning(status_labels[status])
+                elif status == "failed":
+                    st.error(status_labels[status])
+                else:
+                    st.success(status_labels.get(status, status))
+                st.metric("原规则总分", f"{snapshot['total_score']} / {snapshot['max_score']}")
+                stage_scores = {}
+                for item in snapshot["items"]:
+                    totals = stage_scores.setdefault(item["stage"], [0, 0])
+                    totals[0] += item["score"]
+                    totals[1] += item["max_score"]
+                for stage, (got, total) in stage_scores.items():
+                    st.progress(got / total if total else 0, text=f"{stage} · {got:g} / {total:g}")
+                st.dataframe(snapshot["items"], width="stretch", hide_index=True,
+                    column_config={"stage": "环节", "score": "得分", "max_score": "满分", "reason": "评分说明",
+                                   "improvement": "改进建议", "item_id": None, "evidence_event_ids": None, "hit": None})
+            feedback_cache = st.session_state.setdefault("feedback_by_session", {})
+            adjudicated = api("GET", f"/api/sessions/{state['session_id']}/score-review", allow_missing=True) if not stale else None
+            if adjudicated:
+                reviewed = adjudicated["reviewed_score"]
+                st.info(f"教师评分裁定第{adjudicated['revision']}版：{reviewed['total_score']:g} / {reviewed['max_score']:g}。原规则评分保留。")
+                st.caption(adjudicated["notice"])
+                st.dataframe(reviewed["items"], width="stretch", hide_index=True,
+                    column_config={"stage": "环节", "score": "裁定得分", "max_score": "满分", "reason": "教师裁定说明",
+                                   "improvement": "改进建议", "item_id": None, "evidence_event_ids": None, "hit": None})
+            if st.button("刷新已存反馈与教师复核", disabled=stale):
+                feedback_cache.pop(state["session_id"], None)
+            if state["session_id"] not in feedback_cache and not stale:
+                stored_feedback = api("GET", f"/api/sessions/{state['session_id']}/feedback", allow_missing=True)
+                if stored_feedback:
+                    feedback_cache[state["session_id"]] = stored_feedback
+            if st.button("生成分环节改进反馈", disabled=stale):
+                generated = mutate(
+                    "POST", f"/api/sessions/{state['session_id']}/feedback", "feedback", {}
+                )
+                if generated:
+                    feedback_cache[state["session_id"]] = generated
+            shown = feedback_cache.get(state["session_id"])
+            if shown and shown.get("source") == "nexent":
+                st.warning("模型反馈草稿已生成，待教师复核后展示。请将训练编号提供给教师，复核后点击刷新。")
+                shown = None
+            if shown:
+                st.caption(shown.get("notice", ""))
+                if shown.get("basis_provenance") == "legacy_unversioned":
+                    st.warning("历史反馈未留存教学依据版本，无法确认生成时的来源。请教师核对；当前知识库不能替代历史依据。")
+                if shown.get("basis_coverage", {}).get("missing_clinical_stages"):
+                    st.warning("以下环节尚缺专科临床依据：" + "、".join(shown["basis_coverage"]["missing_clinical_stages"])
+                               + "。通用反馈规范只用于组织评语，请教师核对。")
+                if shown.get("review_revision"):
+                    st.info(f"当前展示教师反馈复核第{shown['review_revision']}版；封存分数与评分复核状态保持不变。")
+                basis = {entry["basis_id"]: entry for entry in shown.get("teaching_basis", [])}
+                for item in shown["items"]:
+                    st.markdown(f"**{item['stage']}**：{item['comment']}")
+                    if item.get("improvement"):
+                        st.markdown(f"- 改进建议：{item['improvement']}")
+                    with st.expander(f"{item['stage']} · 教学依据与来源（未审核）"):
+                        for basis_id in item.get("basis_ids", []):
+                            entry = basis.get(basis_id)
+                            if entry:
+                                st.write(entry["title"])
+                                if entry.get("revision"):
+                                    st.caption(f"依据修订 {entry['revision']} · 来源按本次反馈生成时保存")
+                                for source in entry["sources"]:
+                                    st.caption("来源：" + source)
+                                if entry.get("restricted"):
+                                    st.caption("部分题名或来源含参考答案，供教师核对，未向学生展示。")
+                            else:
+                                st.caption("当前记录未提供可展示的来源，请教师核对。")
+            if st.button("开始新训练"):
+                return_to_library()
+        with st.expander("训练回放"):
+            action_labels = {"ask": "问诊", "order_exam": "检查开单", "wait": "等待回报", "update_notes": "保存病历",
+                "submit_differential": "提交鉴别诊断", "submit_diagnosis": "提交诊断", "plan_treatment": "计划处置",
+                "execute_treatment": "执行模拟处置", "seal": "封存训练"}
+            for event in state.get("events", []):
+                st.write(
+                    f"#{event['seq']} · {action_labels.get(event['action'], event['action'])} · 模拟时间 {event['sim_time']} 分钟"
+                )
+                result = event.get("result") or {}
+                if event["intent"]:
+                    st.write("提问：" + event["intent"])
+                if result.get("answer"):
+                    st.write("患者回答：" + result["answer"])
+                if "advanced_minutes" in result:
+                    st.write(f"推进模拟时间 {result['advanced_minutes']} 分钟")
+                if result.get("state"):
+                    st.write("检查状态：" + order_labels.get(result["state"], result["state"]))
+                for exam in result.get("exam_results", []):
+                    st.write(f"{exam['name']}：{exam['result']}")
+                if "diagnosis" in result:
+                    st.write("提交诊断：" + result["diagnosis"])
+                for candidate in result.get("candidates", []):
+                    st.write("鉴别候选：" + differential_labels.get(candidate["candidate_id"], "历史候选"))
+                    st.write("支持证据：" + ("；".join(candidate["supporting_evidence"]) or "未填写"))
+                    st.write("反对证据：" + ("；".join(candidate["opposing_evidence"]) or "未填写"))
+                if result.get("treatment"):
+                    treatment = result["treatment"]
+                    st.write("模拟处置：" + treatment_names.get(treatment.get("treatment_id"), "历史处置")
+                             + ("（已执行）" if result.get("executed") else "（仅计划）"))
+                for update in result.get("clinical_updates", []):
+                    st.write("病情变化：" + update)
 
 render_pending_error()

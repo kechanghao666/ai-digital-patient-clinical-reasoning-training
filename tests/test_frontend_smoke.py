@@ -39,6 +39,22 @@ def _route_requests(monkeypatch, api: Api):
     monkeypatch.setattr(requests, "request", fake_request)
 
 
+def test_unsaved_notes_must_be_saved_before_sealing(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch, owner="demo-student")
+    sid = api.start("CASE-001")
+    _route_requests(monkeypatch, api)
+    page = _page(api)
+    next(b for b in page.button if b.label == "恢复训练").click().run()
+    page.text_area(key="case_notes_input").set_value("本轮已采集病史，待核对检查。").run()
+    assert next(b for b in page.button if b.label == "提交训练并封存").disabled
+    next(b for b in page.button if b.label == "保存病历记录").click().run()
+    assert not next(b for b in page.button if b.label == "提交训练并封存").disabled
+    next(b for b in page.button if b.label == "提交训练并封存").click().run()
+    assert not page.exception
+    state = api.client.get(f"/api/sessions/{sid}", headers=api.headers).json()["state"]
+    assert state["sealed"] and state["case_notes"] == "本轮已采集病史，待核对检查。"
+
+
 def _page(api: Api):
     app = AppTest.from_file(str(ROOT / "frontend" / "app.py"), default_timeout=30)
     app.run()
