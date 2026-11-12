@@ -6,7 +6,7 @@
 
 > 教学模拟环境，非真实患者，不用于真实诊疗。
 
-当前界面为四阶段工作台，病历、诊断及鉴别的未提交内容在封存/返回前受保护；全量475项通过，Edge保护流程复验通过。此前真实完整首例可运行，但本轮五科各一次问诊仅1次成功、4次超时，稳定性及5秒目标仍未通过。见[本轮证据](docs/evidence/2026-11-12-five-specialty-draft-check.json)、[当前复盘](docs/status-review.md)、[最终缺口](docs/release-readiness.md)与[开发/官方流程](docs/milestones.md)。五科医学审核仍待完成，工程PR #1不是官方验收PR。
+当前界面为四阶段工作台，病历、诊断及鉴别草稿在封存/返回前受保护。11月13日工程复盘478项通过，十二组可复跑样本12/12通过；修复部署数据目录、测试隔离、清空鉴别提交和教师诊断显示。五科各一次真实问诊成功，API耗时5.594–26.859秒，仍未达到5秒目标，也未完成五科真实完整闭环。见[工程证据](docs/evidence/2026-11-13-project-audit.json)、[官方逐项核对](docs/official-requirements-audit.md)、[从零部署](docs/deployment.md)与[最终缺口](docs/release-readiness.md)。工程PR #1不是官方验收PR。
 
 ## 文档
 

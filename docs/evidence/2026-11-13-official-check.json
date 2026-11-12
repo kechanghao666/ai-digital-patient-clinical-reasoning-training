@@ -1,0 +1,40 @@
+{
+  "checked_date": "2026-11-13",
+  "upstream_main": "f4bb5a52b9111caa4aac5b5e7ed773cd6569377b",
+  "requirements_blob": "c101bdaba0df486bb5c3a7a40d7ba63cdedd1567",
+  "http_results": [
+    {
+      "method": "GET",
+      "path": "/detail",
+      "status": 405
+    },
+    {
+      "method": "POST",
+      "path": "/detail",
+      "status": 400
+    },
+    {
+      "method": "POST",
+      "path": "/comment/reply/page",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/detail",
+      "status": 200,
+      "payload_keys": [
+        "source_id",
+        "source_type",
+        "serial_number"
+      ]
+    }
+  ],
+  "announcement_sha256": "f0fe74deaea4ccd6e90c9e10105947dfd007d1edf59a8e9b2350bd3f1e99bbec",
+  "reply_count": 2,
+  "new_official_confirmation": false,
+  "stage": "4-development",
+  "engineering_samples": {
+    "passed": 12,
+    "formal_acceptance": false
+  }
+}

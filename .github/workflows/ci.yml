@@ -20,6 +20,7 @@ jobs:
           cache-dependency-path: requirements.lock
       - run: python -m pip install --require-hashes -r requirements.lock
       - run: python -m pytest -q
+      - run: python scripts/run_engineering_samples.py
       - run: python -m compileall -q backend/app frontend tests
   dependency-audit:
     runs-on: ubuntu-latest
