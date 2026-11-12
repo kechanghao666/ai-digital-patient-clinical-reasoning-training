@@ -1,0 +1,89 @@
+{
+  "date": "2026-11-13",
+  "base_sha": "034e5804271483c6ff75c6bb5a20f2a9e407a36c",
+  "changes": [
+    "role/task navigation with collapsed connection settings",
+    "searchable public case cards with empty state",
+    "specific history restore and status filter",
+    "compact patient header and two-panel consultation/reasoning",
+    "Enter-to-submit question form, neutral examination results",
+    "separate treatment and seal panels",
+    "score overview with expandable item details",
+    "shared teacher navigation and design tokens"
+  ],
+  "tests": {
+    "full_passed": 482,
+    "full_seconds": 89.47,
+    "after_frontend_url_default_ui_passed": 35,
+    "compile": "pass",
+    "diff_check": "pass"
+  },
+  "browser": {
+    "date": "2026-11-13",
+    "checks": [
+      "real patient answer visible in new tab layout",
+      "tabs retain drafts and active selection; unsaved notes block seal; submissions persist",
+      "explicit treatment confirmation; seal opens review; model draft stays teacher-only",
+      "replay filter preserves event sequence and readable expandable evidence",
+      "390px viewport has aligned summary cards, visible title, no horizontal page overflow; all tabs reachable",
+      "320px reflow keeps all four tabs reachable",
+      "teacher readable evidence and raw records available; no approval written; original score and owner isolation preserved",
+      "empty search has recovery guidance; selected sealed history restores the original read-only session"
+    ],
+    "complete": true,
+    "answer_visible_ms": 6015,
+    "mobile_geometry": {
+      "documentOverflow": 0,
+      "mainOverflow": 0,
+      "headingTop": 190.375,
+      "toolbarBottom": 60,
+      "metrics": [
+        {
+          "top": 292.953125,
+          "left": 14.390625
+        },
+        {
+          "top": 292.953125,
+          "left": 136.921875
+        },
+        {
+          "top": 292.953125,
+          "left": 259.46875
+        }
+      ]
+    },
+    "page_errors": [],
+    "business_database_unchanged": true
+  },
+  "backend_changed": false,
+  "production_dependencies_added": false,
+  "source_sha256": {
+    "frontend/app.py": "40629fa911672ca1277094649a66ead197a09b3e523d8706f011941e04ff7f01",
+    "frontend/teacher.py": "fef3c81f1ff6a71dba2b6422d597e95847b55d657e09d658e4908f71db1c74ad",
+    "frontend/styles.css": "414788810cb904175150bddd619b0e314162fee192d2c7ba4edea2282b804056",
+    ".streamlit/config.toml": "51b4144d650804766f0ef0bdae9d6e3c162640f5ad346f5ba84f0836cca396d3"
+  },
+  "screenshots": [
+    "library-desktop.png",
+    "intake-desktop.png",
+    "reasoning-desktop.png",
+    "treatment-desktop.png",
+    "review-desktop.png",
+    "review-mobile.png",
+    "review-320.png",
+    "teacher-desktop.png",
+    "history-desktop.png"
+  ],
+  "preview": {
+    "ui_port": 8506,
+    "api_port": 8005,
+    "mode": "nexent",
+    "configured_through_ui": true
+  },
+  "limits": [
+    "not a clinical or official acceptance result",
+    "first valid answer visible at 6.015 seconds still exceeds five seconds",
+    "no real teacher approval or original data changes",
+    "no formal user study, exhaustive screen-reader audit or authenticated evaluation of all referenced platforms"
+  ]
+}

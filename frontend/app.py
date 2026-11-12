@@ -1,7 +1,9 @@
 import uuid
+from html import escape
 import json
 import time
 import sys
+import os
 from pathlib import Path
 
 import requests
@@ -12,13 +14,14 @@ from teacher import render_teacher
 
 st.set_page_config(page_title="AI数字病人临床思维训练", page_icon=":material/clinical_notes:", layout="wide")
 st.html("<style>" + Path(__file__).with_name("styles.css").read_text("utf-8") + "</style>")
-st.sidebar.markdown("### 临床思维训练")
+st.sidebar.html('<div class="brand"><span class="brand-mark" aria-hidden="true">＋</span><div><strong>临床思维训练</strong><span>数字病人 · 教学工作台</span></div></div>')
 WORKSPACE = st.sidebar.radio("工作空间", ["学生训练", "教师病例管理"], key="workspace")
-OWNER = st.sidebar.text_input("教师演示账号" if WORKSPACE == "教师病例管理" else "学生演示账号",
-    "teacher-demo" if WORKSPACE == "教师病例管理" else "demo-student",
-    key="teacher_identity" if WORKSPACE == "教师病例管理" else "student_identity")
+navigation = st.sidebar.container()
 with st.sidebar.expander("连接设置"):
-    API = st.text_input("后端地址", "http://127.0.0.1:8000", key="api_address").rstrip("/")
+    OWNER = st.text_input("教师演示账号" if WORKSPACE == "教师病例管理" else "学生演示账号",
+        "teacher-demo" if WORKSPACE == "教师病例管理" else "demo-student",
+        key="teacher_identity" if WORKSPACE == "教师病例管理" else "student_identity")
+    API = st.text_input("后端地址", os.getenv("FRONTEND_API_URL", "http://127.0.0.1:8000"), key="api_address").rstrip("/")
     st.caption("演示账号仅供本地开发。公开部署前须接入正式登录与角色权限。")
 # Cache contents are scoped to the actual destination and identity, never just the selected role.
 context = (API, OWNER, WORKSPACE)
@@ -27,9 +30,7 @@ if st.session_state.get("identity_context") != context:
         if key not in {"workspace", "student_identity", "teacher_identity", "api_address"}:
             del st.session_state[key]
     st.session_state.identity_context = context
-st.title("AI数字病人临床思维训练")
-st.caption("医学教学工作台 · 问诊、判断与复盘")
-st.warning("教学模拟环境，非真实患者，不用于真实诊疗。病例与教学依据尚未通过医学审核。仅供参考，以医师及评审专家意见为准。", icon=":material/info:")
+st.html('<div class="teaching-notice" role="note"><strong>教学模拟</strong><span>非真实患者，不用于真实诊疗。病例与教学依据尚未通过医学审核，以医师及评审专家意见为准。</span></div>')
 error_slot = st.empty()
 
 
@@ -233,12 +234,19 @@ def render_event_result(event, differential_labels, treatment_names, order_label
         st.write("病情变化：" + update)
 
 
+def open_training(session_id, snapshot=None):
+    st.session_state.session_id = session_id
+    st.session_state.session_snapshot = snapshot
+    clear_training_fields()
+    st.rerun()
+
+
 if WORKSPACE == "教师病例管理":
-    render_teacher(api)
+    render_teacher(api, navigation)
     render_pending_error()
     st.stop()
 
-if st.session_state.session_id and st.sidebar.button("返回病例库", width="stretch"):
+if st.session_state.session_id and navigation.button("返回病例库", width="stretch"):
     if pending_training_edits((st.session_state.session_snapshot or {}).get("state") or {}):
         st.session_state.pending_return = True
     else:
@@ -246,67 +254,74 @@ if st.session_state.session_id and st.sidebar.button("返回病例库", width="s
 
 if st.session_state.get("pending_return"):
     pending = pending_training_edits((st.session_state.session_snapshot or {}).get("state") or {})
-    st.sidebar.warning("、".join(pending) + "有未提交修改，请继续编辑并提交，或明确放弃后返回。")
-    if st.sidebar.button("保存病历并返回", type="primary", width="stretch", disabled=any(p != "病历" for p in pending)):
+    navigation.warning("、".join(pending) + "有未提交修改，请继续编辑并提交，或明确放弃后返回。")
+    if navigation.button("保存病历并返回", type="primary", width="stretch", disabled=any(p != "病历" for p in pending)):
         if action_mutation(st.session_state.session_id, "update_notes", {"notes": st.session_state.case_notes_input}):
             return_to_library()
-    if st.sidebar.button("放弃未保存内容并返回", width="stretch"):
+    if navigation.button("放弃未保存内容并返回", width="stretch"):
         return_to_library()
-    if st.sidebar.button("继续编辑", width="stretch"):
+    if navigation.button("继续编辑", width="stretch"):
         st.session_state.pending_return = False
         st.rerun()
 
 cases = api("GET", "/api/cases") or []
 if not st.session_state.session_id:
     existing_sessions = api("GET", "/api/sessions") or []
-    a, b, c = st.columns(3)
-    a.metric("可选专科", len({case["specialty"] for case in cases}))
-    b.metric("可选病例", len(cases))
-    c.metric("我的训练", len(existing_sessions))
-    st.subheader("选择病例")
-    st.caption("选择病例开始训练，或恢复已有记录。所有分数均用于教学练习，不能作为正式成绩。")
-    if existing_sessions:
-        session_labels = [
-            (
-                f"{item['summary_id']} · {item['case']['public_id']} · "
-                f"{'已封存' if item['sealed'] else '进行中'} · "
-                f"{item['sim_time_minutes']} 分钟 · {item['event_count']} 个事件",
-                item["session_id"],
-            )
-            for item in existing_sessions
-        ]
-        selected_session = st.selectbox(
-            "恢复已有训练",
-            session_labels,
-            format_func=lambda value: value[0],
-        )
-        if st.button("恢复训练"):
-            st.session_state.session_id = selected_session[1]
-            st.session_state.session_snapshot = None
-            clear_training_fields()
-            st.rerun()
-    if cases:
-        specialty = st.selectbox("按专科筛选", ["全部专科", *sorted({case["specialty"] for case in cases})], key="library_specialty")
-        visible_cases = [case for case in cases if specialty == "全部专科" or case["specialty"] == specialty]
-        labels = {f"{case['public_id']} · {case['title']}": case for case in visible_cases}
-        selected = st.selectbox("病例", list(labels))
-        selected_case = labels[selected]
-        with st.container(border=True, key="case_preview"):
-            st.caption(f"{selected_case['specialty']} · {selected_case['public_id']} · 版本 {selected_case['version']}")
-            st.subheader(selected_case['title'])
-            st.markdown("**就诊主诉**")
-            st.write(selected_case.get("chief_complaint", ""))
-            st.caption("工程教学病例 · 未经医学审核" if selected_case.get("review_status") != "published" else "已发布教学病例")
-        st.caption(f"当前显示 {len(visible_cases)} 个病例 · 开始后可随时返回并恢复训练")
-        if st.button("开始训练", type="primary"):
-            result = api("POST", f"/api/sessions?case_id={labels[selected]['public_id']}")
-            if result:
-                st.session_state.session_id = result["session_id"]
-                st.session_state.session_snapshot = result
-                clear_training_fields()
-                st.rerun()
+    view = navigation.radio("学生导航", ["病例库", "我的训练"], key="student_view")
+    navigation.caption(f"当前账号：{OWNER}")
+    st.caption("学生工作台 / " + view)
+    st.title(view)
+    if view == "我的训练":
+        st.write("接着上次的思路继续，或回看已封存的训练。")
+        status_filter = st.selectbox("训练筛选", ["全部记录", "进行中", "已封存"], key="session_filter")
+        visible_sessions = [item for item in existing_sessions
+            if status_filter == "全部记录" or item["sealed"] == (status_filter == "已封存")]
+        if not visible_sessions:
+            st.info("暂无符合条件的训练。到病例库选择一个病例即可开始。")
+        for item in visible_sessions:
+            with st.container(border=True, key=f"history_{item['session_id']}"):
+                detail, action = st.columns([4, 1], vertical_alignment="center")
+                with detail:
+                    st.subheader(item["case"]["title"])
+                    st.caption(f"{'已封存 · 只读复盘' if item['sealed'] else '进行中'} · {item['case']['public_id']} · {item['summary_id']} · 模拟 {item['sim_time_minutes']} 分钟 · {item['event_count']} 条记录")
+                if action.button("查看复盘" if item["sealed"] else "继续训练", key=f"resume_{item['session_id']}", width="stretch"):
+                    open_training(item["session_id"])
     else:
-        st.info("暂无可用病例。")
+        st.write("选择一个病例，完成从问诊到判断的临床思维练习。")
+        st.caption(f"{len({case['specialty'] for case in cases})} 个专科 · {len(cases)} 个可选病例 · {len(existing_sessions)} 次已有训练")
+        if existing_sessions:
+            latest = existing_sessions[0]
+            with st.container(border=True, key="resume_banner"):
+                detail, action = st.columns([4, 1], vertical_alignment="center")
+                with detail:
+                    st.markdown("**最近训练 · " + ("已封存" if latest["sealed"] else "进行中") + "**")
+                    st.write(latest["case"]["title"])
+                    st.caption(f"{latest['summary_id']} · {latest['event_count']} 条记录 · 可从侧栏查看全部训练")
+                if action.button("恢复训练", key="resume_latest", width="stretch"):
+                    open_training(latest["session_id"])
+        search, filters = st.columns([3, 2])
+        query = search.text_input("搜索病例", placeholder="按主诉、病例名称或编号查找", key="case_search").strip().casefold()
+        specialty = filters.selectbox("按专科筛选", ["全部专科", *sorted({case["specialty"] for case in cases})], key="library_specialty")
+        visible_cases = [case for case in cases
+            if (specialty == "全部专科" or case["specialty"] == specialty)
+            and query in " ".join(str(case.get(field, "")) for field in ("title", "public_id", "chief_complaint", "specialty")).casefold()]
+        if not visible_cases:
+            st.info("未找到匹配病例。试试其他关键词，或将专科切换为“全部专科”。")
+        for offset in range(0, len(visible_cases), 2):
+            columns = st.columns(2, gap="medium")
+            for column, selected_case in zip(columns, visible_cases[offset:offset + 2]):
+                with column, st.container(border=True, key=f"case_card_{selected_case['public_id']}"):
+                    st.html(f'<div class="case-meta"><span class="specialty-tag">{escape(selected_case["specialty"])}</span><span>{escape(selected_case["public_id"])} · v{escape(str(selected_case["version"]))}</span></div>')
+                    st.subheader(selected_case["title"])
+                    st.caption("就诊主诉")
+                    st.write(selected_case.get("chief_complaint", ""))
+                    st.caption("未经医学审核 · 教学草稿" if selected_case.get("review_status") != "published" else "已发布教学病例")
+                    if st.button("开始训练", key=f"start_{selected_case['public_id']}", width="stretch", type="primary"):
+                        result = api("POST", f"/api/sessions?case_id={selected_case['public_id']}")
+                        if result:
+                            open_training(result["session_id"], result)
+        st.caption("训练中可保存病历并随时恢复；封存后进入只读复盘。分数用于教学练习，不作为正式成绩。")
+
 else:
     session = api("GET", f"/api/sessions/{st.session_state.session_id}")
     stale = session is None
@@ -331,16 +346,17 @@ else:
     readonly = state["sealed"] or stale
     if stale:
         st.warning("当前展示上次读取的记录，连接恢复前暂时停用提交。")
-    with st.container(border=True, key="patient_context"):
-        st.caption(f"当前病例 · {case['specialty']} · {case['public_id']} · 版本 {case['version']}")
-        st.subheader(case['title'])
-        st.write("就诊主诉：" + case.get("chief_complaint", ""))
-        if state["sealed"]:
-            st.caption("已封存 · 本次记录只读；原规则评分与教师复核分别展示")
-    a, b, c = st.columns(3)
-    a.metric("模拟时间", f"{state['sim_time_minutes']} 分钟")
-    b.metric("已记录操作", len(state.get("events", [])))
-    c.metric("训练状态", "已封存" if state["sealed"] else "进行中")
+    navigation.caption("当前训练")
+    navigation.write(case["title"])
+    navigation.caption("封存后只读" if state["sealed"] else "输入会在当前训练中保留；返回前请保存修改。")
+    st.caption("学生工作台 / " + ("训练复盘" if state["sealed"] else "训练工作台"))
+    st.title(case["title"])
+    st.html(f'<div class="patient-strip"><span>{escape(case["specialty"])}</span><span>{escape(case["public_id"])} · v{escape(str(case["version"]))}</span><strong>主诉：{escape(case.get("chief_complaint", ""))}</strong></div>')
+    with st.container(key="session_metrics"):
+        a, b, c = st.columns(3)
+        a.metric("模拟时间", f"{state['sim_time_minutes']} 分钟")
+        b.metric("已记录操作", len(state.get("events", [])))
+        c.metric("训练状态", "已封存" if state["sealed"] else "进行中")
     for update in state.get("clinical_updates", []):
         st.warning(f"病情变化：{update}")
     intake, reasoning, treatment, review = st.tabs(
@@ -350,8 +366,11 @@ else:
     )
     with intake:
         left, right = st.columns([3, 2], gap="large")
-        with left:
-            st.subheader("问诊")
+        with left, st.container(border=True, key="consultation_panel"):
+            st.subheader("患者对话")
+            st.caption("AI 模拟患者 · 回答仅限本病例已授权的信息")
+            if not any(event["action"] == "ask" for event in state.get("events", [])):
+                st.html('<div class="conversation-empty"><span aria-hidden="true">＋</span><h3>问诊从这里开始</h3><p>围绕主诉，用自己的问题了解患者。<br>对话与检查记录将在本次训练中保留。</p></div>')
             for event in state.get("events", []):
                 if event["action"] == "ask":
                     with st.chat_message("user"):
@@ -362,16 +381,18 @@ else:
                         if timing.get("session_id") == state["session_id"] and timing.get("event_id") == event["event_id"]:
                             st.caption(f"本次回答请求用时 {timing['response_received_ms'] / 1000:.2f} 秒",
                                        help="从前端发出请求到收到有效回答，不含浏览器绘制时间。")
-            question = st.text_input("向患者提问", key="question", disabled=readonly)
-            if st.button("提交问题", disabled=readonly) and question:
+            with st.form("patient_question", border=False):
+                question = st.text_input("向患者提问", key="question", disabled=readonly, placeholder="输入你的问题，按 Enter 或点击提交")
+                ask = st.form_submit_button("提交问题", disabled=readonly, type="primary")
+            if ask and question:
                 with st.spinner("患者正在回答，请稍候…"):
                     result = mutate(
                         "POST", f"/api/sessions/{state['session_id']}/ask", "ask", {"question": question},
                     )
                 if result:
                     st.rerun()
-        with right:
-            st.subheader("检查开单")
+        with right, st.container(border=True, key="examination_panel"):
+            st.subheader("检查与回报")
             exam_id = st.selectbox(
                 "检查项目",
                 list(exam_names),
@@ -397,136 +418,147 @@ else:
                     f"（采样 {order['sample_sim_time']} 分钟，回报 {order['return_sim_time']} 分钟）"
                 )
                 if order["result"]:
-                    st.success(order["result"])
+                    with st.container(border=True):
+                        st.write(order["result"])
     with reasoning:
-        st.subheader("病历与判断")
-        notes = st.text_area(
-            "病历记录",
-            value=state.get("case_notes", ""),
-            key="case_notes_input",
-            disabled=readonly,
-            help="记录本轮采集到的主诉、现病史、检查结果和处理计划。",
-        )
-        if st.button("保存病历记录", disabled=readonly):
-            if action_mutation(state["session_id"], "update_notes", {"notes": notes}):
-                st.rerun()
-        if not readonly and notes != state.get("case_notes", ""):
-            st.caption("病历有未保存修改，返回病例库前会提醒保存。")
-        submissions = state.get("submissions", {})
-        restored = {c.get("candidate_id"): c for c in (submissions.get("differential") or [])}
-        evidence_events = {
-            event["event_id"]: evidence_label(event)
-            for event in state.get("events", [])
-            if event["action"] == "ask" or event["result"].get("exam_results") or event["result"].get("clinical_updates")
-        }
-        st.markdown("**鉴别诊断**（先选候选，再填支持/反对证据并选择依据事件）")
-        chosen = st.multiselect(
-            "候选诊断",
-            list(differential_labels),
-            default=[value for value in restored if value in differential_labels],
-            format_func=lambda value: differential_labels.get(value, value),
-            key="differential_choice",
-            disabled=readonly or not differential_labels,
-        )
-        drafts = []
-        for candidate_id in chosen:
-            previous = restored.get(candidate_id, {})
-            label = differential_labels.get(candidate_id, candidate_id)
-            support = st.text_input(
-                f"{label}：支持证据",
-                value="、".join(previous.get("supporting_evidence", [])),
-                key=f"ddx_support_{candidate_id}",
+        notes_column, judgment_column = st.columns([1, 1], gap="large")
+        with notes_column, st.container(border=True, key="notes_panel"):
+            st.subheader("病历记录")
+            notes = st.text_area(
+                "病历记录",
+                value=state.get("case_notes", ""),
+                key="case_notes_input",
+                disabled=readonly,
+                help="记录本轮采集到的主诉、现病史、检查结果和处理计划。",
+            )
+            if st.button("保存病历记录", disabled=readonly):
+                if action_mutation(state["session_id"], "update_notes", {"notes": notes}):
+                    st.rerun()
+            if not readonly and notes != state.get("case_notes", ""):
+                st.caption("病历有未保存修改，返回病例库前会提醒保存。")
+        with judgment_column, st.container(border=True, key="judgment_panel"):
+            st.subheader("鉴别与诊断")
+            submissions = state.get("submissions", {})
+            restored = {c.get("candidate_id"): c for c in (submissions.get("differential") or [])}
+            evidence_events = {
+                event["event_id"]: evidence_label(event)
+                for event in state.get("events", [])
+                if event["action"] == "ask" or event["result"].get("exam_results") or event["result"].get("clinical_updates")
+            }
+            st.markdown("**鉴别诊断**（先选候选，再填支持/反对证据并选择依据事件）")
+            chosen = st.multiselect(
+                "候选诊断",
+                list(differential_labels),
+                default=[value for value in restored if value in differential_labels],
+                format_func=lambda value: differential_labels.get(value, value),
+                key="differential_choice",
+                placeholder="选择候选诊断",
+                disabled=readonly or not differential_labels,
+            )
+            drafts = []
+            for candidate_id in chosen:
+                previous = restored.get(candidate_id, {})
+                label = differential_labels.get(candidate_id, candidate_id)
+                support = st.text_input(
+                    f"{label}：支持证据",
+                    value="、".join(previous.get("supporting_evidence", [])),
+                    key=f"ddx_support_{candidate_id}",
+                    disabled=readonly,
+                )
+                oppose = st.text_input(
+                    f"{label}：反对证据",
+                    value="、".join(previous.get("opposing_evidence", [])),
+                    key=f"ddx_oppose_{candidate_id}",
+                    disabled=readonly,
+                )
+                cited = st.multiselect(
+                    f"{label}：依据事件",
+                    list(evidence_events),
+                    default=[v for v in previous.get("evidence_event_ids", []) if v in evidence_events],
+                    format_func=lambda value: evidence_events.get(value, value),
+                    key=f"ddx_events_{candidate_id}",
+                    placeholder="选择已记录的依据事件",
+                    disabled=readonly,
+                )
+                drafts.append(
+                    {
+                        "candidate_id": candidate_id,
+                        "supporting_evidence": [support.strip()] if support.strip() else [],
+                        "opposing_evidence": [oppose.strip()] if oppose.strip() else [],
+                        "evidence_event_ids": cited,
+                    }
+                )
+            if st.button("提交鉴别诊断", disabled=readonly or (not drafts and not restored)):
+                if mutate(
+                    "POST",
+                    f"/api/sessions/{state['session_id']}/differential",
+                    "differential",
+                    {"candidates": drafts},
+                ):
+                    st.rerun()
+            diagnosis = st.text_input(
+                "诊断提交",
+                value=submissions.get("diagnosis") or "",
+                key="diagnosis_input",
                 disabled=readonly,
             )
-            oppose = st.text_input(
-                f"{label}：反对证据",
-                value="、".join(previous.get("opposing_evidence", [])),
-                key=f"ddx_oppose_{candidate_id}",
-                disabled=readonly,
-            )
-            cited = st.multiselect(
-                f"{label}：依据事件",
-                list(evidence_events),
-                default=[v for v in previous.get("evidence_event_ids", []) if v in evidence_events],
-                format_func=lambda value: evidence_events.get(value, value),
-                key=f"ddx_events_{candidate_id}",
-                disabled=readonly,
-            )
-            drafts.append(
-                {
-                    "candidate_id": candidate_id,
-                    "supporting_evidence": [support.strip()] if support.strip() else [],
-                    "opposing_evidence": [oppose.strip()] if oppose.strip() else [],
-                    "evidence_event_ids": cited,
-                }
-            )
-        if st.button("提交鉴别诊断", disabled=readonly or (not drafts and not restored)):
-            if mutate(
-                "POST",
-                f"/api/sessions/{state['session_id']}/differential",
-                "differential",
-                {"candidates": drafts},
-            ):
-                st.rerun()
-        diagnosis = st.text_input(
-            "诊断提交",
-            value=submissions.get("diagnosis") or "",
-            key="diagnosis_input",
-            disabled=readonly,
-        )
-        if st.button("提交诊断", disabled=readonly) and diagnosis:
-            if mutate(
-                "POST",
-                f"/api/sessions/{state['session_id']}/diagnosis",
-                "diagnosis",
-                {"diagnosis": diagnosis},
-            ):
-                st.rerun()
+            if st.button("提交诊断", disabled=readonly) and diagnosis:
+                if mutate(
+                    "POST",
+                    f"/api/sessions/{state['session_id']}/diagnosis",
+                    "diagnosis",
+                    {"diagnosis": diagnosis},
+                ):
+                    st.rerun()
     with treatment:
-        st.subheader("模拟处置")
-        st.caption("选择本次模拟动作，明确确认后提交。完成全部记录后再封存训练。")
-        treatment_id = st.selectbox(
-            "治疗动作",
-            list(treatment_names),
-            format_func=lambda value: treatment_names.get(value, value),
-            disabled=readonly or not treatment_names,
-            key="treatment_choice",
-            on_change=reset_treatment_confirmation,
-        )
-        if st.session_state.pop("reset_treatment_confirmation", False):
-            reset_treatment_confirmation()
-        confirm = st.checkbox("确认执行该治疗动作", key="treatment_confirmation", disabled=readonly)
-        restored_treatment = submissions.get("treatment") or {}
-        if restored_treatment:
-            st.caption(
-                f"已提交治疗：{restored_treatment.get('treatment_name') or restored_treatment.get('treatment_id', '')} "
-                f"（{'已执行' if restored_treatment.get('confirm_execution') else '仅计划'}）"
+        action_column, finish_column = st.columns([1, 1], gap="large")
+        with action_column, st.container(border=True, key="treatment_panel"):
+            st.subheader("执行模拟处置")
+            st.caption("选择本次模拟动作，明确确认后提交。完成全部记录后再封存训练。")
+            treatment_id = st.selectbox(
+                "治疗动作",
+                list(treatment_names),
+                format_func=lambda value: treatment_names.get(value, value),
+                disabled=readonly or not treatment_names,
+                key="treatment_choice",
+                on_change=reset_treatment_confirmation,
             )
-        if st.button("提交治疗", disabled=readonly or not confirm or not treatment_names):
-            result = mutate(
-                "POST",
-                f"/api/sessions/{state['session_id']}/treatment",
-                "treatment",
-                {"treatment_id": treatment_id, "confirm_execution": True},
-            )
-            if result:
-                st.session_state.reset_treatment_confirmation = True
-                st.rerun()
-        if not state["sealed"]:
-            st.caption("封存后不能修改本次训练，请先核对病历、诊断和实际执行的处置。")
-        pending = pending_training_edits(state)
-        if not readonly and pending:
-            st.warning("、".join(pending) + "有未提交修改，请回到“病历与判断”保存或提交后再封存。")
-        if not state["sealed"] and st.button("提交训练并封存", type="primary", disabled=readonly or bool(pending)):
-            result = mutate(
-                "POST",
-                f"/api/sessions/{state['session_id']}/seal",
-                "seal",
-                {},
-            )
-            if result:
-                st.success("训练已封存，规则评分已生成；可继续生成分环节反馈。")
-                st.rerun()
+            if st.session_state.pop("reset_treatment_confirmation", False):
+                reset_treatment_confirmation()
+            confirm = st.checkbox("确认执行该治疗动作", key="treatment_confirmation", disabled=readonly)
+            restored_treatment = submissions.get("treatment") or {}
+            if restored_treatment:
+                st.caption(
+                    f"已提交治疗：{restored_treatment.get('treatment_name') or restored_treatment.get('treatment_id', '')} "
+                    f"（{'已执行' if restored_treatment.get('confirm_execution') else '仅计划'}）"
+                )
+            if st.button("提交治疗", disabled=readonly or not confirm or not treatment_names):
+                result = mutate(
+                    "POST",
+                    f"/api/sessions/{state['session_id']}/treatment",
+                    "treatment",
+                    {"treatment_id": treatment_id, "confirm_execution": True},
+                )
+                if result:
+                    st.session_state.reset_treatment_confirmation = True
+                    st.rerun()
+        with finish_column, st.container(border=True, key="finish_panel"):
+            st.subheader("结束本次训练")
+            if not state["sealed"]:
+                st.caption("封存后不能修改本次训练，请先核对病历、诊断和实际执行的处置。")
+            pending = pending_training_edits(state)
+            if not readonly and pending:
+                st.warning("、".join(pending) + "有未提交修改，请回到“病历与判断”保存或提交后再封存。")
+            if not state["sealed"] and st.button("提交训练并封存", type="primary", disabled=readonly or bool(pending)):
+                result = mutate(
+                    "POST",
+                    f"/api/sessions/{state['session_id']}/seal",
+                    "seal",
+                    {},
+                )
+                if result:
+                    st.success("训练已封存，规则评分已生成；可继续生成分环节反馈。")
+                    st.rerun()
     with review:
         if not state["sealed"]:
             st.info("完成训练并封存后，可查看评分和分环节反馈；下方可随时回放已记录的操作。")
@@ -552,18 +584,23 @@ else:
                     st.error(status_labels[status])
                 else:
                     st.success(status_labels.get(status, status))
-                st.metric("原规则总分", f"{snapshot['total_score']} / {snapshot['max_score']}")
-                stage_scores = {}
-                for item in snapshot["items"]:
-                    totals = stage_scores.setdefault(item["stage"], [0, 0])
-                    totals[0] += item["score"]
-                    totals[1] += item["max_score"]
-                for stage, (got, total) in stage_scores.items():
-                    st.progress(got / total if total else 0, text=f"{stage} · {got:g} / {total:g}")
-                st.dataframe(snapshot["items"], width="stretch", hide_index=True,
-                    column_config={"stage": "环节", "score": "得分", "max_score": "满分", "reason": "评分说明",
-                                   "improvement": "改进建议", "item_id": None, "evidence_event_ids": None, "hit": None})
-            feedback_cache = st.session_state.setdefault("feedback_by_session", {})
+                summary_column, stages_column = st.columns([1, 2], gap="large")
+                with summary_column, st.container(border=True, key="score_summary"):
+                    st.metric("原规则总分", f"{snapshot['total_score']} / {snapshot['max_score']}")
+                    st.caption("原规则评分 · 教学练习")
+                with stages_column:
+                    stage_scores = {}
+                    for item in snapshot["items"]:
+                        totals = stage_scores.setdefault(item["stage"], [0, 0])
+                        totals[0] += item["score"]
+                        totals[1] += item["max_score"]
+                    for stage, (got, total) in stage_scores.items():
+                        st.progress(got / total if total else 0, text=f"{stage} · {got:g} / {total:g}")
+                with st.expander("逐项评分与改进依据"):
+                    st.dataframe(snapshot["items"], width="stretch", hide_index=True,
+                        column_config={"stage": "环节", "score": "得分", "max_score": "满分", "reason": "评分说明",
+                                       "improvement": "改进建议", "item_id": None, "evidence_event_ids": None, "hit": None})
+                feedback_cache = st.session_state.setdefault("feedback_by_session", {})
             adjudicated = api("GET", f"/api/sessions/{state['session_id']}/score-review", allow_missing=True) if not stale else None
             if adjudicated:
                 reviewed = adjudicated["reviewed_score"]

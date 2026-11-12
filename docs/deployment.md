@@ -36,6 +36,8 @@ $env:APP_DATA_DIR = Join-Path (Get-Location) 'local-only\demo-data'
 
 ## 数据目录与备份
 
+界面默认连接`http://127.0.0.1:8000`。使用其他API端口时，可在启动界面的终端先设置`$env:FRONTEND_API_URL = 'http://127.0.0.1:8005'`，避免首次打开页面时连接错误服务；页面“连接设置”仍可修改当前连接。不要把模型密钥放入此地址。
+
 `APP_DATA_DIR`包含`app.db`和`teacher_cases/`，默认集成记录在同目录`integration.db`。不设置时兼容原目录`backend/data`。相对路径始终从仓库根目录解析。显式`INTEGRATION_DB_PATH`优先于默认路径，API与MCP必须指向同一业务目录和同一集成库；知识目录亦须一致。
 
 环境变量在进程启动时生效，修改后须重启对应服务。示例`.env`不会自动加载。更换`APP_DATA_DIR`只是使用另一个目录，不会迁移、清空或覆盖旧训练。保留旧目录及原封存记录；备份运行中的SQLite使用其backup接口，停机备份则同时保留业务库、集成库和教师病例目录。不要直接把旧格式数据库改名覆盖当前库。

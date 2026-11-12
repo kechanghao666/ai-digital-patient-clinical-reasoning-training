@@ -106,9 +106,9 @@ def test_specialty_filter_starts_the_visible_case(tmp_path, monkeypatch):
     page = _page(api)
     target = next(case for case in api.client.get('/api/cases', headers=api.headers).json() if case['public_id'] == 'CASE-002')
     page.selectbox(key="library_specialty").set_value(target['specialty']).run()
-    choices = next(s for s in page.selectbox if s.label == "病例")
-    assert len(choices.options) == 1 and "CASE-002" in choices.options[0]
-    next(b for b in page.button if b.label == "开始训练").click().run()
+    choices = [b for b in page.button if b.label == "开始训练"]
+    assert len(choices) == 1 and choices[0].key == "start_CASE-002"
+    choices[0].click().run()
     assert not page.exception
     assert page.session_state['session_snapshot']['case']['public_id'] == 'CASE-002'
 
@@ -130,3 +130,30 @@ def test_replay_filter_preserves_event_numbers_and_does_not_mutate(tmp_path, mon
     assert env.stored_events(sid) == before
     page.selectbox(key=f"replay_action_{sid}").set_value("all").run()
     assert len([item for item in page.expander if item.label.startswith('#')]) == len(before)
+
+
+def test_case_search_is_read_only_and_has_an_empty_state(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch, owner="demo-student")
+    _route_requests(monkeypatch, api)
+    page = _page(api)
+    page.text_input(key="case_search").set_value("not-a-case").run()
+    assert not [b for b in page.button if b.label == "开始训练"]
+    assert any("未找到匹配病例" in item.value for item in page.info)
+    assert api.client.get('/api/sessions', headers=api.headers).json() == []
+    page.text_input(key="case_search").set_value("case-002").run()
+    assert [b.key for b in page.button if b.label == "开始训练"] == ["start_CASE-002"]
+    assert api.client.get('/api/sessions', headers=api.headers).json() == []
+
+
+def test_history_can_restore_a_specific_older_session(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch, owner="demo-student")
+    older = api.start("CASE-001")
+    newer = api.start("CASE-002")
+    _route_requests(monkeypatch, api)
+    page = _page(api)
+    page.radio(key="student_view").set_value("我的训练").run()
+    assert page.button(key=f"resume_{newer}")
+    page.button(key=f"resume_{older}").click().run()
+    assert not page.exception
+    assert page.session_state["session_id"] == older
+    assert len(api.client.get('/api/sessions', headers=api.headers).json()) == 2

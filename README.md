@@ -6,7 +6,7 @@
 
 > 教学模拟环境，非真实患者，不用于真实诊疗。
 
-当前界面为四阶段工作台，病历、诊断及鉴别草稿在封存/返回前受保护。11月13日工程复盘后全量480项通过，十二组可复跑样本12/12通过；修复部署数据目录、测试隔离、清空鉴别提交和教师诊断显示。五科各一次真实问诊成功，API耗时5.594–26.859秒，仍未达到5秒目标，也未完成五科真实完整闭环。见[工程证据](docs/evidence/2026-11-13-project-audit.json)、[官方逐项核对](docs/official-requirements-audit.md)、[从零部署](docs/deployment.md)与[最终缺口](docs/release-readiness.md)。界面增加专科筛选、病例信息卡、可筛选时间记录与320px导航，见[界面截图](docs/ui-workspace.md)和[设计调研](docs/ui-design-research.md)。实际浏览器新训练有效回答17.547秒，性能仍未通过。工程PR #1不是官方验收PR。
+当前界面已根据主流AI工作区和成熟软件设计重构：可搜索病例卡片、我的训练、紧凑病例栏、双栏问诊/检查与病历/判断、独立封存区、评分概览及教师任务导航。全量482项通过，真实Edge合成完整流程及390/320px验证通过；回答可见6.015秒，仍未达5秒。部署数据隔离、未提交保护和教师草稿限制保持。见[设计研究](docs/platform-design-study.md)、[界面截图](docs/ui-workspace.md)、[本轮证据](docs/evidence/2026-11-13-design-rebuild.json)、[官方要求](docs/official-requirements-audit.md)与[最终缺口](docs/release-readiness.md)。工程PR #1不是官方验收PR。
 
 ## 文档
 

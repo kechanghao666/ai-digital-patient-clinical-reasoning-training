@@ -32,8 +32,9 @@ def _show_issues(result):
         show(issue.get("message", "病例需要复核"))
 
 
-def render_teacher(api):
-    st.subheader("教师病例管理")
+def render_teacher(api, navigation):
+    st.caption("教师工作台 / 病例与教学复核")
+    st.title("教师工作台")
     st.caption("新增或修订病例，完成结构校验后送审。只有经过真实医学审核的病例才能发布。")
     # A failed authorization never renders a cached hidden case.
     cases = api("GET", "/api/teacher/cases")
@@ -41,7 +42,7 @@ def render_teacher(api):
         st.info("请使用有权限的教师身份。当前仅支持开发模式教师账号。")
         return
 
-    task = st.radio("教师任务", ["病例编写与发布", "训练反馈复核", "评分复核与裁定"], horizontal=True, key="teacher_task")
+    task = navigation.radio("教师任务", ["病例编写与发布", "训练反馈复核", "评分复核与裁定"], key="teacher_task")
     if task == "训练反馈复核":
         render_feedback_review(api)
         return
