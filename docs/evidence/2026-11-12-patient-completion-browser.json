@@ -1,0 +1,215 @@
+{
+  "date": "2026-11-12",
+  "base_sha": "2154ec853f087ae7ad69516266b250b2a3340d62",
+  "source_sha256": {
+    "backend/app/integration/patient_adapter.py": "839637b3ac325dcb7e178a398202694669e6cc57d8347bcedac99ca784894d90",
+    "frontend/app.py": "035dabba61b2b7a6017d62503774fad28f06db48f265f60145373c7902c26c6c",
+    "frontend/styles.css": "8c84a8cd1f21886d8c450b9494385974e6b04b2ff88c2deb6950855d9c7b2446"
+  },
+  "patient_agent": {
+    "name": "stemi_demo_import_patient",
+    "version": 3,
+    "prompt_sha256": "8c88d4d6ec4a3380724f187d7b86e0038568b71262217e86b064629aec879193",
+    "model_and_tools_unchanged": true
+  },
+  "patient_attempts": [
+    {
+      "attempt": 1,
+      "status": 200,
+      "elapsed_ms": 7391,
+      "event_count": 1,
+      "turns": [
+        {
+          "status": "finalized",
+          "calls": [
+            {
+              "tool": "get_turn_context",
+              "ok": 1
+            },
+            {
+              "tool": "submit_fact_selection",
+              "ok": 1
+            }
+          ]
+        }
+      ],
+      "replay_same_event": true,
+      "trusted_turn_finalized": true,
+      "trace": {
+        "real_platform": true,
+        "trusted_completion": true,
+        "platform_first_event_ms": 375,
+        "platform_first_final_event_ms": null,
+        "total_ms": 7342,
+        "tool_calls": [
+          {
+            "tool": "get_turn_context",
+            "ok": true
+          },
+          {
+            "tool": "submit_fact_selection",
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "attempt": 2,
+      "status": 200,
+      "elapsed_ms": 6234,
+      "event_count": 1,
+      "turns": [
+        {
+          "status": "finalized",
+          "calls": [
+            {
+              "tool": "get_turn_context",
+              "ok": 1
+            },
+            {
+              "tool": "submit_fact_selection",
+              "ok": 1
+            }
+          ]
+        }
+      ],
+      "replay_same_event": true,
+      "trusted_turn_finalized": true,
+      "trace": {
+        "real_platform": true,
+        "trusted_completion": true,
+        "platform_first_event_ms": 218,
+        "platform_first_final_event_ms": null,
+        "total_ms": 6218,
+        "tool_calls": [
+          {
+            "tool": "get_turn_context",
+            "ok": true
+          },
+          {
+            "tool": "submit_fact_selection",
+            "ok": true
+          }
+        ]
+      }
+    },
+    {
+      "attempt": 3,
+      "status": 200,
+      "elapsed_ms": 6579,
+      "event_count": 1,
+      "turns": [
+        {
+          "status": "finalized",
+          "calls": [
+            {
+              "tool": "get_turn_context",
+              "ok": 1
+            },
+            {
+              "tool": "submit_fact_selection",
+              "ok": 1
+            }
+          ]
+        }
+      ],
+      "replay_same_event": true,
+      "trusted_turn_finalized": true,
+      "trace": {
+        "real_platform": true,
+        "trusted_completion": true,
+        "platform_first_event_ms": 202,
+        "platform_first_final_event_ms": null,
+        "total_ms": 6546,
+        "tool_calls": [
+          {
+            "tool": "get_turn_context",
+            "ok": true
+          },
+          {
+            "tool": "submit_fact_selection",
+            "ok": true
+          }
+        ]
+      }
+    }
+  ],
+  "browser": {
+    "date": "2026-11-12",
+    "browser": "Microsoft Edge headless",
+    "checks": [
+      "new training and real patient answer visible; keyboard focus works",
+      "both exams ordered and returned after simulated wait",
+      "notes, differential evidence, diagnosis and explicitly confirmed simulated treatments saved",
+      "sealed score visible and model draft hidden pending teacher review",
+      "teacher loads five original feedback stages without writing approval",
+      "restore, narrow viewport, original score and owner isolation verified; no page errors"
+    ],
+    "complete": true,
+    "medical_review_completed": false,
+    "formal_acceptance": false,
+    "answer_visible_ms": 8672,
+    "page_errors": [],
+    "original_business_db_hash_unchanged": true,
+    "mobile_horizontal_overflow_px": 0,
+    "mobile_sidebar_collapsed_after_transition": true,
+    "mobile_main_overflow_px": 0,
+    "scope": "One synthetic training across resumed browser runs; harness adjusted for combobox, checkbox and identity re-entry. Not an uninterrupted user trial or accessibility certification.",
+    "stages_before_ui_refresh_fix": [
+      "patient",
+      "exams",
+      "notes",
+      "differential",
+      "diagnosis"
+    ],
+    "ui_refresh_fix_separately_verified": {
+      "diagnosis_count_immediately": 1,
+      "differential_count_immediately": 2,
+      "replay_immediately_updated": true,
+      "source": "real Edge page, local synthetic draft; no model call or medical approval"
+    },
+    "mobile_title_check": {
+      "viewport": [
+        390,
+        844
+      ],
+      "heading_top": 72,
+      "toolbar_bottom": 60,
+      "title_unobscured": true,
+      "main_overflow_px": 0
+    }
+  },
+  "local_regression": {
+    "passed": 461,
+    "elapsed_seconds": 81.01,
+    "compileall": "passed",
+    "diff_check": "passed",
+    "red_phase_patient": "4 failed, 3 passed",
+    "red_phase_ui": "2 failed",
+    "after_full_suite": "Only mobile top padding adjusted; real browser geometry verified; CI verifies final commit."
+  },
+  "official": {
+    "http_status": 200,
+    "reply_count": 2,
+    "replies": [
+      {
+        "author": "atomgit_01",
+        "created_at": "2026-11-09T09:17:11+08:00"
+      },
+      {
+        "author": "kechanghao",
+        "created_at": "2026-11-10T03:47:16+08:00"
+      }
+    ]
+  },
+  "original_business_db_hash_unchanged": true,
+  "medical_review_completed": false,
+  "formal_acceptance": false,
+  "limits": [
+    "Three same-question trials do not establish long-term or five-specialty stability",
+    "Patient API times 7391/6234/6579ms and browser visible answer 8672ms exceed 5s target",
+    "Earlier failure before fact submission is not proven fixed",
+    "Stop acknowledgment does not prove remote worker exit",
+    "Formal identity, clinical assets, independent deployment and real-person evaluation remain open"
+  ]
+}

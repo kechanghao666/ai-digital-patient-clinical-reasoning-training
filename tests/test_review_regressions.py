@@ -13,6 +13,7 @@ def test_mcp_reads_teacher_case_created_after_service_start(tmp_path, monkeypatc
     (tmp_path / 'cases').mkdir()
     shutil.copy2(ROOT / 'cases/appendicitis_case_v1.json', tmp_path / 'cases')
     monkeypatch.setattr(mcp_server, 'ROOT', tmp_path)
+    monkeypatch.setenv('APP_DATA_DIR', str(tmp_path / 'backend/data'))
     settings = replace(IntegrationSettings.from_env(), integration_db_path=tmp_path / 'integration.db')
     service = mcp_server.build_service(settings)
     store = CaseStore(tmp_path / 'cases', tmp_path / 'backend/data/teacher_cases')

@@ -1,5 +1,17 @@
 # Nexent配置字段清单（启动草案）
 
+## 2026-11-12 当前隔离演示配置
+
+病人stemi_demo_import_patient发布v3，使用[分轮事实选择提示](patient-selection-prompt.txt)；模型及get_turn_context/submit_fact_selection映射保持。后端在可信事实提交后完成问诊，保留原安全与并发检查。反馈仍为stemi_demo_import_feedback v13，草稿经教师复核后展示。
+
+隔离实例基于2154ec8及patient_adapter.py/frontend/app.py补丁，逐文件SHA256见[本轮证据](evidence/2026-11-12-patient-completion-browser.json)。三次真实问诊与分段页面演练已验证，但仍未达到5秒目标。下方c87b2c8及病人v9等为不同批次/不同名称的历史记录，不作为当前部署来源。
+
+## 2026-11-12 紧凑演示配置
+
+隔离演示反馈智能体`stemi_demo_import_feedback`当前发布版本13、模型`spark-x2.6-4b`，`NEXENT_FEEDBACK_PROTOCOL=compact`，仅启用`submit_feedback`。MCP扫描和智能体导出均确认包含`use_stage_basis`。使用[分轮提示](compact-feedback-prompt.txt)，不为此紧凑智能体启用量表读取或知识库搜索工具；服务端按病例版本绑定教学依据和封存事件。模型只应评价得分及完成程度，不能由数值推断诊疗合理性，但真实输出仍出现越界判断，需教师复核。默认`review_tool`仍采用自己的工具流程，不能混用两套配置。
+
+此前7次失败之后，新提示与可信完成机制已使同一训练连续3次重新生成反馈成功，另一次首块超时仍失败。当前联调使用`c87b2c8`快照加本轮两文件修复，逐文件SHA256见[续测证据](evidence/2026-11-12-trusted-feedback-completion.json)；它不是医学验收或最终交付导出。下方为11月11日另一组智能体配置的历史快照，名称和版本号不与本节互换。
+
 2026-11-11更新。本文件记录当前真实隔离实例的配置，仍不是最终可导入agent.json；本机资源ID不能复制为另一实例的资源ID。
 
 | 项目 | 已核实配置与约束 |

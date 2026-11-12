@@ -5,6 +5,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
+from collections.abc import Callable
 from typing import Any
 
 import httpx
@@ -30,6 +31,7 @@ class NexentRun:
     first_final_event_ms: int | None = None
     total_ms: int = 0
     stopped: bool = False
+    trusted_completion: bool = False
 
 
 class NexentClient:
@@ -58,16 +60,19 @@ class NexentClient:
         self, *, agent_name: str, query: str, metadata: dict[str, Any] | None = None,
         audit_metadata: dict[str, Any] | None = None, idempotency_key: str | None = None,
         conversation_id: int | None = None,
+        trusted_completion: Callable[[], bool] | None = None,
     ) -> NexentRun:
         return asyncio.run(self._run(
             agent_name=agent_name, query=query, metadata=metadata, audit_metadata=audit_metadata,
             idempotency_key=idempotency_key, conversation_id=conversation_id, started=time.monotonic(),
+            trusted_completion=trusted_completion,
         ))
 
     async def _run(
         self, *, agent_name: str, query: str, metadata: dict[str, Any] | None,
         audit_metadata: dict[str, Any] | None, idempotency_key: str | None,
         conversation_id: int | None, started: float,
+        trusted_completion: Callable[[], bool] | None,
     ) -> NexentRun:
         if not agent_name:
             raise NexentError("unavailable", "Nexent agent name is not configured")
@@ -93,6 +98,7 @@ class NexentClient:
         conv_id: int | None = None
         response_status: int | None = None
         failure_event: str | None = None
+        completed_by_tool = False
         async with self._client(self.settings.first_event_timeout_s) as client:
             client_ready_ms = int((time.monotonic() - started) * 1000)
             try:
@@ -138,6 +144,11 @@ class NexentClient:
                                 if event_type in {"error", "run_error", "failed"}:
                                     failure_event = event_type
                                     raise NexentError("rejected", "Nexent reported a run error")
+                                # An SSE event is only a wakeup; completion comes from the trusted local store.
+                                if event_type in {"execution_logs", "execution_result"} and trusted_completion and trusted_completion():
+                                    completed_by_tool = True
+                                    final_text = ""
+                                    break
                                 if event_type == "final_answer":
                                     content = event.get("content")
                                     text = content if isinstance(content, str) else ""
@@ -150,6 +161,9 @@ class NexentClient:
                                         final_text = text if text else "".join(final_parts)
                                     else:
                                         final_text = text
+                if completed_by_tool:
+                    stop_outcome = await self._best_effort_stop(client, conv_id, min(deadline, time.monotonic() + 0.25))
+                    logger.info("nexent_trusted_submission_received stop_outcome=%s", stop_outcome)
             except NexentError as exc:
                 logger.warning(
                     "nexent_run_rejected kind=%s http_status=%s error_event=%s elapsed_ms=%d "
@@ -180,6 +194,7 @@ class NexentClient:
             conversation_id=conv_id, final_text=final_text, event_types=types,
             first_event_ms=first_event_ms, first_final_event_ms=first_final_event_ms,
             total_ms=int((time.monotonic() - started) * 1000),
+            trusted_completion=completed_by_tool,
         )
 
     async def _best_effort_stop(self, client: httpx.AsyncClient, conversation_id: int | None, deadline: float) -> str:

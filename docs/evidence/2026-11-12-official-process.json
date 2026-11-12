@@ -1,0 +1,26 @@
+{
+  "checked_date": "2026-11-12",
+  "source": "https://gitcode.com/org/ModelEngine/discussions/26",
+  "read_method": "official public discussion detail and comment/reply APIs",
+  "registration_comment_id": "04b2a88f096e4185bf2c00955fc9986e",
+  "reply_count": 2,
+  "replies": [
+    {
+      "created_at": "2026-11-09T09:17:11+08:00",
+      "author": "atomgit_01",
+      "content": "恭喜您报名成功，可以开始开发，并将提交的PR同步到本评论下。"
+    },
+    {
+      "created_at": "2026-11-10T03:47:16+08:00",
+      "author": "kechanghao",
+      "content": "@atomgit_01 您好，收到报名成功回复后，我已完成课题1“AI数字病人临床思维训练”的Fork及启动材料上传，现反馈如下：\n\n【AtomGit账号】\nkechanghao\n\n【Fork仓库】\nhttps://gitcode.com/kechanghao/AgentsHub\n\n【课题目录】\n行业智能体/医疗/AI数字病人临床思维训练/\n\n【启动材料】\n目录内已提供项目说明、技术方案、开发里程碑、验收计划及agent.json配置字段清单。\n\n【完整工程与开发记录】\nhttps://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training\n\n【权限邀请】\n已向您的atomgit_01账号发出维护者邀请，这是当前个人仓库页面可授予的最高角色，请查收，并确认是否满足活动的管理权限要求。\n\n【当前进度】\n五专科本地原型已实现，414项工程回归通过；真实Nexent联调、病例医学审核及正式评测仍待完成。\n\n请协助登记过程仓库，确认上述Fork与GitHub工程的留痕安排及GitHub Actions的CI记录是否可接受。如需补充启动材料，请告知。"
+    }
+  ],
+  "new_official_confirmation": false,
+  "fork_invitation_acceptance": "unverified",
+  "process_repository_registration": "unverified",
+  "github_ci_recognition": "unverified",
+  "github_process_pr": 1,
+  "official_acceptance_complete": false,
+  "note": "GitHub collaborator/invitation results do not establish GitCode or AtomGit fork permissions."
+}

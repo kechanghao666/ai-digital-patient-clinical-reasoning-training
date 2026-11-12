@@ -1,21 +1,49 @@
 /* Keep native Streamlit controls and keyboard semantics; style the surrounding workspace. */
-:root { --clinic-ink: #172b46; --clinic-muted: #53657d; --clinic-teal: #087f83; }
-.block-container { max-width: 1440px; padding-top: 2rem; padding-bottom: 3rem; }
-h1, h2, h3 { letter-spacing: -.025em; }
-.clinic-banner { padding: 1.35rem 1.7rem; border-radius: 18px; background: #172b46;
-    border-left: 5px solid #39c5bd; color: #fff; margin-bottom: 1.2rem; }
-.clinic-banner p { margin: 0; line-height: 1.7; color: #dce7f5; }
-.clinic-banner .clinic-eyebrow { color: #8ce4df; font-size: .82rem; letter-spacing: .08em; margin-bottom: .4rem; }
-.clinic-banner strong { display: block; font-size: 1.2rem; margin-bottom: .25rem; }
-[data-testid="stMetric"] { background: #fff; border: 1px solid #dce4ee; border-radius: 12px; padding: .9rem 1.1rem; }
-[data-testid="stSidebar"] { border-right: 1px solid #dce4ee; }
+:root {
+    --clinic-ink: #172b46; --clinic-muted: #53657d; --clinic-teal: #076b70;
+    --clinic-surface: #fff; --clinic-border: #dce4ee; --clinic-tint: #e8f4f3;
+    --clinic-radius: 12px;
+}
+.block-container { max-width: 1320px; padding-top: 2rem; padding-bottom: 3rem; }
+h1, h2, h3 { color: var(--clinic-ink); letter-spacing: -.025em; }
+h1 { font-size: 2rem !important; }
+h3 { font-size: 1.25rem !important; }
+[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p { color: var(--clinic-muted) !important; }
+[data-testid="stCaptionContainer"] { opacity: 1; }
+[data-testid="stMetric"] { background: var(--clinic-surface); border: 1px solid var(--clinic-border);
+    border-top: 3px solid var(--clinic-teal); border-radius: 12px; padding: .65rem 1rem; }
+[data-testid="stMetricValue"] { font-size: 1.6rem; color: var(--clinic-ink); }
+[data-testid="stSidebar"] { border-right: 1px solid var(--clinic-border); }
+[role="tablist"] { gap: .4rem; padding: .3rem; border-radius: 12px; background: var(--clinic-surface); }
+[role="tab"] { min-height: 44px; padding: .5rem .8rem; border-radius: 8px; }
+[role="tab"][aria-selected="true"] { color: var(--clinic-teal); background: var(--clinic-tint); font-weight: 600; }
 .stButton button, .stFormSubmitButton button { min-height: 44px; border-radius: 9px; }
-.stButton button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid #087f83; outline-offset: 3px; }
-[data-testid="stChatMessage"] { border: 1px solid #dce4ee; border-radius: 12px; }
+.stButton button:focus-visible, input:focus-visible, textarea:focus-visible,
+[role="tab"]:focus-visible, summary:focus-visible { outline: 3px solid var(--clinic-teal); outline-offset: 3px; }
+[data-testid="stChatMessage"] { border: 1px solid var(--clinic-border); border-radius: 12px; }
 [data-testid="stExpander"] { border-radius: 12px; }
+.st-key-case_preview, .st-key-patient_context {
+    background: var(--clinic-surface); border-radius: var(--clinic-radius);
+    border-left: 4px solid var(--clinic-teal); padding: .25rem .5rem;
+}
+.st-key-case_preview h3, .st-key-patient_context h3 { font-size: 1.45rem !important; }
+[data-testid="stMarkdownContainer"] { overflow-wrap: anywhere; }
+summary { min-height: 44px; }
 @media (max-width: 680px) {
-    .block-container { padding: 1rem .9rem 2rem; }
-    .clinic-banner { padding: 1rem; border-radius: 12px; }
+    .block-container { padding: 4.5rem .9rem 2rem; }
     h1 { font-size: 1.65rem !important; }
+    [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stMetric"]) { flex-wrap: nowrap; gap: .4rem; }
+    [data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"] [data-testid="stMetric"]) > [data-testid="stColumn"] {
+        min-width: 0; flex: 1 1 0;
+    }
+    [data-testid="stMetric"] { padding: .6rem .45rem; }
+    [data-testid="stMetricValue"] { font-size: 1.2rem; }
+    [role="tablist"] { gap: .1rem; }
+    [role="tab"] { padding: .5rem .35rem; }
+    [role="tab"] p { font-size: .8rem; }
+}
+@media (max-width: 360px) {
+    [role="tablist"] { flex-wrap: wrap; }
+    [role="tab"] { flex: 1 1 40%; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

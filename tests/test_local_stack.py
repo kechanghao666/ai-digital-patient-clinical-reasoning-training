@@ -180,6 +180,7 @@ def test_full_loop_over_real_sockets(stack):
     feedback = client.post(f"/api/sessions/{sid}/feedback", headers=headers, json={"request_id": "f1"})
     assert feedback.status_code == 200, feedback.text
     assert feedback.json()["source"] == "nexent"
+    assert feedback.json()["review_status"] == "pending_teacher_review" and feedback.json()["items"] == []
     assert [r.get("metadata", {}).get("role") for r in log if "metadata" in r] == ["patient", "feedback"]
 
     state = repository.get(sid, "demo-stack")

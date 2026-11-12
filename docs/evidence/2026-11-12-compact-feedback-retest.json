@@ -1,0 +1,125 @@
+{
+  "date": "2026-11-12",
+  "code_sha": "8551d3ef8f1e5709849bd0748e8e5cce1657270f",
+  "platform": "Nexent v2.8.4",
+  "scope": "isolated source snapshot and SQLite backup of the same synthetic sealed STEMI training; a fresh integration database",
+  "live_mcp_has_use_stage_basis": true,
+  "old_agent_export_has_use_stage_basis": false,
+  "refreshed_agent_export_has_use_stage_basis": true,
+  "tool_scan_status": 200,
+  "final_feedback_agent_version": 12,
+  "final_model": "spark-x2.6-4b",
+  "final_tools": [
+    "submit_feedback"
+  ],
+  "batches": [
+    {
+      "phase": "old exported tool schema",
+      "model": "spark-x2.6-4b",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 504,
+          "elapsed_ms": 54816,
+          "score_equal": true,
+          "feedback_count": 0
+        }
+      ],
+      "sealed_write_status": 400,
+      "other_owner_read_status": 404,
+      "original_db_hash_unchanged": true
+    },
+    {
+      "phase": "refreshed schema, same sealed session three retries",
+      "model": "spark-x2.6-4b",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 504,
+          "elapsed_ms": 54807,
+          "score_equal": true,
+          "feedback_count": 0
+        },
+        {
+          "attempt": 2,
+          "status": 504,
+          "elapsed_ms": 54812,
+          "score_equal": true,
+          "feedback_count": 0
+        },
+        {
+          "attempt": 3,
+          "status": 504,
+          "elapsed_ms": 54810,
+          "score_equal": true,
+          "feedback_count": 0
+        }
+      ],
+      "sealed_write_status": 400,
+      "other_owner_read_status": 404,
+      "original_db_hash_unchanged": true
+    },
+    {
+      "phase": "submit-only tool whitelist",
+      "model": "spark-x2.6-4b",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 504,
+          "elapsed_ms": 54845,
+          "score_equal": true,
+          "feedback_count": 0
+        }
+      ],
+      "sealed_write_status": 400,
+      "other_owner_read_status": 404,
+      "original_db_hash_unchanged": true
+    },
+    {
+      "phase": "submit-only with private SSE capture",
+      "model": "spark-x2.6-4b",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 504,
+          "elapsed_ms": 54865,
+          "score_equal": true,
+          "feedback_count": 0
+        }
+      ],
+      "sealed_write_status": 400,
+      "other_owner_read_status": 404,
+      "original_db_hash_unchanged": true
+    },
+    {
+      "phase": "short prompt candidate",
+      "model": "spark-x2.6-1.7b",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": 502,
+          "elapsed_ms": 27053,
+          "score_equal": true,
+          "feedback_count": 0
+        }
+      ],
+      "sealed_write_status": 400,
+      "other_owner_read_status": 404,
+      "original_db_hash_unchanged": true
+    }
+  ],
+  "total_real_requests": 7,
+  "accepted_trusted_calls": 0,
+  "persisted_feedback_count": 0,
+  "diagnostics": [
+    "APIConnectionError during model requests",
+    "model initial chunk timeout",
+    "code_action malformed_action before trusted tool execution",
+    "model health check later returned connectivity true; this is not a completed feedback run"
+  ],
+  "model_healthcheck_elapsed_ms": 10219,
+  "timeout_budget_seconds": 55,
+  "clinical_review": "draft_unreviewed",
+  "formal_acceptance": false,
+  "same_session_complete": false
+}

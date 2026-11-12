@@ -3,7 +3,9 @@ import json
 
 import pytest
 
+from app.case_store import CaseStore
 from app.integration.knowledge import KnowledgeStore, STAGES
+from app.integration.tools import feedback_stage_basis
 from test_integration import Env, ROOT
 from test_teacher_cases import TEACHER, new_case
 
@@ -15,6 +17,14 @@ def test_stemi_coverage_counts_clinical_entries_only():
     assert coverage["guidance_ids"] == ["kb_feedback_principles"]
     assert all(ids and "kb_feedback_principles" not in ids for ids in coverage["clinical_by_stage"].values())
     assert coverage["status"] == "draft_unreviewed"
+
+
+def test_compact_feedback_references_clinical_basis_not_general_guidance():
+    store = KnowledgeStore(ROOT / "knowledge")
+    case = CaseStore(ROOT / "cases").get("STEMI-001", 2)
+    basis = feedback_stage_basis(store, case)
+    assert set(basis) == set(STAGES)
+    assert all(store.entries[item["basis_id"]].kind == "clinical" for item in basis.values())
 
 
 @pytest.mark.parametrize("case_id", ["APPY-001", "STROKE-001", "CAP-001", "DKA-001", "TEACH-COPY"])

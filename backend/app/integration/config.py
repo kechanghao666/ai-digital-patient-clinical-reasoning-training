@@ -8,6 +8,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 
 
+def data_directory() -> Path:
+    return (ROOT / Path(os.getenv("APP_DATA_DIR") or "backend/data").expanduser()).resolve()
+
+
 def _float(name: str, default: float) -> float:
     raw = os.getenv(name)
     if raw is None or not raw.strip():
@@ -37,6 +41,7 @@ class IntegrationSettings:
     mcp_service_token: str
     integration_db_path: Path
     knowledge_dir: Path
+    feedback_protocol: str = "review_tool"
 
     @classmethod
     def from_env(cls) -> "IntegrationSettings":
@@ -52,12 +57,15 @@ class IntegrationSettings:
             turn_ttl_s=_float("TURN_TTL_S", 120.0),
             mcp_service_token=os.getenv("MCP_SERVICE_TOKEN", ""),
             integration_db_path=Path(
-                os.getenv("INTEGRATION_DB_PATH", str(ROOT / "backend" / "data" / "integration.db"))
+                os.getenv("INTEGRATION_DB_PATH", str(data_directory() / "integration.db"))
             ),
             knowledge_dir=Path(os.getenv("KNOWLEDGE_DIR", str(ROOT / "knowledge"))),
+            feedback_protocol=os.getenv("NEXENT_FEEDBACK_PROTOCOL", "review_tool").strip(),
         )
 
     def __post_init__(self):
+        if self.feedback_protocol not in {"review_tool", "compact"}:
+            raise ValueError("NEXENT_FEEDBACK_PROTOCOL must be review_tool or compact")
         for name in ("connect_timeout_s", "first_event_timeout_s", "total_timeout_s", "turn_ttl_s"):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:

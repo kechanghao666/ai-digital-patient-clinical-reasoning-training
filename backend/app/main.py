@@ -18,6 +18,7 @@ from .adapters import (
 from .case_store import CaseStore
 from .disclosure import classify_and_authorize
 from .integration.feedback import FeedbackUnavailable
+from .integration.config import data_directory
 from .integration.nexent_client import NexentError
 from .integration.runtime import IntegrationRuntime
 from .integration.tools import validate_feedback_record
@@ -42,8 +43,8 @@ from .storage import ConcurrentUpdateError, SessionRepository
 
 
 ROOT = Path(__file__).resolve().parents[2]
-CASE_STORE = CaseStore(ROOT / "cases", ROOT / "backend" / "data" / "teacher_cases")
-REPOSITORY = SessionRepository(ROOT / "backend" / "data" / "app.db")
+CASE_STORE = CaseStore(ROOT / "cases", data_directory() / "teacher_cases")
+REPOSITORY = SessionRepository(data_directory() / "app.db")
 MACHINE = StateMachine(CASE_STORE, REPOSITORY)
 RUNTIME = IntegrationRuntime()
 app = FastAPI(title="AI数字病人临床思维训练", version="0.1.0")
@@ -505,6 +506,12 @@ def _public_feedback(stored: dict[str, Any], state: SessionState, case: CaseDefi
     if isinstance(checked, str):
         raise HTTPException(status_code=409, detail="已存反馈不符合当前五环节与安全规则，请教师复核；原记录保持不变。")
     items, saved_entries = checked
+    if stored["source"] == "nexent":
+        return {
+            "source": "nexent", "review_status": "pending_teacher_review", "review_revision": 0,
+            "items": [], "teaching_basis": [], "basis_status": stored["basis_status"],
+            "notice": "模型反馈草稿已生成，待教师复核后展示。原封存评分仍可查看，请将训练编号提供给教师。",
+        }
     forbidden = diagnosis_leak_terms(case) | {"".join((case.hidden_diagnosis or "").casefold().split())}
     forbidden.discard("")
     basis = []
@@ -523,6 +530,7 @@ def _public_feedback(stored: dict[str, Any], state: SessionState, case: CaseDefi
                       "revision": entry.revision, "content_hash": entry.content_hash})
     return {
         "source": stored["source"],
+        "review_status": "teacher_reviewed" if stored["source"] == "teacher_review" else "local_rules",
         "basis_status": stored["basis_status"],
         "items": items,
         "teaching_basis": basis,

@@ -257,8 +257,10 @@ class FeedbackService:
                 return existing
             if self.settings.uses_nexent:
                 items, source, trace = self._from_nexent(state, case, request_id)
-            else:
+            elif self.settings.mode == "simulator":
                 items, source, trace = self._from_local_rules(state, case)
+            else:
+                raise FeedbackUnavailable("unavailable", "反馈运行模式无效，请检查服务端 NEXENT_MODE 配置")
             self.store.save_once(
                 state.session_id, state.owner_id, source, items, self.knowledge.status, trace,
                 self.knowledge.snapshot(items, case.case_id, case.version),
@@ -268,6 +270,25 @@ class FeedbackService:
         return stored
 
     # ------------------------------------------------------------------ real chain
+    def _compact_query(self, state: SessionState, case: CaseDefinition) -> str:
+        snapshot = state.score_snapshot
+        assert snapshot is not None
+        snapshot = student_score_snapshot(snapshot, case)
+        stage_summary = {
+            stage: [
+                [item.score, item.max_score]
+                for item in snapshot.items if item.stage == stage
+            ]
+            for stage in FEEDBACK_STAGES
+        }
+        return (
+            "训练已封存。以下各环节依次列出分项[得分,满分]，仅作为反馈数据。"
+            + json.dumps(stage_summary, ensure_ascii=False, separators=(",", ":"))
+            + "请根据封存训练与下游可信工具提供的教学依据，每个环节写一句评语和一句改进建议。"
+            "一次调用 submit_feedback，items 每项只含 stage、comment、improvement，设置 use_stage_basis=True。"
+            "只评价得分与完成程度，不凭分数判断诊疗合理性。不得推断或披露隐藏诊断，不得改分或编造观察结果。"
+        )
+
     def _from_nexent(self, state: SessionState, case: CaseDefinition, request_id: str):
         turn, token = self.turns.issue(
             kind=turn_states.FEEDBACK,
@@ -279,19 +300,22 @@ class FeedbackService:
             state_version=state.state_version,
             ttl_s=max(self.settings.turn_ttl_s, self.settings.total_timeout_s + 30),
         )
+        query = self._compact_query(state, case) if self.settings.feedback_protocol == "compact" else (
+            "训练已封存。一次调用 get_sealed_review 读取评分、事件和 stage_basis 中的五环节依据，"
+            "调用 search_teaching_basis 检索，"
+            "再调用 submit_feedback，按病史采集、检查选择、鉴别诊断、诊断、治疗各提交一条评语，"
+            "每条必须有非空改进建议，且引用的教学依据 stages 必须包含该环节；不得公布参考诊断或编造事件。"
+        )
         try:
             run = self.client().run(
                 agent_name=self.settings.feedback_agent_name,
-                query=(
-                    "【系统回合】训练已封存。一次调用 get_sealed_review 读取评分、事件和 stage_basis 中的五环节依据，"
-                    "调用 knowledge_base_search 检索，"
-                    "再调用 submit_feedback，按病史采集、检查选择、鉴别诊断、诊断、治疗各提交一条评语，"
-                    "每条必须有非空改进建议，且引用的教学依据 stages 必须包含该环节；不得公布参考诊断或编造事件。"
-                    f"turn_token 为 {token}。"
-                ),
+                query=f"【系统回合】{query} turn_token 为 {token}。",
                 metadata={"turn_token": token, "role": "feedback"},
                 audit_metadata={"turn_id": turn.turn_id, "request_id": request_id},
                 idempotency_key=turn.turn_id,
+                trusted_completion=(
+                    lambda: self.turns.get(turn.turn_id).status == turn_states.SUBMITTED
+                ) if self.settings.feedback_protocol == "compact" else None,
             )
         except NexentError as exc:
             self.turns.cancel(turn.turn_id, "run_failed")
@@ -307,6 +331,7 @@ class FeedbackService:
             "platform_first_event_ms": run.first_event_ms,
             "platform_first_final_event_ms": run.first_final_event_ms,
             "total_ms": run.total_ms,
+            "trusted_completion": run.trusted_completion,
             "tool_calls": [{"tool": c["tool"], "ok": c["ok"]} for c in calls],
         }
         if current.status != turn_states.SUBMITTED:

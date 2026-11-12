@@ -1,0 +1,94 @@
+{
+  "date": "2026-11-13",
+  "phase": "3-research-ui-and-browser-verification",
+  "tests": {
+    "passed": 480,
+    "seconds": 80.55
+  },
+  "samples": {
+    "passed": 12,
+    "complete": 12,
+    "from_other_working_directory": true,
+    "formal_acceptance": false
+  },
+  "dependency_audit": "No known vulnerabilities found (locked versions, disable-pip); cache write warning did not prevent successful audit",
+  "browser": {
+    "date": "2026-11-13",
+    "checks": [
+      "real patient answer visible in new tab layout",
+      "tabs retain drafts and active selection; unsaved notes block seal; submissions persist",
+      "explicit treatment confirmation; seal opens review; model draft stays teacher-only",
+      "replay filter preserves event sequence and readable expandable evidence",
+      "390px viewport has aligned summary cards, visible title, no horizontal page overflow; all tabs reachable",
+      "320px reflow keeps all four tabs reachable",
+      "teacher readable evidence and raw records available; no approval written; original score and owner isolation preserved"
+    ],
+    "complete": true,
+    "answer_visible_ms": 17547,
+    "mobile_geometry": {
+      "documentOverflow": 0,
+      "mainOverflow": 0,
+      "headingTop": 72,
+      "toolbarBottom": 60,
+      "metrics": [
+        {
+          "top": 528.6875,
+          "left": 14.390625
+        },
+        {
+          "top": 528.6875,
+          "left": 136.921875
+        },
+        {
+          "top": 528.6875,
+          "left": 259.46875
+        }
+      ]
+    },
+    "page_errors": [],
+    "business_database_unchanged": true
+  },
+  "final_visual": {
+    "date": "2026-11-13",
+    "checks": [],
+    "complete": true,
+    "caption_opacity": 1,
+    "contrast_ratios": {
+      "body_white": 14.28,
+      "caption_white": 5.96,
+      "accent_white": 6.28,
+      "accent_tint": 5.58
+    },
+    "page_errors": [],
+    "business_database_unchanged": true
+  },
+  "screenshots": [
+    "library-desktop.png",
+    "intake-desktop.png",
+    "replay-desktop.png",
+    "review-mobile.png",
+    "review-320.png",
+    "replay-390.png",
+    "teacher-desktop.png"
+  ],
+  "source_sha256": {
+    "frontend/app.py": "4df38a265e0ca2dd396fe380bcb819dc150fe637bc391546a85f501b975ce430",
+    "frontend/styles.css": "c5a1942bff3b750b2ff3decdb526f828471a1ef9a7f5f3e3fabbd0139a352cdb",
+    "frontend/teacher.py": "ce99287e9a304c302abb4c1036a1b26d7dc744e79a9b9ee79c507860bc3f26d7",
+    ".streamlit/config.toml": "5087834d74e60b303b7d9506d4aaec4ec6a044262efcf4a9674e3f2db0f1a468"
+  },
+  "preservation": "Matches business DB hash after the documented Phase 1 test-row repair; original 30 records were preserved. No teacher approval created.",
+  "browser_harness_corrections": [
+    "wait for specialty rerender before inspecting options",
+    "use actual active case metadata instead of hardcoded v1",
+    "match current unsaved-draft message",
+    "wait for filtered event count before expanding",
+    "read teacher diagnosis as a separately labelled value"
+  ],
+  "limits": [
+    "480 engineering tests are not clinical or official acceptance",
+    "real answer visible at 17.547 seconds exceeds five seconds",
+    "five specialties complete live workflows, formal identity, independent install, real evaluators, video and official merge remain outstanding",
+    "not a complete manual accessibility audit"
+  ]
+}
