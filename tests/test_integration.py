@@ -543,7 +543,9 @@ def test_feedback_chain_is_independent_after_seal_and_idempotent(tmp_path, monke
     assert first.status_code == 200, first.text
     body = first.json()
     assert body["source"] == "nexent"
-    assert [item["stage"] for item in body["items"]] == list(FEEDBACK_STAGES)
+    assert body["review_status"] == "pending_teacher_review" and body["items"] == []
+    stored = env.runtime.feedback_store.get(sid, "demo-integration")
+    assert [item["stage"] for item in stored["items"]] == list(FEEDBACK_STAGES)
     assert results == [{"ok": True, "accepted_items": 5}]
     again = env.client.post(f"/api/sessions/{sid}/feedback", headers=env.headers, json={"request_id": "f2"})
     assert again.json() == body
@@ -860,7 +862,10 @@ def test_compact_feedback_binds_sealed_references_without_model_ids(tmp_path, mo
     assert response.status_code == 200, response.text
     result = response.json()
     assert result["source"] == "nexent"
-    for item in result["items"]:
+    assert result["review_status"] == "pending_teacher_review" and result["items"] == []
+    stored = env.runtime.feedback_store.get(sid, "demo-integration")
+    assert len(stored["items"]) == 5
+    for item in stored["items"]:
         assert item["basis_ids"]
         for basis_id in item["basis_ids"]:
             assert item["stage"] in env.service.knowledge.entries[basis_id].stages

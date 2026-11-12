@@ -1,0 +1,268 @@
+{
+  "date": "2026-11-12",
+  "scope": "Isolated synthetic engineering rehearsal, not clinical review or official acceptance",
+  "base_sha": "641df1487003f7702d2237d709e09c8f6793acb2",
+  "source_sha256": {
+    "backend/app/main.py": "76258693d88ff7356bb6b1c3a2d0f9aae77f1f65b4123d566b4c889545f8fa4a",
+    "frontend/app.py": "a25cde3c54ecba4e10c95daffdbcbbfdcf7b2c09d221f240d9ba765a418e7fab"
+  },
+  "cached_real_feedback": {
+    "date": "2026-11-12",
+    "base_sha": "641df1487003f7702d2237d709e09c8f6793acb2",
+    "scope": "SQLite backups of the previously generated real Nexent feedback; no new model request and no teacher approval written",
+    "student_requests": [
+      {
+        "method": "GET",
+        "status": 200,
+        "review_status": "pending_teacher_review",
+        "student_items": 0
+      },
+      {
+        "method": "POST",
+        "status": 200,
+        "review_status": "pending_teacher_review",
+        "student_items": 0
+      }
+    ],
+    "teacher_original_items": 5,
+    "teacher_revision": 0,
+    "original_feedback_unchanged": true,
+    "turn_count_unchanged": true,
+    "other_owner_status": 404,
+    "original_business_db_hash_unchanged": true,
+    "source_sha256": {
+      "backend/app/main.py": "76258693d88ff7356bb6b1c3a2d0f9aae77f1f65b4123d566b4c889545f8fa4a",
+      "frontend/app.py": "a25cde3c54ecba4e10c95daffdbcbbfdcf7b2c09d221f240d9ba765a418e7fab"
+    },
+    "medical_review_completed": false,
+    "formal_acceptance": false
+  },
+  "fresh_training": {
+    "complete_after_one_patient_retry": true,
+    "first_attempt_success": false,
+    "requests": [
+      {
+        "method": "POST",
+        "status": 200,
+        "elapsed_ms": 15,
+        "path": "/api/sessions"
+      },
+      {
+        "method": "POST",
+        "status": 502,
+        "elapsed_ms": 24813,
+        "path": "/api/sessions/{session_id}/ask"
+      },
+      {
+        "method": "POST",
+        "status": 200,
+        "elapsed_ms": 7922,
+        "path": "/api/sessions/{session_id}/ask"
+      },
+      {
+        "method": "POST",
+        "status": 200,
+        "elapsed_ms": 0,
+        "path": "/api/sessions/{session_id}/ask"
+      },
+      {
+        "method": "POST",
+        "status": 200,
+        "elapsed_ms": 16,
+        "path": "/api/sessions/{session_id}/action"
+      },
+      {
+        "method": "POST",
+        "status": 200,
+        "elapsed_ms": 0,
+        "path": "/api/sessions/{session_id}/action"
+      },
+      {
+        "method": "POST",
+        "status": 200,
+        "elapsed_ms": 15,
+        "path": "/api/sessions/{session_id}/action"
+      },
+      {
+        "method": "GET",
+        "status": 200,
+        "elapsed_ms": 0,
+        "path": "/api/sessions/{session_id}"
+      },
+      {
+        "method": "POST",
+        "status": 200,
+        "elapsed_ms": 16,
+        "path": "/api/sessions/{session_id}/action"
+      },
+      {
+        "method": "POST",
+        "status": 200,
+        "elapsed_ms": 0,
+        "path": "/api/sessions/{session_id}/differential"
+      },
+      {
+        "method": "POST",
+        "status": 200,
+        "elapsed_ms": 16,
+        "path": "/api/sessions/{session_id}/action"
+      },
+      {
+        "method": "POST",
+        "status": 200,
+        "elapsed_ms": 0,
+        "path": "/api/sessions/{session_id}/action"
+      },
+      {
+        "method": "POST",
+        "status": 200,
+        "elapsed_ms": 0,
+        "path": "/api/sessions/{session_id}/action"
+      },
+      {
+        "method": "POST",
+        "status": 200,
+        "elapsed_ms": 16,
+        "path": "/api/sessions/{session_id}/seal"
+      },
+      {
+        "method": "GET",
+        "status": 200,
+        "elapsed_ms": 16,
+        "path": "/api/sessions/{session_id}/score"
+      },
+      {
+        "method": "POST",
+        "status": 200,
+        "elapsed_ms": 6468,
+        "path": "/api/sessions/{session_id}/feedback"
+      },
+      {
+        "method": "GET",
+        "status": 200,
+        "elapsed_ms": 0,
+        "path": "/api/sessions/{session_id}/feedback"
+      },
+      {
+        "method": "POST",
+        "status": 200,
+        "elapsed_ms": 0,
+        "path": "/api/sessions/{session_id}/feedback"
+      },
+      {
+        "method": "GET",
+        "status": 200,
+        "elapsed_ms": 31,
+        "path": "/api/teacher/feedback/{session_id}"
+      },
+      {
+        "method": "POST",
+        "status": 400,
+        "elapsed_ms": 0,
+        "path": "/api/sessions/{session_id}/action"
+      },
+      {
+        "method": "GET",
+        "status": 404,
+        "elapsed_ms": 15,
+        "path": "/api/sessions/{session_id}/feedback"
+      },
+      {
+        "method": "GET",
+        "status": 200,
+        "elapsed_ms": 0,
+        "path": "/api/sessions/{session_id}/score"
+      },
+      {
+        "method": "GET",
+        "status": 200,
+        "elapsed_ms": 0,
+        "path": "/api/sessions/{session_id}"
+      }
+    ],
+    "trusted_turns": [
+      {
+        "kind": "patient",
+        "status": "cancelled",
+        "cancel_reason": "run_failed",
+        "calls": [
+          {
+            "tool": "get_turn_context",
+            "ok": 1
+          },
+          {
+            "tool": "get_turn_context",
+            "ok": 1
+          }
+        ]
+      },
+      {
+        "kind": "patient",
+        "status": "finalized",
+        "cancel_reason": null,
+        "calls": [
+          {
+            "tool": "get_turn_context",
+            "ok": 1
+          },
+          {
+            "tool": "submit_fact_selection",
+            "ok": 1
+          }
+        ]
+      },
+      {
+        "kind": "feedback",
+        "status": "finalized",
+        "cancel_reason": null,
+        "calls": [
+          {
+            "tool": "submit_feedback",
+            "ok": 1
+          }
+        ]
+      }
+    ],
+    "event_count": 10,
+    "student_review_status": "pending_teacher_review",
+    "student_items": 0,
+    "teacher_original_items": 5,
+    "teacher_revision": 0,
+    "same_request_replay_same_event": true,
+    "sealed_score_unchanged": true,
+    "sealed_write_status": 400,
+    "other_owner_status": 404,
+    "original_business_db_hash_unchanged": true,
+    "timing_scope": "API wall time; not browser visible first-character timing"
+  },
+  "local_regression": {
+    "passed": 452,
+    "elapsed_seconds": 96.81,
+    "compileall": "passed",
+    "diff_check": "passed"
+  },
+  "official_public_replies": {
+    "date": "2026-11-12",
+    "http_status": 200,
+    "reply_count": 2,
+    "replies": [
+      {
+        "author": "atomgit_01",
+        "created_at": "2026-11-09T09:17:11+08:00"
+      },
+      {
+        "author": "kechanghao",
+        "created_at": "2026-11-10T03:47:16+08:00"
+      }
+    ]
+  },
+  "medical_review_completed": false,
+  "formal_acceptance": false,
+  "limits": [
+    "Model clinical judgments remain unverified; teacher review gates release",
+    "One real patient request failed before retry; stability not established",
+    "Successful patient API time 7.922s exceeds 5s target; browser timing not measured",
+    "No live teacher approval written; release-after-review checked by automated fixtures only",
+    "Independent instance, formal identity, clinical review and personnel evaluation remain open"
+  ]
+}

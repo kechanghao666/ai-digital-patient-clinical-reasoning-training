@@ -52,7 +52,8 @@ def test_feedback_execution_event_requires_trusted_valid_submission(tmp_path, mo
     stored = env.runtime.feedback_store.get(sid, "demo-integration")
     if state == "submitted":
         assert r.json()["source"] == "nexent"
-        assert len(r.json()["items"]) == 5
+        assert r.json()["review_status"] == "pending_teacher_review" and r.json()["items"] == []
+        assert len(stored["items"]) == 5
         trace = env.runtime.feedback_store.trace(sid, "demo-integration")
         assert trace["trusted_completion"] is True
         assert trace["platform_first_final_event_ms"] is None

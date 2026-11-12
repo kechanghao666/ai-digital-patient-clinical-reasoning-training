@@ -509,6 +509,9 @@ else:
             if generated:
                 feedback_cache[state["session_id"]] = generated
         shown = feedback_cache.get(state["session_id"])
+        if shown and shown.get("source") == "nexent":
+            st.warning("模型反馈草稿已生成，待教师复核后展示。请将训练编号提供给教师，复核后点击刷新。")
+            shown = None
         if shown:
             st.caption(shown.get("notice", ""))
             if shown.get("basis_provenance") == "legacy_unversioned":
