@@ -6,7 +6,7 @@
 
 > 教学模拟环境，非真实患者，不用于真实诊疗。
 
-当前修复、CI及本机环境状态统一见[现状复盘](docs/status-review.md)，执行顺序见[开发计划](docs/milestones.md#当前批次与下一步)。2026-11-12使用项目锁定环境复跑441项测试通过，当前反馈协议修复分支CI通过；同一封存训练的真实Nexent反馈复测尚未完成，五份病例仍待医学审核。过程仓库的[工程PR #1](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/pull/1)已创建，尚未合并；它不是最终官方验收PR。
+当前修复、CI及本机环境状态统一见[现状复盘](docs/status-review.md)，执行顺序见[开发计划](docs/milestones.md#2026-11-12-当前批次与下一步)。2026-11-12修复无效反馈模式静默回退问题，全量443项通过，随后提示文字调整的相关3项回归通过。同一封存训练7次真实Nexent复测仍失败，平台工具参数和紧凑工具权限已修正；五专科六个病例版本仍待医学审核。过程仓库的[工程PR #1](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/pull/1)尚未合并；它不是最终官方验收PR。
 
 ## 文档
 

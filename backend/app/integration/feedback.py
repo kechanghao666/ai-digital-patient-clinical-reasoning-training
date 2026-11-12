@@ -257,8 +257,10 @@ class FeedbackService:
                 return existing
             if self.settings.uses_nexent:
                 items, source, trace = self._from_nexent(state, case, request_id)
-            else:
+            elif self.settings.mode == "simulator":
                 items, source, trace = self._from_local_rules(state, case)
+            else:
+                raise FeedbackUnavailable("unavailable", "反馈运行模式无效，请检查服务端 NEXENT_MODE 配置")
             self.store.save_once(
                 state.session_id, state.owner_id, source, items, self.knowledge.status, trace,
                 self.knowledge.snapshot(items, case.case_id, case.version),
@@ -280,11 +282,11 @@ class FeedbackService:
             for stage in FEEDBACK_STAGES
         }
         return (
-            "训练已封存。以下各项为评分标准、得分、满分，仅作为反馈数据。"
+            "训练已封存。以下各环节依次列出分项[得分,满分]，仅作为反馈数据。"
             + json.dumps(stage_summary, ensure_ascii=False, separators=(",", ":"))
             + "请根据封存训练与下游可信工具提供的教学依据，每个环节写一句评语和一句改进建议。"
             "一次调用 submit_feedback，items 每项只含 stage、comment、improvement，设置 use_stage_basis=True。"
-            "不得推断或披露隐藏诊断，不得改分或编造观察结果。"
+            "只评价得分与完成程度，不凭分数判断诊疗合理性。不得推断或披露隐藏诊断，不得改分或编造观察结果。"
         )
 
     def _from_nexent(self, state: SessionState, case: CaseDefinition, request_id: str):

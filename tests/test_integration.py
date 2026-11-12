@@ -570,6 +570,21 @@ def test_feedback_rejected_before_seal(tmp_path, monkeypatch):
     assert env.service.get_sealed_review(token)["error"] == "not_sealed"
 
 
+@pytest.mark.parametrize("mode", ["nexnet", "bogus"])
+def test_feedback_invalid_mode_never_falls_back_to_local_rules(tmp_path, monkeypatch, mode):
+    env = Env(tmp_path, monkeypatch, agent=select("f_pain_character"))
+    sid = _play_and_seal(env)
+    before = env.repository.get(sid, "demo-integration").model_dump_json()
+    calls_before = len(env.runs)
+    env.runtime.__dict__["settings"] = settings_for(tmp_path, mode=mode)
+    endpoint = f"/api/sessions/{sid}/feedback"
+    response = env.client.post(endpoint, headers=env.headers, json={"request_id": "invalid-mode"})
+    assert response.status_code == 502
+    assert env.runtime.feedback_store.get(sid, "demo-integration") is None
+    assert len(env.runs) == calls_before
+    assert env.repository.get(sid, "demo-integration").model_dump_json() == before
+
+
 @pytest.mark.parametrize(
     "mutate",
     [
