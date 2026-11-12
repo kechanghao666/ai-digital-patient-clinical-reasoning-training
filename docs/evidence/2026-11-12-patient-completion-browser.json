@@ -3,7 +3,8 @@
   "base_sha": "2154ec853f087ae7ad69516266b250b2a3340d62",
   "source_sha256": {
     "backend/app/integration/patient_adapter.py": "839637b3ac325dcb7e178a398202694669e6cc57d8347bcedac99ca784894d90",
-    "frontend/app.py": "035dabba61b2b7a6017d62503774fad28f06db48f265f60145373c7902c26c6c"
+    "frontend/app.py": "035dabba61b2b7a6017d62503774fad28f06db48f265f60145373c7902c26c6c",
+    "frontend/styles.css": "8c84a8cd1f21886d8c450b9494385974e6b04b2ff88c2deb6950855d9c7b2446"
   },
   "patient_agent": {
     "name": "stemi_demo_import_patient",
@@ -166,6 +167,16 @@
       "differential_count_immediately": 2,
       "replay_immediately_updated": true,
       "source": "real Edge page, local synthetic draft; no model call or medical approval"
+    },
+    "mobile_title_check": {
+      "viewport": [
+        390,
+        844
+      ],
+      "heading_top": 72,
+      "toolbar_bottom": 60,
+      "title_unobscured": true,
+      "main_overflow_px": 0
     }
   },
   "local_regression": {
@@ -174,7 +185,8 @@
     "compileall": "passed",
     "diff_check": "passed",
     "red_phase_patient": "4 failed, 3 passed",
-    "red_phase_ui": "2 failed"
+    "red_phase_ui": "2 failed",
+    "after_full_suite": "Only mobile top padding adjusted; real browser geometry verified; CI verifies final commit."
   },
   "official": {
     "http_status": 200,
