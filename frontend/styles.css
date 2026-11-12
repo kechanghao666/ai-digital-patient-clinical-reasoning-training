@@ -1,13 +1,15 @@
 /* Keep native Streamlit controls and keyboard semantics; style the surrounding workspace. */
 :root {
-    --clinic-ink: #172b46; --clinic-muted: #53657d; --clinic-teal: #087f83;
+    --clinic-ink: #172b46; --clinic-muted: #53657d; --clinic-teal: #076b70;
     --clinic-surface: #fff; --clinic-border: #dce4ee; --clinic-tint: #e8f4f3;
+    --clinic-radius: 12px;
 }
 .block-container { max-width: 1320px; padding-top: 2rem; padding-bottom: 3rem; }
 h1, h2, h3 { color: var(--clinic-ink); letter-spacing: -.025em; }
 h1 { font-size: 2rem !important; }
 h3 { font-size: 1.25rem !important; }
 [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p { color: var(--clinic-muted) !important; }
+[data-testid="stCaptionContainer"] { opacity: 1; }
 [data-testid="stMetric"] { background: var(--clinic-surface); border: 1px solid var(--clinic-border);
     border-top: 3px solid var(--clinic-teal); border-radius: 12px; padding: .65rem 1rem; }
 [data-testid="stMetricValue"] { font-size: 1.6rem; color: var(--clinic-ink); }
@@ -20,6 +22,13 @@ h3 { font-size: 1.25rem !important; }
 [role="tab"]:focus-visible, summary:focus-visible { outline: 3px solid var(--clinic-teal); outline-offset: 3px; }
 [data-testid="stChatMessage"] { border: 1px solid var(--clinic-border); border-radius: 12px; }
 [data-testid="stExpander"] { border-radius: 12px; }
+.st-key-case_preview, .st-key-patient_context {
+    background: var(--clinic-surface); border-radius: var(--clinic-radius);
+    border-left: 4px solid var(--clinic-teal); padding: .25rem .5rem;
+}
+.st-key-case_preview h3, .st-key-patient_context h3 { font-size: 1.45rem !important; }
+[data-testid="stMarkdownContainer"] { overflow-wrap: anywhere; }
+summary { min-height: 44px; }
 @media (max-width: 680px) {
     .block-container { padding: 4.5rem .9rem 2rem; }
     h1 { font-size: 1.65rem !important; }
@@ -32,5 +41,9 @@ h3 { font-size: 1.25rem !important; }
     [role="tablist"] { gap: .1rem; }
     [role="tab"] { padding: .5rem .35rem; }
     [role="tab"] p { font-size: .8rem; }
+}
+@media (max-width: 360px) {
+    [role="tablist"] { flex-wrap: wrap; }
+    [role="tab"] { flex: 1 1 40%; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

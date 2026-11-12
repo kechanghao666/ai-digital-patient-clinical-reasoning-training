@@ -98,3 +98,35 @@ def test_sealed_page_restores_feedback_and_shows_readable_replay(tmp_path, monke
     assert not page.json
     assert any("提交诊断：" in item.value for item in page.markdown)
     assert all(b.disabled for b in page.button if b.label in {"提交问题", "提交诊断", "提交治疗"})
+
+
+def test_specialty_filter_starts_the_visible_case(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch, owner="demo-student")
+    _route_requests(monkeypatch, api)
+    page = _page(api)
+    target = next(case for case in api.client.get('/api/cases', headers=api.headers).json() if case['public_id'] == 'CASE-002')
+    page.selectbox(key="library_specialty").set_value(target['specialty']).run()
+    choices = next(s for s in page.selectbox if s.label == "病例")
+    assert len(choices.options) == 1 and "CASE-002" in choices.options[0]
+    next(b for b in page.button if b.label == "开始训练").click().run()
+    assert not page.exception
+    assert page.session_state['session_snapshot']['case']['public_id'] == 'CASE-002'
+
+
+def test_replay_filter_preserves_event_numbers_and_does_not_mutate(tmp_path, monkeypatch):
+    from test_integration import Env, _play_and_seal
+    env = Env(tmp_path, monkeypatch, mode="simulator")
+    sid = _play_and_seal(env)
+    before = env.stored_events(sid)
+    _route_requests(monkeypatch, env)
+    page = _page(env)
+    page.text_input(key="student_identity").set_value("demo-integration").run()
+    next(b for b in page.button if b.label == "恢复训练").click().run()
+    page.selectbox(key=f"replay_action_{sid}").set_value("submit_diagnosis").run()
+    assert not page.exception
+    headings = [item.label for item in page.expander if item.label.startswith('#')]
+    expected = [f"#{e.seq} · 提交诊断 · 模拟时间 {e.sim_time} 分钟" for e in before if e.action == 'submit_diagnosis']
+    assert headings == expected and headings
+    assert env.stored_events(sid) == before
+    page.selectbox(key=f"replay_action_{sid}").set_value("all").run()
+    assert len([item for item in page.expander if item.label.startswith('#')]) == len(before)

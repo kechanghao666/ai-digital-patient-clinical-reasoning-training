@@ -207,6 +207,32 @@ def evidence_label(event):
     return f"#{event['seq']} 病情变化"
 
 
+def render_event_result(event, differential_labels, treatment_names, order_labels):
+    result = event.get("result") or {}
+    if event["intent"]:
+        st.write("提问：" + event["intent"])
+    if result.get("answer"):
+        st.write("患者回答：" + result["answer"])
+    if "advanced_minutes" in result:
+        st.write(f"推进模拟时间 {result['advanced_minutes']} 分钟")
+    if result.get("state"):
+        st.write("检查状态：" + order_labels.get(result["state"], result["state"]))
+    for exam in result.get("exam_results", []):
+        st.write(f"{exam['name']}：{exam['result']}")
+    if "diagnosis" in result:
+        st.write("提交诊断：" + result["diagnosis"])
+    for candidate in result.get("candidates", []):
+        st.write("鉴别候选：" + differential_labels.get(candidate["candidate_id"], "历史候选"))
+        st.write("支持证据：" + ("；".join(candidate["supporting_evidence"]) or "未填写"))
+        st.write("反对证据：" + ("；".join(candidate["opposing_evidence"]) or "未填写"))
+    if result.get("treatment"):
+        treatment = result["treatment"]
+        st.write("模拟处置：" + treatment_names.get(treatment.get("treatment_id"), "历史处置")
+                 + ("（已执行）" if result.get("executed") else "（仅计划）"))
+    for update in result.get("clinical_updates", []):
+        st.write("病情变化：" + update)
+
+
 if WORKSPACE == "教师病例管理":
     render_teacher(api)
     render_pending_error()
@@ -260,13 +286,18 @@ if not st.session_state.session_id:
             clear_training_fields()
             st.rerun()
     if cases:
-        labels = {f"{case['public_id']} · {case['title']}": case for case in cases}
+        specialty = st.selectbox("按专科筛选", ["全部专科", *sorted({case["specialty"] for case in cases})], key="library_specialty")
+        visible_cases = [case for case in cases if specialty == "全部专科" or case["specialty"] == specialty]
+        labels = {f"{case['public_id']} · {case['title']}": case for case in visible_cases}
         selected = st.selectbox("病例", list(labels))
         selected_case = labels[selected]
-        with st.container(border=True):
-            st.markdown(f"**{selected_case['specialty']} · {selected_case['title']}**")
+        with st.container(border=True, key="case_preview"):
+            st.caption(f"{selected_case['specialty']} · {selected_case['public_id']} · 版本 {selected_case['version']}")
+            st.subheader(selected_case['title'])
+            st.markdown("**就诊主诉**")
             st.write(selected_case.get("chief_complaint", ""))
             st.caption("工程教学病例 · 未经医学审核" if selected_case.get("review_status") != "published" else "已发布教学病例")
+        st.caption(f"当前显示 {len(visible_cases)} 个病例 · 开始后可随时返回并恢复训练")
         if st.button("开始训练", type="primary"):
             result = api("POST", f"/api/sessions?case_id={labels[selected]['public_id']}")
             if result:
@@ -300,7 +331,12 @@ else:
     readonly = state["sealed"] or stale
     if stale:
         st.warning("当前展示上次读取的记录，连接恢复前暂时停用提交。")
-    st.caption(f"{case['public_id']} · {case['title']} · 模拟时间 {state['sim_time_minutes']} 分钟")
+    with st.container(border=True, key="patient_context"):
+        st.caption(f"当前病例 · {case['specialty']} · {case['public_id']} · 版本 {case['version']}")
+        st.subheader(case['title'])
+        st.write("就诊主诉：" + case.get("chief_complaint", ""))
+        if state["sealed"]:
+            st.caption("已封存 · 本次记录只读；原规则评分与教师复核分别展示")
     a, b, c = st.columns(3)
     a.metric("模拟时间", f"{state['sim_time_minutes']} 分钟")
     b.metric("已记录操作", len(state.get("events", [])))
@@ -581,36 +617,22 @@ else:
                                 st.caption("当前记录未提供可展示的来源，请教师核对。")
             if st.button("开始新训练"):
                 return_to_library()
-        with st.expander("训练回放"):
+        with st.container():
+            st.subheader("训练回放")
             action_labels = {"ask": "问诊", "order_exam": "检查开单", "wait": "等待回报", "update_notes": "保存病历",
                 "submit_differential": "提交鉴别诊断", "submit_diagnosis": "提交诊断", "plan_treatment": "计划处置",
                 "execute_treatment": "执行模拟处置", "seal": "封存训练"}
-            for event in state.get("events", []):
-                st.write(
-                    f"#{event['seq']} · {action_labels.get(event['action'], event['action'])} · 模拟时间 {event['sim_time']} 分钟"
-                )
-                result = event.get("result") or {}
-                if event["intent"]:
-                    st.write("提问：" + event["intent"])
-                if result.get("answer"):
-                    st.write("患者回答：" + result["answer"])
-                if "advanced_minutes" in result:
-                    st.write(f"推进模拟时间 {result['advanced_minutes']} 分钟")
-                if result.get("state"):
-                    st.write("检查状态：" + order_labels.get(result["state"], result["state"]))
-                for exam in result.get("exam_results", []):
-                    st.write(f"{exam['name']}：{exam['result']}")
-                if "diagnosis" in result:
-                    st.write("提交诊断：" + result["diagnosis"])
-                for candidate in result.get("candidates", []):
-                    st.write("鉴别候选：" + differential_labels.get(candidate["candidate_id"], "历史候选"))
-                    st.write("支持证据：" + ("；".join(candidate["supporting_evidence"]) or "未填写"))
-                    st.write("反对证据：" + ("；".join(candidate["opposing_evidence"]) or "未填写"))
-                if result.get("treatment"):
-                    treatment = result["treatment"]
-                    st.write("模拟处置：" + treatment_names.get(treatment.get("treatment_id"), "历史处置")
-                             + ("（已执行）" if result.get("executed") else "（仅计划）"))
-                for update in result.get("clinical_updates", []):
-                    st.write("病情变化：" + update)
+            events = state.get("events", [])
+            actions = list(dict.fromkeys(event['action'] for event in events))
+            selected_action = st.selectbox("回放操作类型", ["all", *actions],
+                format_func=lambda value: "全部操作" if value == "all" else action_labels.get(value, value),
+                key=f"replay_action_{state['session_id']}")
+            shown_events = [event for event in events if selected_action == "all" or event['action'] == selected_action]
+            st.caption(f"显示 {len(shown_events)} / {len(events)} 条记录 · 按发生顺序排列 · 模拟时间不代表真实耗时")
+            if not events:
+                st.info("还没有操作记录。开始问诊或检查后，可在这里逐项复盘。")
+            for event in shown_events:
+                with st.expander(f"#{event['seq']} · {action_labels.get(event['action'], event['action'])} · 模拟时间 {event['sim_time']} 分钟"):
+                    render_event_result(event, differential_labels, treatment_names, order_labels)
 
 render_pending_error()

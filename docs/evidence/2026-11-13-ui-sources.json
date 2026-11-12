@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-13",
+  "sources": [
+    {
+      "name": "wcag",
+      "url": "https://www.w3.org/WAI/WCAG22/quickref/",
+      "status": 200,
+      "sha256": "ed61b139cdf28bff4393801a7476f0238f837aa91cda1418faa6bda162f34cd3"
+    },
+    {
+      "name": "tabs",
+      "url": "https://www.w3.org/WAI/ARIA/apg/patterns/tabs/",
+      "status": 200,
+      "sha256": "af2ef255f94511737db3cbeaf63aad3015b2195983a6d3ae1df70a52faf722e1"
+    },
+    {
+      "name": "nhs",
+      "url": "https://service-manual.nhs.uk/design-system/components/summary-list",
+      "status": 200,
+      "sha256": "b789680df2bea28e3889c3b08bde639e90c13d7883ed8450ceb267cccbd27e40"
+    },
+    {
+      "name": "errors",
+      "url": "https://design-system.service.gov.uk/components/error-summary/",
+      "status": 200,
+      "sha256": "33b3812ca1253db9cc29c8ce5ac02f00061214f96f2055397a8e2b1fb1955ac8"
+    },
+    {
+      "name": "status",
+      "url": "https://design-system.service.gov.uk/components/tag/",
+      "status": 200,
+      "sha256": "102745fc4b2a9dd92a886e8e2c2680a777b3bc32684554186f815f282da802af"
+    },
+    {
+      "name": "streamlit",
+      "url": "https://docs.streamlit.io/develop/api-reference/layout/st.tabs",
+      "status": 200,
+      "sha256": "3ad542bd58274bd7698b271b8b5c2f31fff09aa0fec8ebcacb0b2f297cd6eafc"
+    }
+  ]
+}
