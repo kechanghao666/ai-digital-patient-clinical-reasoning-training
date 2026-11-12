@@ -171,6 +171,33 @@ def reset_treatment_confirmation():
     st.session_state.treatment_confirmation = False
 
 
+def pending_training_edits(state):
+    if state.get("sealed"):
+        return []
+    pending = []
+    saved_notes = state.get("case_notes", "")
+    if st.session_state.get("case_notes_input", saved_notes) != saved_notes:
+        pending.append("病历")
+    submissions = state.get("submissions", {})
+    saved_diagnosis = submissions.get("diagnosis") or ""
+    if st.session_state.get("diagnosis_input", saved_diagnosis).strip() != saved_diagnosis.strip():
+        pending.append("诊断")
+    restored = {c["candidate_id"]: c for c in (submissions.get("differential") or [])}
+    chosen = st.session_state.get("differential_choice", list(restored))
+    changed = set(chosen) != set(restored)
+    for candidate_id in chosen:
+        previous = restored.get(candidate_id, {})
+        for key, field in (("support", "supporting_evidence"), ("oppose", "opposing_evidence")):
+            # Compare the rendered text, preserving multi-entry evidence restored from the API.
+            saved = "、".join(previous.get(field, []))
+            changed |= st.session_state.get(f"ddx_{key}_{candidate_id}", saved).strip() != saved.strip()
+        saved_events = previous.get("evidence_event_ids", [])
+        changed |= set(st.session_state.get(f"ddx_events_{candidate_id}", saved_events)) != set(saved_events)
+    if changed:
+        pending.append("鉴别诊断")
+    return pending
+
+
 def evidence_label(event):
     if event["action"] == "ask":
         return f"#{event['seq']} 问诊：{event['intent']}"
@@ -186,15 +213,15 @@ if WORKSPACE == "教师病例管理":
     st.stop()
 
 if st.session_state.session_id and st.sidebar.button("返回病例库", width="stretch"):
-    saved = ((st.session_state.session_snapshot or {}).get("state") or {}).get("case_notes", "")
-    if st.session_state.get("case_notes_input", saved) != saved:
+    if pending_training_edits((st.session_state.session_snapshot or {}).get("state") or {}):
         st.session_state.pending_return = True
     else:
         return_to_library()
 
 if st.session_state.get("pending_return"):
-    st.sidebar.warning("病历有未保存修改，请选择如何返回。")
-    if st.sidebar.button("保存病历并返回", type="primary", width="stretch"):
+    pending = pending_training_edits((st.session_state.session_snapshot or {}).get("state") or {})
+    st.sidebar.warning("、".join(pending) + "有未提交修改，请继续编辑并提交，或明确放弃后返回。")
+    if st.sidebar.button("保存病历并返回", type="primary", width="stretch", disabled=any(p != "病历" for p in pending)):
         if action_mutation(st.session_state.session_id, "update_notes", {"notes": st.session_state.case_notes_input}):
             return_to_library()
     if st.sidebar.button("放弃未保存内容并返回", width="stretch"):
@@ -453,10 +480,10 @@ else:
                 st.rerun()
         if not state["sealed"]:
             st.caption("封存后不能修改本次训练，请先核对病历、诊断和实际执行的处置。")
-        unsaved_notes = notes != state.get("case_notes", "")
-        if not readonly and unsaved_notes:
-            st.warning("病历有未保存修改，请回到“病历与判断”保存后再封存。")
-        if not state["sealed"] and st.button("提交训练并封存", type="primary", disabled=readonly or unsaved_notes):
+        pending = pending_training_edits(state)
+        if not readonly and pending:
+            st.warning("、".join(pending) + "有未提交修改，请回到“病历与判断”保存或提交后再封存。")
+        if not state["sealed"] and st.button("提交训练并封存", type="primary", disabled=readonly or bool(pending)):
             result = mutate(
                 "POST",
                 f"/api/sessions/{state['session_id']}/seal",

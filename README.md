@@ -6,7 +6,7 @@
 
 > 教学模拟环境，非真实患者，不用于真实诊疗。
 
-当前界面已优化为四阶段工作台，包含未保存病历封存保护及教师可读证据。全量462项通过，Edge新合成训练连续走通真实问诊至封存、反馈待复核和教师只读原件；桌面/390px及键盘检查留证。最后回答可见6.203秒，前次出现54秒长尾，仍未达到5秒目标。见[界面说明](docs/ui-workspace.md)、[当前复盘](docs/status-review.md)、[最终缺口](docs/release-readiness.md)与[开发/官方流程](docs/milestones.md)。五专科病例仍待医学审核，过程仓库工程PR #1不是最终官方验收PR。
+当前界面为四阶段工作台，病历、诊断及鉴别的未提交内容在封存/返回前受保护；全量475项通过，Edge保护流程复验通过。此前真实完整首例可运行，但本轮五科各一次问诊仅1次成功、4次超时，稳定性及5秒目标仍未通过。见[本轮证据](docs/evidence/2026-11-12-five-specialty-draft-check.json)、[当前复盘](docs/status-review.md)、[最终缺口](docs/release-readiness.md)与[开发/官方流程](docs/milestones.md)。五科医学审核仍待完成，工程PR #1不是官方验收PR。
 
 ## 文档
 
