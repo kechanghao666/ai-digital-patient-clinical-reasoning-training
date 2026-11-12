@@ -18,6 +18,7 @@ from .adapters import (
 from .case_store import CaseStore
 from .disclosure import classify_and_authorize
 from .integration.feedback import FeedbackUnavailable
+from .integration.config import data_directory
 from .integration.nexent_client import NexentError
 from .integration.runtime import IntegrationRuntime
 from .integration.tools import validate_feedback_record
@@ -42,8 +43,8 @@ from .storage import ConcurrentUpdateError, SessionRepository
 
 
 ROOT = Path(__file__).resolve().parents[2]
-CASE_STORE = CaseStore(ROOT / "cases", ROOT / "backend" / "data" / "teacher_cases")
-REPOSITORY = SessionRepository(ROOT / "backend" / "data" / "app.db")
+CASE_STORE = CaseStore(ROOT / "cases", data_directory() / "teacher_cases")
+REPOSITORY = SessionRepository(data_directory() / "app.db")
 MACHINE = StateMachine(CASE_STORE, REPOSITORY)
 RUNTIME = IntegrationRuntime()
 app = FastAPI(title="AI数字病人临床思维训练", version="0.1.0")

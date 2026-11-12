@@ -58,6 +58,11 @@ def test_restored_multiple_evidence_is_clean_but_edits_are_protected(tmp_path, m
     page.multiselect(key="differential_choice").set_value([]).run()
     assert button(page, "提交训练并封存").disabled
     assert not api.repository.get(sid, "demo-student").sealed
+    assert not button(page, "提交鉴别诊断").disabled
+    button(page, "提交鉴别诊断").click().run()
+    assert not page.exception
+    assert api.repository.get(sid, "demo-student").differential_submission["candidates"] == []
+    assert not button(page, "提交训练并封存").disabled
 
 
 @pytest.mark.parametrize("field", ["diagnosis", "differential"])

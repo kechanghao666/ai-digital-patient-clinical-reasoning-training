@@ -178,6 +178,7 @@ def test_teacher_ui_repairs_feedback_and_student_refreshes_cached_version(sealed
     teacher.text_input(key="feedback_review_session").set_value(state.session_id)
     next(b for b in teacher.button if b.label == "载入或刷新训练反馈").click().run()
     assert not teacher.exception, teacher.exception
+    assert any(entry.value == state.diagnosis_submission["diagnosis"] for entry in teacher.text)
     teacher.text_area(key="review_editor_病史采集_comment").set_value("复核后的病史评语。")
     teacher.text_area(key="review_editor_reason").set_value("校正病史建议。")
     routed_request = requests.request

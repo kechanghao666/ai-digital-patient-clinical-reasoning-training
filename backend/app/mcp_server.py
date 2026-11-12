@@ -14,7 +14,7 @@ from typing import Any
 from fastmcp import FastMCP
 
 from .case_store import CaseStore
-from .integration.config import ROOT, IntegrationSettings
+from .integration.config import ROOT, IntegrationSettings, data_directory
 from .integration.knowledge import KnowledgeStore
 from .integration.tools import TrustedToolService
 from .integration.turns import TurnStore
@@ -100,8 +100,8 @@ class BearerGate:
 def build_service(settings: IntegrationSettings) -> TrustedToolService:
     return TrustedToolService(
         TurnStore(settings.integration_db_path),
-        SessionRepository(ROOT / "backend" / "data" / "app.db"),
-        CaseStore(ROOT / "cases", ROOT / "backend" / "data" / "teacher_cases"),
+        SessionRepository(data_directory() / "app.db"),
+        CaseStore(ROOT / "cases", data_directory() / "teacher_cases"),
         KnowledgeStore(settings.knowledge_dir),
     )
 

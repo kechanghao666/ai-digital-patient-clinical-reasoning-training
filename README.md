@@ -62,7 +62,7 @@ $env:APP_ENV = "development"
 
 浏览器打开Streamlit显示的地址（通常为本机8501端口），后端默认地址为 `http://127.0.0.1:8000`。页面使用 `demo-` 或 `student-` 开头的演示身份；未设置 `APP_ENV=development` 时后端拒绝自填身份。
 
-SQLite当前固定保存在 `backend/data/app.db`。`backend/.env.example`仅列配置，不会自动加载，其中 `DATABASE_URL`、`SHOW_REFERENCE_DIAGNOSIS`尚未接入实现。`INTEGRATION_DB_PATH`、`KNOWLEDGE_DIR`的相对路径统一从项目根目录解析，示例分别为`backend/data/integration.db`和`knowledge`，与启动目录无关。不要用旧版 `data/ai_patient.sqlite3` 覆盖当前数据库：两者格式及API不同，旧版 `AI_PATIENT_DB` 参数不再适用；旧数据应另存，不直接迁移。
+持久数据由`APP_DATA_DIR`指定，默认`backend/data`，其中包含`app.db`、`teacher_cases/`及默认`integration.db`。API与MCP须使用相同目录；相对路径以项目根目录解析，更换配置不会自动迁移旧数据。需要独立审计库时可设置`INTEGRATION_DB_PATH`覆盖默认值。`KNOWLEDGE_DIR`默认`knowledge`；这些相对路径均不随启动目录变化。`backend/.env.example`不会自动加载，须设置进程环境变量；已移除无效的`DATABASE_URL`和`SHOW_REFERENCE_DIAGNOSIS`示例。不要用旧版`data/ai_patient.sqlite3`覆盖当前数据库，两者格式及API不同。
 
 默认 `NEXENT_MODE=simulator`（本地确定性模拟）。`NEXENT_MODE=nexent` 需要真实Nexent实例、已发布的病人/反馈智能体、API Key，并另起可信MCP服务：设置 `MCP_SERVICE_TOKEN` 后在 `backend` 目录执行 `python -m app.mcp_server`，再按[集成文档](docs/nexent-integration.md)在Nexent注册。未配置完整时后端拒绝而不是回退伪造结果。教师接口 `/api/teacher/*` 与正式身份认证尚未接入真实身份服务，开发模式下以 `teacher-` 前缀身份代替。
 

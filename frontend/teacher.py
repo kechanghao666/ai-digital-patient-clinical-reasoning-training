@@ -260,7 +260,7 @@ def render_feedback_review(api):
         st.markdown("**学生病历**")
         st.text(record["case_notes"] or "未填写病历记录")
         st.markdown("**学生诊断**")
-        st.text(record["submissions"].get("diagnosis") or "未提交诊断")
+        st.text((record["submissions"].get("diagnosis") or {}).get("diagnosis") or "未提交诊断")
         st.caption("事件编号与下方复核表单一致；完整提交、结果及引用可展开原始证据核对。")
         st.dataframe([{"序号": event["seq"], "事件编号": event["event_id"],
                        "动作": event["action"], "模拟分钟": event["sim_time"], "提问": event.get("question", "")}

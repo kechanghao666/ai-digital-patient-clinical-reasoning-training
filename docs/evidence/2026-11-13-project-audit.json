@@ -1,0 +1,212 @@
+{
+  "date": "2026-11-13",
+  "base_sha": "66c6cadc7d16425203365cf84b3bbc15f488abe2",
+  "phase": "1-project-audit-and-repair",
+  "assumed_deployment": "local teaching prototype, one business API process, separate trusted MCP process; no production identity claim",
+  "reviewed_paths": [
+    "business identity and student projections",
+    "teacher authoring and feedback/score review",
+    "session storage and optimistic concurrency",
+    "turn authorization and Nexent deadline/completion",
+    "frontend drafts, sealed state and recovery",
+    "deployment configuration, tests and document links"
+  ],
+  "fixes": [
+    "API, MCP, teacher files and default integration store share APP_DATA_DIR",
+    "test suite uses temporary data from collection onwards",
+    "remove inactive example variables",
+    "explicitly ignore local KEY.txt",
+    "allow submitting removal of all previously selected differentials",
+    "render teacher diagnosis text from its actual API structure"
+  ],
+  "tests": {
+    "passed": 478,
+    "seconds": 114.54,
+    "compile": "pass",
+    "diff_check": "pass",
+    "regressions_before_fix": "data path assertion failed; clear-differential and both teacher-render checks failed; fixed after API-shape and shared-store corrections"
+  },
+  "inventory": {
+    "tracked_files": 120,
+    "local_links_checked": 150,
+    "broken_local_links": [],
+    "credential_file_tracked": false,
+    "credential_file_project_ignored": true
+  },
+  "provider_probe": [
+    {
+      "location": "host",
+      "thinking_disabled": false,
+      "http_status": 200,
+      "first_event_ms": 579,
+      "has_choices": true,
+      "elapsed_ms": 579
+    },
+    {
+      "location": "container",
+      "thinking_disabled": false,
+      "http_status": 200,
+      "first_event_ms": 764,
+      "has_choices": true,
+      "elapsed_ms": 764
+    },
+    {
+      "location": "host",
+      "thinking_disabled": true,
+      "http_status": 200,
+      "first_event_ms": 546,
+      "has_choices": true,
+      "elapsed_ms": 546
+    },
+    {
+      "location": "container",
+      "thinking_disabled": true,
+      "http_status": 200,
+      "first_event_ms": 595,
+      "has_choices": true,
+      "elapsed_ms": 595
+    }
+  ],
+  "real_patient": {
+    "date": "2026-11-13",
+    "synthetic_engineering_only": true,
+    "attempts": [
+      {
+        "case": "CASE-001",
+        "http_status": 200,
+        "elapsed_ms": 6016,
+        "event_count": 1,
+        "expected_fact_present": true,
+        "replay_same_event": true,
+        "turns": [
+          {
+            "status": "finalized",
+            "calls": [
+              {
+                "tool": "get_turn_context",
+                "ok": true
+              },
+              {
+                "tool": "submit_fact_selection",
+                "ok": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "case": "CASE-002",
+        "http_status": 200,
+        "elapsed_ms": 6782,
+        "event_count": 1,
+        "expected_fact_present": true,
+        "replay_same_event": true,
+        "turns": [
+          {
+            "status": "finalized",
+            "calls": [
+              {
+                "tool": "get_turn_context",
+                "ok": true
+              },
+              {
+                "tool": "submit_fact_selection",
+                "ok": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "case": "CASE-003",
+        "http_status": 200,
+        "elapsed_ms": 5843,
+        "event_count": 1,
+        "expected_fact_present": true,
+        "replay_same_event": true,
+        "turns": [
+          {
+            "status": "finalized",
+            "calls": [
+              {
+                "tool": "get_turn_context",
+                "ok": true
+              },
+              {
+                "tool": "submit_fact_selection",
+                "ok": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "case": "CASE-004",
+        "http_status": 200,
+        "elapsed_ms": 5594,
+        "event_count": 1,
+        "expected_fact_present": true,
+        "replay_same_event": true,
+        "turns": [
+          {
+            "status": "finalized",
+            "calls": [
+              {
+                "tool": "get_turn_context",
+                "ok": true
+              },
+              {
+                "tool": "submit_fact_selection",
+                "ok": true
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "case": "CASE-005",
+        "http_status": 200,
+        "elapsed_ms": 26859,
+        "event_count": 1,
+        "expected_fact_present": true,
+        "replay_same_event": true,
+        "turns": [
+          {
+            "status": "finalized",
+            "calls": [
+              {
+                "tool": "get_turn_context",
+                "ok": true
+              },
+              {
+                "tool": "submit_fact_selection",
+                "ok": true
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "formal_acceptance": false,
+    "business_db_unchanged": true
+  },
+  "test_fixture_incident": {
+    "removed_only_current_failed_test_empty_session": true,
+    "other_records_exactly_preserved": true,
+    "preserved_records": 30,
+    "backup_kept_private": true
+  },
+  "limits": [
+    "five single-question successes are not five complete clinical workflows or formal consistency results",
+    "response time remains above five seconds",
+    "clinical drafts, clinical basis, formal identity, independent deployment and real evaluators remain outstanding"
+  ],
+  "source_sha256": {
+    "backend/app/main.py": "991af061af85a485f32d181e99ac2d068d3d0948b558cd0bf852754b8b6b3da0",
+    "backend/app/integration/config.py": "370057fb660d043ef76ecaeee408ee65556c0ad7d3683d672b2906c1e6ff64a2",
+    "backend/app/mcp_server.py": "c6d3968ade398bb2fcd33339d0f2f5ebc90a8cd6e717c9689822b62893917ae6",
+    "frontend/app.py": "fa6bc4a917b901c694c762d5a02eb4f9a211de9734e1f86c70780bcb2d486938",
+    "frontend/teacher.py": "ce99287e9a304c302abb4c1036a1b26d7dc744e79a9b9ee79c507860bc3f26d7",
+    "tests/conftest.py": "14538f5ac0058674dbd9f899c8515922a69ab6f7ad650f22a57f0547d859b830"
+  }
+}

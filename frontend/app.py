@@ -424,16 +424,14 @@ else:
                     "evidence_event_ids": cited,
                 }
             )
-        if st.button("提交鉴别诊断", disabled=readonly or not drafts):
-            candidates = drafts
-            if candidates:
-                if mutate(
-                    "POST",
-                    f"/api/sessions/{state['session_id']}/differential",
-                    "differential",
-                    {"candidates": candidates},
-                ):
-                    st.rerun()
+        if st.button("提交鉴别诊断", disabled=readonly or (not drafts and not restored)):
+            if mutate(
+                "POST",
+                f"/api/sessions/{state['session_id']}/differential",
+                "differential",
+                {"candidates": drafts},
+            ):
+                st.rerun()
         diagnosis = st.text_input(
             "诊断提交",
             value=submissions.get("diagnosis") or "",
