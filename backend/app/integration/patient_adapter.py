@@ -45,6 +45,7 @@ class NexentPatientAdapter:
                 metadata={"turn_token": token, "role": "patient"},
                 audit_metadata={"turn_id": turn.turn_id, "request_id": request.request_id},
                 idempotency_key=f"{turn.turn_id}",
+                trusted_completion=lambda: self.turns.get(turn.turn_id).status == turn_states.SUBMITTED,
             )
         except NexentError:
             self.turns.cancel(turn.turn_id, "run_failed")
@@ -60,6 +61,7 @@ class NexentPatientAdapter:
             "platform_first_event_ms": run.first_event_ms,
             "platform_first_final_event_ms": run.first_final_event_ms,
             "total_ms": run.total_ms,
+            "trusted_completion": run.trusted_completion,
             "tool_calls": [{"tool": c["tool"], "ok": c["ok"]} for c in calls],
         }
         if current.status == turn_states.SUBMITTED and self.turns.finalize(turn.turn_id):

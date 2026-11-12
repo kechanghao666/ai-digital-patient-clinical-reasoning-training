@@ -2,9 +2,33 @@
 from __future__ import annotations
 
 import requests
+import pytest
 from streamlit.testing.v1 import AppTest
 
 from test_cases_config import ROOT, Api
+
+
+@pytest.mark.parametrize("submission", ["diagnosis", "differential"])
+def test_submission_immediately_refreshes_count_and_replay(tmp_path, monkeypatch, submission):
+    from test_integration import Env
+
+    env = Env(tmp_path, monkeypatch, mode="simulator")
+    sid = env.new_session()
+    _route_requests(monkeypatch, env)
+    page = _page(env)
+    page.text_input(key="student_identity").set_value("demo-integration").run()
+    next(b for b in page.button if b.label == "恢复训练").click().run()
+    if submission == "diagnosis":
+        page.text_input(key="diagnosis_input").set_value("待进一步核对").run()
+        label = "提交诊断"
+    else:
+        page.multiselect(key="differential_choice").set_value(["pulmonary_embolism"]).run()
+        label = "提交鉴别诊断"
+    next(b for b in page.button if b.label == label).click().run()
+    assert not page.exception
+    assert len(env.stored_events(sid)) == 1
+    assert next(m for m in page.metric if m.label == "已记录操作").value == "1"
+    assert len(page.session_state["session_snapshot"]["state"]["events"]) == 1
 
 
 def _route_requests(monkeypatch, api: Api):

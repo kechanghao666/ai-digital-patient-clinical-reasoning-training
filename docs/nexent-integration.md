@@ -1,5 +1,11 @@
 # Nexent集成：接口契约、环境核实与验证状态
 
+## 患者链可信完成
+
+患者回答由服务端按获准事实渲染，模型结束语从不作为患者内容。收到execution_logs/execution_result后，患者适配器现在复用本地可信SUBMITTED检查结束读取；finalize仍校验有效期，API保存仍校验并发版本，授权与出站过滤保持。执行事件只唤醒检查，不能伪造事实选择。停止通知沿用0.25秒上限及原总预算，不证明远端worker已经退出。
+
+trace增加trusted_completion；未读取最终文本时platform_first_final_event_ms为null，不填0。演示病人使用[分轮提示](patient-selection-prompt.txt)，只启用get_turn_context和submit_fact_selection。普通review_tool仍需原完成流程。2026-11-12三次新训练问诊已真实验证，稳定性和5秒性能未据此关闭，见[证据](evidence/2026-11-12-patient-completion-browser.json)。
+
 ## 学生反馈接口：生成与复核分开
 
 `GET/POST /api/sessions/{id}/feedback`返回200只表示请求成功。模型草稿通过原有安全校验后返回`source=nexent`、`review_status=pending_teacher_review`、`review_revision=0`，`items`和`teaching_basis`为空；两种协议和历史模型记录都适用。调用方显示待教师复核，不据200显示“已获得审核反馈”，也不对空列表判定五环节生成失败或自动重复生成。

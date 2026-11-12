@@ -396,12 +396,13 @@ else:
         if st.button("提交鉴别诊断", disabled=readonly or not drafts):
             candidates = drafts
             if candidates:
-                mutate(
+                if mutate(
                     "POST",
                     f"/api/sessions/{state['session_id']}/differential",
                     "differential",
                     {"candidates": candidates},
-                )
+                ):
+                    st.rerun()
         diagnosis = st.text_input(
             "诊断提交",
             value=submissions.get("diagnosis") or "",
@@ -409,12 +410,13 @@ else:
             disabled=readonly,
         )
         if st.button("提交诊断", disabled=readonly) and diagnosis:
-            mutate(
+            if mutate(
                 "POST",
                 f"/api/sessions/{state['session_id']}/diagnosis",
                 "diagnosis",
                 {"diagnosis": diagnosis},
-            )
+            ):
+                st.rerun()
         treatment_id = st.selectbox(
             "治疗动作",
             list(treatment_names),
