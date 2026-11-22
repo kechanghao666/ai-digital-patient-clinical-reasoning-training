@@ -38,10 +38,16 @@ class NexentPatientAdapter:
             candidate_fact_ids=[fact.fact_id for fact in request.candidates],
             ttl_s=self.settings.turn_ttl_s,
         )
+        if self.settings.patient_protocol == "single":
+            agent_name = self.settings.patient_agent_single or self.settings.patient_agent_name
+            query = _build_single_query(request.question, token, request.candidates)
+        else:
+            agent_name = self.settings.patient_agent_name
+            query = _build_query(request.question, token)
         try:
             run = self.client.run(
-                agent_name=self.settings.patient_agent_name,
-                query=_build_query(request.question, token),
+                agent_name=agent_name,
+                query=query,
                 metadata={"turn_token": token, "role": "patient"},
                 audit_metadata={"turn_id": turn.turn_id, "request_id": request.request_id},
                 idempotency_key=f"{turn.turn_id}",
@@ -84,4 +90,20 @@ def _build_query(question: str, token: str) -> str:
     return (
         "【系统回合】你正在扮演模拟患者。必须先调用工具 get_turn_context，再调用 submit_fact_selection，"
         f"turn_token 为 {token}。\n【学生提问】{question}"
+    )
+
+
+def _build_single_query(question: str, token: str, candidates: tuple) -> str:
+    """Single trusted submission: the turn's authorised candidates are provided inline.
+
+    Only the facts the backend authorised for this turn are sent; the selection is still validated
+    by the trusted MCP tool and the answer is rendered by the backend, never from model text.
+    """
+    lines = "\n".join(f"{fact.fact_id}：{fact.content}" for fact in candidates) or "（本轮无候选）"
+    return (
+        f"【系统回合】你正在扮演模拟患者。turn_token 为 {token}。\n"
+        "本轮已授权的候选事实如下（只能从中选择，不得补充候选之外的内容）：\n"
+        f"{lines}\n"
+        f"【学生提问】{question}\n"
+        "只调用一次 submit_fact_selection(turn_token, fact_ids)，提交与提问直接相关的事实ID列表（可为空列表），随后立即结束。"
     )

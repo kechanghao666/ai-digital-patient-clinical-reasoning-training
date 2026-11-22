@@ -42,6 +42,10 @@ class IntegrationSettings:
     integration_db_path: Path
     knowledge_dir: Path
     feedback_protocol: str = "review_tool"
+    # dual: get_turn_context -> submit_fact_selection; single: one submit_fact_selection with the
+    # turn's authorised candidates provided inline in the query.
+    patient_protocol: str = "dual"
+    patient_agent_single: str = ""
 
     @classmethod
     def from_env(cls) -> "IntegrationSettings":
@@ -61,11 +65,15 @@ class IntegrationSettings:
             ),
             knowledge_dir=Path(os.getenv("KNOWLEDGE_DIR", str(ROOT / "knowledge"))),
             feedback_protocol=os.getenv("NEXENT_FEEDBACK_PROTOCOL", "review_tool").strip(),
+            patient_protocol=os.getenv("NEXENT_PATIENT_PROTOCOL", "dual").strip().lower() or "dual",
+            patient_agent_single=os.getenv("NEXENT_PATIENT_AGENT_SINGLE", "").strip(),
         )
 
     def __post_init__(self):
         if self.feedback_protocol not in {"review_tool", "compact"}:
             raise ValueError("NEXENT_FEEDBACK_PROTOCOL must be review_tool or compact")
+        if self.patient_protocol not in {"dual", "single"}:
+            raise ValueError("NEXENT_PATIENT_PROTOCOL must be dual or single")
         for name in ("connect_timeout_s", "first_event_timeout_s", "total_timeout_s", "turn_ttl_s"):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
