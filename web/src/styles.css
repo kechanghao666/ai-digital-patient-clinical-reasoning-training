@@ -31,6 +31,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .muted { color: var(--ink-2); }
 .faint { color: var(--ink-3); font-size: 12.5px; }
 .small { font-size: 13px; }
+/* Target event highlighted after a teacher locates a deduction's evidence. */
+.ev-located { background: rgba(76, 201, 240, .16); box-shadow: inset 3px 0 0 #4cc9f0; border-radius: 4px; padding: 2px 8px; }
 .mono { font-family: Consolas, "Cascadia Mono", ui-monospace, monospace; font-size: 12.5px; }
 .stack { display: flex; flex-direction: column; gap: 10px; }
 .stack-lg { display: flex; flex-direction: column; gap: 16px; }

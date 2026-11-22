@@ -40,10 +40,11 @@ export function ScoreReview({ params }: { params: URLSearchParams }) {
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  const [located, setLocated] = useState<{ itemId: string; eventId: string } | null>(null);
   const { busy, run } = useAction();
 
   const load = async (owner: string, session: string) => {
-    setError(null); setSaved(null); setRecord(null);
+    setError(null); setSaved(null); setRecord(null); setLocated(null);
     try {
       const r = await get<Record_>(`/api/teacher/scores/${enc(session)}?owner_id=${enc(owner)}`);
       const current = r.reviews.length ? r.reviews[r.reviews.length - 1].snapshot : r.original_score;
@@ -56,6 +57,20 @@ export function ScoreReview({ params }: { params: URLSearchParams }) {
   const events = (record?.events || []).map((e) => ({ id: e.event_id, label: digestLabel(e) }));
   const total = decisions.reduce((s, d) => s + (Number(d.score) || 0), 0);
   const update = (i: number, patch: Partial<Decision>) => setDecisions(decisions.map((d, j) => (j === i ? { ...d, ...patch } : d)));
+
+  // Locate a decision's evidence inside the sealed-event panel without touching unsaved edits.
+  const locateEvidence = (itemId: string, ids: string[], index: number) => {
+    if (!ids.length) return;
+    const i = ((index % ids.length) + ids.length) % ids.length;
+    setLocated({ itemId, eventId: ids[i] });
+    document.getElementById(`ev-${ids[i]}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+  const locatedIndex = (d: Decision) =>
+    located?.itemId === d.item_id ? d.evidence_event_ids.indexOf(located.eventId) : -1;
+  const viewConsultation = () => {
+    setLocated(null);
+    document.getElementById("sealed-events")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const save = () => record && run("save", async () => {
     const result = await mutate<{ revision: number; notice: string }>(`score-review:${record.session_id}`, "POST", `/api/teacher/scores/${enc(record.session_id)}`, {
@@ -82,6 +97,7 @@ export function ScoreReview({ params }: { params: URLSearchParams }) {
                 <span>裁定合计 <b className="num">{total.toFixed(1)}</b></span></div>
               {decisions.map((d, i) => {
                 const original = record.original_score.items.find((x) => x.item_id === d.item_id)!;
+                const idx = locatedIndex(d);
                 return (
                   <div key={d.item_id} className="ddx">
                     <div className="spread"><b style={{ fontWeight: 500 }}>{original.stage}　{descriptions[d.item_id] || d.item_id}</b>
@@ -93,6 +109,25 @@ export function ScoreReview({ params }: { params: URLSearchParams }) {
                       <label className="field grow"><span>分项说明（学生可见）</span>
                         <input className="input" maxLength={600} value={d.reason} onChange={(e) => update(i, { reason: e.target.value })} /></label>
                     </div>
+                    {d.evidence_event_ids.length > 0 ? (
+                      <div className="row" style={{ gap: 6, alignItems: "center", marginTop: 6 }}>
+                        <button type="button" className="btn" onClick={() => locateEvidence(d.item_id, d.evidence_event_ids, idx >= 0 ? idx : 0)}>
+                          定位证据（{d.evidence_event_ids.length} 条）</button>
+                        {d.evidence_event_ids.length > 1 && <>
+                          <button type="button" className="btn" aria-label="上一条证据" onClick={() => locateEvidence(d.item_id, d.evidence_event_ids, (idx >= 0 ? idx : 0) - 1)}>上一条</button>
+                          <button type="button" className="btn" aria-label="下一条证据" onClick={() => locateEvidence(d.item_id, d.evidence_event_ids, (idx >= 0 ? idx : 0) + 1)}>下一条</button>
+                          <span className="faint">第 {idx >= 0 ? idx + 1 : 1}/{d.evidence_event_ids.length} 条</span>
+                        </>}
+                        {!original.hit && <span className="faint">有证据但未满足评分条件：{original.reason}</span>}
+                      </div>
+                    ) : (
+                      !original.hit && (
+                        <div className="small muted" style={{ marginTop: 6 }}>
+                          <div>缺项说明：{original.reason || "未找到符合条件的记录"}{original.improvement ? `。建议：${original.improvement}` : ""}</div>
+                          <button type="button" className="btn" style={{ marginTop: 4 }} onClick={viewConsultation}>查看封存前问诊记录</button>
+                        </div>
+                      )
+                    )}
                     <details className="fold"><summary>证据 {d.evidence_event_ids.length} 条{d.score > 0 && !d.evidence_event_ids.length ? "（得分项须引用证据）" : ""}</summary>
                       <div><Pick label="选择封存前事件" items={events} value={d.evidence_event_ids} onChange={(v) => update(i, { evidence_event_ids: v })} /></div></details>
                   </div>
@@ -110,8 +145,12 @@ export function ScoreReview({ params }: { params: URLSearchParams }) {
                 <dt>病历</dt><dd style={{ whiteSpace: "pre-wrap" }}>{record.case_notes || "未填写"}</dd></dl>
             </Panel>
             <Panel title={`封存前事件（${record.events.length}）`}>
-              <div className="stack" style={{ gap: 6, maxHeight: 420, overflowY: "auto" }}>
-                {record.events.map((e) => <div key={e.event_id} className="small"><b className="num" style={{ fontWeight: 500 }}>{digestLabel(e)}</b>{e.answer && <div className="muted">答：{e.answer}</div>}</div>)}
+              <div className="stack" id="sealed-events" style={{ gap: 6, maxHeight: 420, overflowY: "auto" }}>
+                {record.events.map((e) => (
+                  <div key={e.event_id} id={`ev-${e.event_id}`} className={`small${located?.eventId === e.event_id ? " ev-located" : ""}`}>
+                    <b className="num" style={{ fontWeight: 500 }}>{digestLabel(e)}</b>{e.answer && <div className="muted">答：{e.answer}</div>}
+                  </div>
+                ))}
               </div>
             </Panel>
             <details className="fold"><summary>历次裁定与原始数据（只读）</summary><div><JsonView value={{ reviews: record.reviews, submissions: record.submissions }} /></div></details>
