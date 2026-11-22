@@ -262,7 +262,7 @@ def test_diagnosis_matching_uses_case_names_not_stemi_constants(tmp_path, monkey
 # ------------------------------------------------------------ differential auto scoring
 def stemi_events(api: Api):
     sid = api.start("CASE-001")
-    onset = api.ask(sid, "什么时候开始的")
+    onset = api.ask(sid, "当时在干什么")
     character = api.ask(sid, "疼痛是什么性质")
     api.act(sid, "order_exam", {"exam_id": "ex_ecg"})
     ecg = api.wait(sid, 5)

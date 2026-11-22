@@ -16,7 +16,7 @@ from test_cases_config import ROOT, Api, item  # noqa: F401  (item re-exported f
 
 SPECIALTY_RUNS = {
     "CASE-001": dict(
-        asks={"character": "疼痛是什么性质", "radiation": "放射到哪里", "onset": "什么时候开始"},
+        asks={"character": "疼痛是什么性质", "radiation": "放射到哪里", "onset": "当时在干什么"},
         orders=["ex_ecg", "ex_troponin"],
         wait=30,
         ddx=[

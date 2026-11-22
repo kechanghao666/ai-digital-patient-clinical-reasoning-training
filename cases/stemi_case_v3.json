@@ -24,7 +24,13 @@
       "fact_id": "f_cc",
       "content": "我两个小时前突然开始胸痛。",
       "field": "主诉",
-      "disclosure_triggers": [],
+      "disclosure_triggers": [
+        "什么时候",
+        "多久",
+        "几点",
+        "时间",
+        "起病"
+      ],
       "auto_volunteer": true,
       "disclosure_level": "voluntary"
     },
@@ -58,10 +64,7 @@
       "content": "休息时突然发作，持续没有缓解。",
       "field": "起病与诱因",
       "disclosure_triggers": [
-        "什么时候",
-        "多久",
         "诱因",
-        "开始",
         "持续"
       ],
       "disclosure_level": "on_inquiry"

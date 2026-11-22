@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from .models import Fact, SessionState
+from .models import ActionKind, Fact, SessionState
 
 
 def normalize(text: str) -> str:
@@ -121,6 +121,40 @@ UNCONFIGURED_REPLY = "这个我没太注意，说不好。"
 MASK_TERMS = ("糖尿病", "尿常规", "尿检", "尿酸", "烧心", "吐字", "检查结果", "化验结果", "最开始", "一开始",
               "头晕", "眩晕")
 
+# Follow-up continuations ("后来呢", "然后呢", "接着说", "继续") ask the patient to keep
+# describing the presenting illness after a prior disclosure. They are recognised only when the
+# rest of the sentence is filler (no other clinical request), mirroring the opening detection.
+CONTINUATION_PHRASE = re.compile(
+    r"后来|然后|接着|接下来|之后|再后来|继续说|接着说|往下说|继续说下去|说下去|继续讲|继续"
+)
+CONTINUATION_FILLER = re.compile(
+    r"^(?:呢|吗|呀|啊|么|了|的|吧|是|请|您|你|再|那|这|具体|怎么|怎么样|样|啥|情况|说说|说|好|麻烦|继续|往下|下|讲|听|去|来|还)*$"
+)
+# Bare "还有吗 / 还有呢 / 还有别的吗" also continue; a clause naming a symptom or disease
+# ("还有别的症状吗") is handled by its own clinical intent, so it never reaches here.
+CONTINUATION_BARE_ANY = re.compile(r"^还有(别的|其他|其它|什么|啥)?(吗|呢)?$")
+
+CLARIFY_REPLY = "您想先说说哪里不舒服？"
+CLARIFY_TOPIC_REPLY = "您想了解哪方面的情况？"
+DONE_REPLY = "暂时就这些了。"
+
+# Present-illness fields in a natural narrative order (chief complaint -> onset/course -> the pain
+# details -> associated symptoms). A continuation only *enters* this order when the previous turn
+# was about one of these fields; it never replaces the topic of the previous turn with a fixed list.
+_HPI_FIELD_ORDER: dict[str, int] = {
+    "主诉": -1,
+    "起病与诱因": 0, "起病经过": 0, "起病时间": 0, "诱因与用药依从": 0, "症状细节": 5,
+    "疼痛部位": 10, "疼痛部位与转移": 10,
+    "疼痛性质": 20,
+    "疼痛放射": 30,
+    "缓解因素": 40,
+    "伴随症状": 50, "消化道症状": 50, "泌尿症状": 50, "排便": 50, "头痛呕吐": 50,
+    "多饮多尿": 50, "咳嗽咳痰": 50, "咯血": 50, "呼吸困难": 50, "呼吸": 50,
+    "发热": 50, "背部疼痛": 50, "疼痛": 50,
+    "流行病学史": 60, "家测血糖": 60,
+    "系统回顾": 70,
+}
+
 
 def _clean(question: str) -> str:
     return _PUNCT.sub("", normalize(question))
@@ -177,6 +211,66 @@ def social_intent(question: str) -> str | None:
     return None
 
 
+def _is_continuation(query: str) -> bool:
+    if CONTINUATION_BARE_ANY.fullmatch(query):
+        return True
+    match = CONTINUATION_PHRASE.search(query)
+    if not match:
+        return False
+    rest = query[:match.start()] + query[match.end():]
+    return bool(CONTINUATION_FILLER.fullmatch(rest))
+
+
+def _last_ask_fields(state: SessionState, facts: list[Fact]) -> set[str] | None:
+    """Fields of the facts the patient disclosed in the most recent question turn.
+
+    Returns ``None`` when there is no patient-speakable topic to carry forward: no events yet, or
+    the latest turn was not a question (an exam order/return, a treatment, sealing, ...). An empty
+    set means the latest question disclosed no fact (a greeting, clarification, unconfigured item).
+    """
+    if not state.events:
+        return None
+    last = state.events[-1]
+    if last.action != ActionKind.ASK:
+        return None
+    ids = list(last.fact_ids_revealed) or list(last.payload.get("matched_fact_ids", []))
+    if not ids:
+        return set()
+    by_id = {fact.fact_id: fact for fact in facts}
+    return {by_id[fact_id].field for fact_id in ids if fact_id in by_id}
+
+
+def _continue_turn(state: SessionState, visible: list[Fact], facts: list[Fact]) -> tuple[list[Fact], str]:
+    """Carry the previous turn's topic forward, never fabricating a fact.
+
+    A continuation first stays inside the field the patient just talked about (e.g. "后来呢" after
+    one past-history item discloses the next past-history item), and only falls back to the
+    present-illness narrative when that topic is itself part of the presenting illness. Exam results
+    and diagnoses are never the patient's to give, so a continuation after a non-question turn asks
+    for clarification instead of guessing.
+    """
+    disclosed = set(state.disclosed_fact_ids)
+    if not disclosed:
+        return [], "clarify"
+    topic = _last_ask_fields(state, facts)
+    if topic is None or not topic:
+        return [], "clarify_topic"
+    continuable = [
+        fact for fact in visible
+        if fact.fact_id not in disclosed and fact.disclosure_triggers
+    ]
+    same_field = [fact for fact in continuable if fact.field in topic]
+    if same_field:
+        return [same_field[0]], "fact"
+    if topic & set(_HPI_FIELD_ORDER):
+        hpi = [fact for fact in continuable if fact.field in _HPI_FIELD_ORDER]
+        if hpi:
+            order = {fact.fact_id: index for index, fact in enumerate(visible)}
+            next_fact = min(hpi, key=lambda fact: (_HPI_FIELD_ORDER[fact.field], order[fact.fact_id]))
+            return [next_fact], "fact"
+    return [], "clarify_done"
+
+
 def classify_turn(state: SessionState, question: str, facts: list[Fact]) -> tuple[list[Fact], str]:
     """Authorize facts for one student question and label the turn.
 
@@ -204,6 +298,9 @@ def classify_turn(state: SessionState, question: str, facts: list[Fact]) -> tupl
         matches = [fact for fact in visible if hits(fact, by_intent["family"]) and not hits(fact, [])
                    or fact.field == "家族史"]
         return (matches, "fact") if matches else ([], "unconfigured")
+    # A pure continuation follows up on what was just disclosed; only when nothing clinical was asked.
+    if not intents and social is None and _is_continuation(query):
+        return _continue_turn(state, visible, facts)
     general = [word for name, words in by_intent.items() if name != "named_disease" for word in words]
     matched = {fact.fact_id for fact in visible if hits(fact, general)}
     if "named_disease" in by_intent and not matched:
@@ -229,6 +326,12 @@ def non_fact_reply(question: str, kind: str) -> str | None:
         return SOCIAL_REPLIES.get(social_intent(question) or "")
     if kind == "unconfigured":
         return UNCONFIGURED_REPLY
+    if kind == "clarify":
+        return CLARIFY_REPLY
+    if kind == "clarify_topic":
+        return CLARIFY_TOPIC_REPLY
+    if kind == "clarify_done":
+        return DONE_REPLY
     return None
 
 
