@@ -244,6 +244,34 @@ class FeedbackStore:
         return row["revision"]
 
 
+_GAP_LABELS = {
+    "病史采集": "未找到采集记录",
+    "检查选择": "未找到开立记录",
+    "鉴别诊断": "未提交鉴别证据",
+    "诊断": "未提交诊断",
+    "治疗": "未执行处置",
+}
+
+
+def teaching_gap(item, rubric_item) -> str:
+    """A de-identified teaching-action gap a sealed score can prove, safe to show the model.
+
+    Never includes case text, the reference diagnosis, internal ids or teacher free text. A missing
+    record is never phrased as the patient lacking a symptom.
+    """
+    if item.stage == "诊断" or rubric_item is None:
+        action = "提交诊断"
+    else:
+        action = rubric_item.description
+    if item.score > 0:
+        status = "部分完成"
+    elif "复核" in (item.reason or ""):
+        status = "待教师判断"
+    else:
+        status = _GAP_LABELS.get(item.stage, "未找到记录")
+    return f"{action}：{status}"
+
+
 class FeedbackService:
     def __init__(
         self,
@@ -291,19 +319,27 @@ class FeedbackService:
         snapshot = state.score_snapshot
         assert snapshot is not None
         snapshot = student_score_snapshot(snapshot, case)
-        stage_summary = {
-            stage: [
-                [item.score, item.max_score]
-                for item in snapshot.items if item.stage == stage
-            ]
-            for stage in FEEDBACK_STAGES
-        }
+        rubric = {item.item_id: item for item in case.rubric}
+        stage_summary: dict[str, list[dict[str, Any]]] = {}
+        for stage in FEEDBACK_STAGES:
+            entries: list[dict[str, Any]] = []
+            for item in snapshot.items:
+                if item.stage != stage:
+                    continue
+                entry: dict[str, Any] = {"得分": item.score, "满分": item.max_score}
+                if item.score < item.max_score:
+                    entry["缺口"] = teaching_gap(item, rubric.get(item.item_id))
+                entries.append(entry)
+            stage_summary[stage] = entries
         return (
-            "训练已封存。以下各环节依次列出分项[得分,满分]，仅作为反馈数据。"
+            "训练已封存。以下各环节依次列出分项得分与满分；未满分项附注一条封存评分能够证明的教学动作缺口"
+            "（例如「询问疼痛放射：未找到采集记录」）。缺口只说明记录缺失、部分完成或待教师判断，"
+            "不得把「未找到记录」理解为患者没有该症状。仅作为反馈数据。"
             + json.dumps(stage_summary, ensure_ascii=False, separators=(",", ":"))
-            + "请根据封存训练与下游可信工具提供的教学依据，每个环节写一句评语和一句改进建议。"
-            "一次调用 submit_feedback，items 每项只含 stage、comment、improvement，设置 use_stage_basis=True。"
-            "只评价得分与完成程度，不凭分数判断诊疗合理性。不得推断或披露隐藏诊断，不得改分或编造观察结果。"
+            + "请根据封存训练与下游可信工具提供的教学依据，每个环节写一句评语和一句改进建议，"
+            "评语须准确指出该环节的实际缺口。一次调用 submit_feedback，items 每项只含 stage、comment、improvement，"
+            "设置 use_stage_basis=True。只评价得分与完成程度，不凭分数判断诊疗合理性。"
+            "不得推断或披露隐藏诊断，不得改分或编造观察结果。"
         )
 
     def _from_nexent(self, state: SessionState, case: CaseDefinition, request_id: str):

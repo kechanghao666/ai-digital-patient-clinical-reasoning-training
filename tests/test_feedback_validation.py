@@ -47,3 +47,34 @@ def test_marker_leak_is_rejected_with_distinct_message():
     case, state, knowledge, basis = _case_state()
     result = validate_feedback_items(_items(basis, {"病史采集": "turn_token 为 x。"}), state, case, knowledge)
     assert result == "text contains an internal marker that is not allowed"
+
+
+# --- de-identified teaching-action gaps -------------------------------------
+
+def test_teaching_gap_names_the_missing_history_action():
+    from app.integration.feedback import teaching_gap
+    from app.models import ScoreItem
+
+    case = CaseStore(ROOT / "cases").get("STEMI-001")
+    rubric = {r.item_id: r for r in case.rubric}
+    item = ScoreItem(item_id="f_pain_radiation", stage="病史采集", hit=False, score=0.0, max_score=1.0,
+                     reason="未找到满足时点和证据类型的事件")
+    assert teaching_gap(item, rubric["f_pain_radiation"]) == "询问疼痛放射：未找到采集记录"
+
+
+def test_teaching_gap_never_leaks_a_diagnosis():
+    from app.integration.feedback import teaching_gap
+    from app.models import ScoreItem
+
+    store = CaseStore(ROOT / "cases")
+    for public_id in ("CASE-001", "CASE-002", "CASE-003", "CASE-004", "CASE-005"):
+        case = store.resolve_for_student(public_id, include_unpublished=True)
+        rubric = {r.item_id: r for r in case.rubric}
+        for r in case.rubric:
+            item = ScoreItem(item_id=r.item_id, stage=r.stage, hit=False, score=0.0, max_score=1.0,
+                             reason="未找到满足时点和证据类型的事件")
+            gap = teaching_gap(item, rubric[r.item_id])
+            # The reference diagnosis must never appear in a teaching-action gap.
+            for term in {t for t in (case.hidden_diagnosis or "").casefold().split("，") if t}:
+                assert term not in gap.casefold(), (public_id, r.item_id, gap)
+            assert "心肌梗死" not in gap and "stemi" not in gap.casefold()
