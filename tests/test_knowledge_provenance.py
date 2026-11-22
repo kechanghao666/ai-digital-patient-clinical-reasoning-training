@@ -149,7 +149,8 @@ def test_api_and_mcp_enforce_same_case_version(tmp_path, monkeypatch, versions):
         case_id=case.case_id, case_version=case.version, request_id="basis", state_version=state.state_version, ttl_s=60)
     found = env.service.search_teaching_basis(token, "心电图 优先", "检查选择")
     assert found["ok"]
-    assert ("kb_ecg_first" in {entry["basis_id"] for entry in found["results"]}) == (2 in versions)
+    # New sessions use the latest STEMI version; basis applies only when that version is listed.
+    assert ("kb_ecg_first" in {entry["basis_id"] for entry in found["results"]}) == (case.version in versions)
     assert all(len(entry["content_hash"]) == 64 and entry["revision"] == 1 for entry in found["results"])
 
 

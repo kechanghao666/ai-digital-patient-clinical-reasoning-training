@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-13",
+  "scope": "pointer interaction and local student/teacher accounts",
+  "tests": {
+    "full_suite": {
+      "passed": 488,
+      "seconds": 97.72
+    },
+    "subsequent_accounts_suite": {
+      "passed": 6,
+      "seconds": 9.08
+    },
+    "compile": "passed",
+    "git_diff_check": "passed"
+  },
+  "account_activation": "local preview started on 8508 with API 8006; real browser student/teacher login and logout verified; simulator only",
+  "remote_published": false,
+  "new_real_model_calls": false,
+  "medical_review_performed": false,
+  "business_database_sha256": "f2334a93b3c1ee2cac2a30847211865ebc786b745f58175b4f77cf5ef1dc88ce",
+  "files": {
+    "backend/app/accounts.py": "99da8888609662d7755249b94e670d2ff73a1c1c65d6601f90b1424bbdefbc4c",
+    "backend/app/main.py": "435ac7513d46685adfbff7db5ef29acb0ce513bde7acb0b80942ee1f34791978",
+    "frontend/app.py": "5189ff159429813583bfd8e49d74f6b6a3fc17ee6bdd0f00bcc1512bd13cbdc6",
+    "frontend/ambient.html": "49be19e90b6342edc90107ed1384891995db3be0594be83d17716c1823aeb30b",
+    "frontend/styles.css": "842bb5fb90a5b479fe6d20efd754355d230d097d28f0ca569c51bde4e47c2c84",
+    "scripts/manage_accounts.py": "57bd0a64e0245079ab4fd903e6f707bc7b492bd1eccdbb550ec4901deb4c3a8d",
+    "tests/test_accounts.py": "6cb0471037d51a266bfc23645b28ff33d6fd6f46a12db6f253747874ffa23deb"
+  },
+  "browser_followup": "390px and 320px motion labels remain fully visible after toolbar spacing adjustment"
+}

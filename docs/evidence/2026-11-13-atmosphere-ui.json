@@ -1,0 +1,102 @@
+{
+  "date": "2026-11-13",
+  "tests": {
+    "passed": 94,
+    "seconds": 47.48,
+    "scope": "six frontend/authoring/feedback/score suites; no full backend rerun"
+  },
+  "browser": {
+    "checks": [
+      "local fonts and art load; motion moves, pauses, survives identity switch, and respects reduced motion",
+      "390/320px library reflow and search; active/sealed history, draft fields, teacher lookup and mobile form; no remote font or artwork requests"
+    ],
+    "complete": true,
+    "fonts": [
+      {
+        "family": "Clinic Sans",
+        "status": "loaded"
+      },
+      {
+        "family": "Clinic Serif",
+        "status": "loaded"
+      }
+    ],
+    "frame_sample": {
+      "count": 300,
+      "median_ms": 5,
+      "over_50ms": 0,
+      "scope": "headless local sample; not a hardware performance guarantee"
+    },
+    "external_requests": [],
+    "page_errors": [],
+    "business_database_unchanged": true
+  },
+  "screenshots_and_motion": [
+    "library-presentation.png",
+    "library-desktop.png",
+    "library-390.png",
+    "library-320.png",
+    "training-desktop.png",
+    "reasoning-desktop.png",
+    "review-desktop.png",
+    "teacher-desktop.png",
+    "teacher-mobile.png",
+    "workspace-motion.mp4"
+  ],
+  "source_sha256": {
+    "frontend/app.py": "fcec36fa4501a3e2b019468f2985463f55df06a80ef32df0e2ad01451eca7f00",
+    "frontend/styles.css": "c28eadfdd80f740816a5f4b893688c40667494ffc575a862b7ecc4e62cd447a6",
+    ".streamlit/config.toml": "e85ac1b8ca28954e0c39ab037cf99ffe2ff13d2936f711a734982a4b99269e01",
+    "tests/test_frontend_smoke.py": "3045caf5c9190c8fa24335f1212eff89fbbf9f979af70f720340b0ca20ca5ded"
+  },
+  "assets": [
+    {
+      "name": "app-icon.png",
+      "bytes": 1142,
+      "sha256": "3ef39dd64df5b6ab4d5f1f372d9f226d0547bfc997c82f4e8b87e1243e6a1788"
+    },
+    {
+      "name": "display-serif.ttf",
+      "bytes": 24944,
+      "sha256": "3e1834774b419afd2adf5b51c1981f7300d74c62b1fadb2d1e419a8821100c8f"
+    },
+    {
+      "name": "fonts.json",
+      "bytes": 942,
+      "sha256": "c29a9d7606d78bacff1fbed925a6aef8e6b2de4f724c41f334b074e33eff4a13"
+    },
+    {
+      "name": "interface-sans.ttf",
+      "bytes": 478840,
+      "sha256": "eba0c18607b1a8dc3c85c632dfdedd2c89ad7d573916300e490ed1568a9cc943"
+    },
+    {
+      "name": "listening-orbit.svg",
+      "bytes": 146528,
+      "sha256": "883cbb6595fc9934b222b4b696ae765d460294eb4307ea06067cd6a4f6cb413d"
+    },
+    {
+      "name": "notosanssc-OFL.txt",
+      "bytes": 4388,
+      "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9"
+    },
+    {
+      "name": "notoserifsc-OFL.txt",
+      "bytes": 4350,
+      "sha256": "5e0da210fb04058a8c0087985d2d456b931c2579811a49655721d3cf0c36b6d6"
+    }
+  ],
+  "remote_published": false,
+  "new_live_model_call": false,
+  "new_teacher_approval": false,
+  "limits": [
+    "No low-end hardware benchmark",
+    "No complete screen-reader or human comfort audit",
+    "Subset fonts fall back for unsupported characters",
+    "Native Streamlit CSS integration requires recheck on upgrade"
+  ],
+  "iteration_notes": [
+    "Browser initially found a remote Material icon request; replaced page icon with a local image and rechecked zero external requests",
+    "Font subset expanded from UI text to current case vocabulary; dynamic text uses system fallback"
+  ]
+}

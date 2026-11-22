@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -15,8 +16,10 @@ from .adapters import (
     diagnosis_leak_terms,
     render_selected_answer,
 )
+from . import exam_catalog
 from .case_store import CaseStore
-from .disclosure import classify_and_authorize
+from .disclosure import classify_turn, non_fact_reply
+from .history_coverage import history_coverage
 from .integration.feedback import FeedbackUnavailable
 from .integration.config import data_directory
 from .integration.nexent_client import NexentError
@@ -38,13 +41,17 @@ from .scoring import score_session, student_score_snapshot
 from .teacher_api import build_router as build_teacher_router
 from .teacher_feedback_api import build_router as build_feedback_review_router
 from .teacher_score_api import build_router as build_score_review_router
+from .teacher_dashboard_api import build_router as build_dashboard_router
+from .roster import build_router as build_roster_router, roster_for
 from .state_machine import StateMachine
 from .storage import ConcurrentUpdateError, SessionRepository
+from .accounts import AccountStore, auth_mode, build_router as build_auth_router
 
 
 ROOT = Path(__file__).resolve().parents[2]
 CASE_STORE = CaseStore(ROOT / "cases", data_directory() / "teacher_cases")
 REPOSITORY = SessionRepository(data_directory() / "app.db")
+ACCOUNTS = AccountStore(data_directory() / "accounts.db")
 MACHINE = StateMachine(CASE_STORE, REPOSITORY)
 RUNTIME = IntegrationRuntime()
 app = FastAPI(title="AI数字病人临床思维训练", version="0.1.0")
@@ -57,7 +64,16 @@ app.add_middleware(
 )
 
 
-def current_owner(x_owner_id: str | None = Header(default=None)) -> str:
+def _account(authorization: str | None) -> dict:
+    user = ACCOUNTS.authenticate(authorization)
+    if user.get("must_change_password"):
+        raise HTTPException(status_code=403, detail="请先修改初始密码后再继续使用")
+    return user
+
+
+def current_owner(x_owner_id: str | None = Header(default=None), authorization: str | None = Header(default=None)) -> str:
+    if authorization is not None or auth_mode() == "local":
+        return _account(authorization)["id"]
     if not x_owner_id:
         raise HTTPException(status_code=401, detail="需要业务身份")
     if os.getenv("APP_ENV", "production").lower() == "development" and (
@@ -71,18 +87,27 @@ def _development() -> bool:
     return os.getenv("APP_ENV", "production").lower() == "development"
 
 
-def current_teacher(x_owner_id: str | None = Header(default=None)) -> str:
-    """Teacher role. Until a real identity provider exists, only development-mode ``teacher-`` ids qualify."""
+def current_teacher(x_owner_id: str | None = Header(default=None), authorization: str | None = Header(default=None)) -> str:
+    if authorization is not None or auth_mode() == "local":
+        user = _account(authorization)
+        if user["role"] != "teacher":
+            raise HTTPException(status_code=403, detail="需要教师角色")
+        return user["id"]
     if not x_owner_id:
         raise HTTPException(status_code=401, detail="需要业务身份")
     if _development() and x_owner_id.startswith("teacher-"):
         return x_owner_id
-    raise HTTPException(status_code=403, detail="需要教师角色；正式身份认证尚未接入，本地自填教师身份仅在 APP_ENV=development 时可用")
+    raise HTTPException(status_code=403, detail="需要教师角色；自填教师身份仅在本地演示模式可用")
 
 
+app.include_router(build_auth_router(lambda: ACCOUNTS))
 app.include_router(build_teacher_router(lambda: CASE_STORE, current_teacher, lambda: RUNTIME.knowledge))
 app.include_router(build_feedback_review_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: RUNTIME, current_teacher))
 app.include_router(build_score_review_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: RUNTIME, current_teacher))
+app.include_router(build_dashboard_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: ACCOUNTS, current_teacher,
+                                          lambda: roster_for(ACCOUNTS)))
+app.include_router(build_roster_router(lambda: roster_for(ACCOUNTS), lambda: ACCOUNTS, lambda: REPOSITORY, lambda: CASE_STORE,
+                                       current_teacher, current_owner, _development))
 
 
 def get_state(session_id: str, owner_id: str) -> SessionState:
@@ -90,6 +115,12 @@ def get_state(session_id: str, owner_id: str) -> SessionState:
         return REPOSITORY.get(session_id, owner_id)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="会话不存在或无权访问") from exc
+
+
+def _patient_profile(case: CaseDefinition) -> dict[str, Any]:
+    """Age and sex already stated in the public target population; nothing hidden is derived."""
+    match = re.search(r"(\d{1,3})岁(男|女)", case.target_population or "")
+    return {"age": int(match.group(1)) if match else None, "sex": match.group(2) if match else None}
 
 
 def safe_case(case: CaseDefinition) -> dict[str, Any]:
@@ -100,16 +131,18 @@ def safe_case(case: CaseDefinition) -> dict[str, Any]:
         "specialty": case.specialty,
         "chief_complaint": case.chief_complaint,
         "review_status": case.review_status.value,
+        "patient": _patient_profile(case),
     }
 
 
 def safe_options(case: CaseDefinition) -> dict[str, Any]:
     """Fixed, case-configured choices for the student UI; no hidden or scoring data."""
+    # The same hospital-wide catalogue for every case: the menu itself never hints at the answer.
     return {
         "exams": [
-            {"exam_id": exam.exam_id, "name": exam.standard_name}
-            for exam in case.exams
-            if exam.configured
+            {"exam_id": item["catalog_id"], "name": item["name"], "category": item["category"],
+             "cost": item["cost"], "minutes": item["minutes"], "baseline": item["baseline"]}
+            for item in exam_catalog.public_catalog(case)
         ],
         "treatments": [{"treatment_id": t.treatment_id, "name": t.name} for t in case.treatments],
         "differentials": [
@@ -202,9 +235,28 @@ def safe_submissions(state: SessionState, case: CaseDefinition) -> dict[str, Any
     }
 
 
+def _exam_name(case: CaseDefinition, exam_id: str) -> str:
+    exam = next((e for e in case.exams if e.exam_id == exam_id), None)
+    if exam is not None:
+        return exam.standard_name
+    entry = exam_catalog.find(exam_id)
+    return entry.name if entry else "未命名检查"
+
+
+def _exam_meta(case: CaseDefinition, exam_id: str) -> tuple[str, int, str | None]:
+    """Category, cost and catalogue id for an order, matching the student catalogue by name or alias."""
+    name = _exam_name(case, exam_id)
+    entry = exam_catalog.find(exam_id) or exam_catalog.entry_for_name(name)
+    return (entry.category, entry.cost, entry.catalog_id) if entry else ("其他", 100, None)
+
+
 def _ready_exam_results(response: dict[str, Any], case: CaseDefinition) -> list[dict[str, Any]]:
-    return [{"name": exam.standard_name, "result": exam.result}
-            for exam in case.exams if exam.exam_id in response.get("ready_exam_ids", [])]
+    results = []
+    for exam_id in response.get("ready_exam_ids", []):
+        exam = next((e for e in case.exams if e.exam_id == exam_id), None)
+        results.append({"name": _exam_name(case, exam_id),
+                        "result": exam.result if exam is not None else exam_catalog.GENERIC_RESULT})
+    return results
 
 
 def safe_action_response(response: dict[str, Any], case: CaseDefinition) -> dict[str, Any]:
@@ -218,17 +270,15 @@ def safe_action_response(response: dict[str, Any], case: CaseDefinition) -> dict
     }
     if "ready_exam_ids" in response:
         result["exam_results"] = _ready_exam_results(response, case)
-        result["ready_exam_names"] = [
-            next((exam.standard_name for exam in case.exams if exam.exam_id == exam_id), "未命名检查")
-            for exam_id in response["ready_exam_ids"]
-        ]
+        result["ready_exam_names"] = [_exam_name(case, exam_id) for exam_id in response["ready_exam_ids"]]
     return result
 
 
 def safe_state(state: SessionState) -> dict[str, Any]:
     case = CASE_STORE.get(state.case_id, state.case_version)
-    exams = {exam.exam_id: exam.standard_name for exam in case.exams}
+    metas = [_exam_meta(case, order.exam_id) for order in state.orders]
     return {
+        "exam_cost_total": sum(meta[1] for meta in metas),
         "session_id": state.session_id,
         "workflow": state.workflow.value,
         "clinical_state": state.clinical_state.value,
@@ -240,14 +290,17 @@ def safe_state(state: SessionState) -> dict[str, Any]:
         "orders": [
             {
                 "state": order.state.value,
-                "exam_name": exams.get(order.exam_id, "未命名检查"),
+                "exam_name": _exam_name(case, order.exam_id),
+                "category": meta[0],
+                "cost": meta[1],
+                "catalog_id": meta[2],
                 "ordered_sim_time": order.ordered_sim_time,
                 "sample_sim_time": order.sample_sim_time,
                 "return_sim_time": order.return_sim_time,
                 "result": order.result,
                 "viewed": order.viewed,
             }
-            for order in state.orders
+            for order, meta in zip(state.orders, metas)
         ],
         "events": [safe_event(event, case) for event in state.events],
         "sealed": state.sealed,
@@ -274,7 +327,13 @@ def health() -> dict:
 
 @app.get("/api/cases")
 def list_cases(_: str = Depends(current_owner)) -> list[dict]:
-    return CASE_STORE.list_public(include_unpublished=_development())
+    listed = CASE_STORE.list_public(include_unpublished=_development())
+    for item in listed:
+        try:
+            item["patient"] = _patient_profile(CASE_STORE.resolve_for_student(item["public_id"], _development()))
+        except KeyError:
+            item["patient"] = {"age": None, "sex": None}
+    return listed
 
 
 @app.post("/api/sessions")
@@ -316,7 +375,8 @@ def list_sessions(owner_id: str = Depends(current_owner)) -> list[dict]:
 def session_detail(session_id: str, owner_id: str = Depends(current_owner)) -> dict:
     state = get_state(session_id, owner_id)
     case = CASE_STORE.get(state.case_id, state.case_version)
-    return {"state": safe_state(state), "case": safe_case(case), "options": safe_options(case)}
+    return {"state": safe_state(state), "case": safe_case(case), "options": safe_options(case),
+            "history_coverage": history_coverage(state.events)}
 
 
 @app.post("/api/sessions/{session_id}/ask")
@@ -324,7 +384,7 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
     started = time.monotonic()
     state = get_state(session_id, owner_id)
     case = CASE_STORE.get(state.case_id, state.case_version)
-    visible = classify_and_authorize(state, request.question, case.facts)
+    visible, turn_kind = classify_turn(state, request.question, case.facts)
     before = state.model_copy(deep=True)
     try:
         result = MACHINE._check_request(state, request.request_id, {"action": "ask", "question": request.question})
@@ -357,6 +417,9 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
     else:
         selection = PatientSelection(fact_ids=[], source="local_no_candidates")
     selected, rendered = render_selected_answer(visible, selection.fact_ids)
+    if not visible:
+        # Fixed, fact-free reply (greeting, diagnosis request, unconfigured history item).
+        rendered = non_fact_reply(request.question, turn_kind) or rendered
     answer, final_fact_ids, was_fallback = authorized_answer_or_fallback(rendered, selected, case)
     answer_validated_ms = int((time.monotonic() - started) * 1000)
     selection.trace["answer_validated_ms"] = answer_validated_ms
@@ -373,6 +436,7 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
             "answer": answer,
             "fact_ids": final_fact_ids,
             "fallback": was_fallback,
+            "turn_kind": turn_kind if final_fact_ids or not visible else "fallback",
             "adapter": {"source": selection.source, "trace": selection.trace},
         },
         intent=request.question,
@@ -566,3 +630,31 @@ def score_review(session_id: str, owner_id: str = Depends(current_owner)) -> dic
     return {"revision": latest["revision"], "created_at": latest["created_at"],
             "reviewed_score": student_score_snapshot(snapshot, case).model_dump(mode="json"),
             "notice": "教师裁定为独立的教学复核结果；原规则评分与反馈保留，不属于医学审核或正式评测。"}
+
+
+# The React front end (web/dist) is served from the same origin; registered last so every
+# /api and /health route above takes precedence. Absent build output simply disables it.
+def _mount_web() -> None:
+    from pathlib import Path as _Path
+
+    from fastapi.responses import JSONResponse
+    from fastapi.staticfiles import StaticFiles
+
+    class WebFiles(StaticFiles):
+        """Static SPA files; unknown API paths and non-GET methods keep plain JSON 404 semantics."""
+
+        async def __call__(self, scope, receive, send):
+            path = scope.get("path", "")
+            if scope["type"] == "http" and (path.startswith("/api/") or path == "/api"
+                                            or scope.get("method") not in {"GET", "HEAD"}):
+                await JSONResponse({"detail": "Not Found"}, status_code=404)(scope, receive, send)
+                return
+            await super().__call__(scope, receive, send)
+
+    configured = os.getenv("WEB_DIST_DIR")
+    dist = _Path(configured) if configured else _Path(__file__).resolve().parents[2] / "web" / "dist"
+    if (dist / "index.html").is_file():
+        app.mount("/", WebFiles(directory=dist, html=True), name="web")
+
+
+_mount_web()

@@ -6,6 +6,21 @@ from typing import Any, Protocol
 from .models import CaseDefinition, Fact
 
 FALLBACK_ANSWER = "我不太确定您的问题，能否换一种方式询问？"
+# Fixed, fact-free replies the backend may use when no fact is disclosed (see disclosure.py).
+NON_FACT_REPLIES = frozenset({
+    "医生您好。", "好的，谢谢医生。", "这个我也不清楚，得请医生帮我看看。", "这个我没太注意，说不好。", "检查结果我不清楚，您看看报告吧。",
+})
+_SENTENCE_END = ("。", "！", "？", "!", "?", "…")
+
+
+def join_fact_contents(contents: list[str]) -> str:
+    """Join fact sentences without producing "。，"; plain clauses keep the "，" separator."""
+    text = ""
+    for content in contents:
+        if text and not text.endswith(_SENTENCE_END):
+            text += "，"
+        text += content
+    return text
 
 
 @dataclass(frozen=True)
@@ -45,7 +60,7 @@ class SimulatorPatientAdapter:
 
     def answer(self, question: str, facts: list[str], visible_state: dict) -> str:
         if facts:
-            return "，".join(facts)
+            return join_fact_contents(facts)
         return FALLBACK_ANSWER
 
     def select_facts(self, turn: PatientTurnRequest) -> PatientSelection:
@@ -62,7 +77,7 @@ def render_selected_answer(candidates: list[Fact], selected_ids: list[str]) -> t
     selected = [fact for fact in candidates if fact.fact_id in wanted]
     if not selected:
         return [], FALLBACK_ANSWER
-    return selected, "，".join(fact.content for fact in selected)
+    return selected, join_fact_contents([fact.content for fact in selected])
 
 
 def _normalize(text: str) -> str:
@@ -85,7 +100,7 @@ def authorized_answer_or_fallback(
     case: CaseDefinition,
 ) -> tuple[str, list[str], bool]:
     """Gate adapter output before persistence and before returning it to a student."""
-    fallback = "我不太确定您的问题，能否换一种方式询问？"
+    fallback = FALLBACK_ANSWER
     candidate = answer.strip()
     if not candidate:
         return fallback, [], True
@@ -98,8 +113,10 @@ def authorized_answer_or_fallback(
     if any(marker in normalized for marker in ("sentinel", "内部错误", "traceback", "api_key")):
         return fallback, [], True
     if not authorized_facts:
-        return (candidate, [], False) if normalized == _normalize(fallback) else (fallback, [], True)
-    expected = _normalize("，".join(fact.content for fact in authorized_facts))
+        if normalized == _normalize(fallback) or candidate in NON_FACT_REPLIES:
+            return candidate, [], False
+        return fallback, [], True
+    expected = _normalize(join_fact_contents([fact.content for fact in authorized_facts]))
     if normalized != expected:
         return fallback, [], True
     fact_ids = [

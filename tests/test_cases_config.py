@@ -179,7 +179,12 @@ def test_second_specialty_options_come_from_the_case(tmp_path, monkeypatch):
     api = Api(tmp_path, monkeypatch)
     sid = api.start("CASE-002")
     options = api.client.get(f"/api/sessions/{sid}", headers=api.headers).json()["options"]
-    assert [e["exam_id"] for e in options["exams"]] == ["ex_cbc", "ex_us", "ex_urine"]
+    # Exams come from the hospital-wide catalogue, identical for every case, so the menu never hints at the answer.
+    names = [e["name"] for e in options["exams"]]
+    assert {"血常规", "腹部超声", "尿常规", "心电图", "头颅CT平扫"} <= set(names)
+    assert len(names) >= 40
+    other = api.client.get(f"/api/sessions/{api.start('CASE-001')}", headers=api.headers).json()["options"]["exams"]
+    assert other == options["exams"]
     assert [t["treatment_id"] for t in options["treatments"]] == ["fluids_antibiotics", "surgical_consult"]
     assert {d["candidate_id"] for d in options["differentials"]} >= {"ureteral_stone", "gastroenteritis"}
     assert "急性阑尾炎" not in json.dumps(options, ensure_ascii=False)

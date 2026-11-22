@@ -197,6 +197,8 @@ class CaseDefinition(BaseModel):
     rubric: list[RubricItem] = Field(min_length=1)
     hidden_diagnosis: str | None = None
     authored_by: str | None = None
+    # Catalogue exams that are reasonable for this case but not required: ordering them is not penalised.
+    acceptable_exams: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_references(self) -> "CaseDefinition":

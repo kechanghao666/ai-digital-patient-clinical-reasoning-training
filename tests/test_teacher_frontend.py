@@ -20,6 +20,8 @@ def teacher_page(tmp_path, monkeypatch):
     page = AppTest.from_file(str(ROOT / "frontend/app.py"), default_timeout=30).run()
     page.radio(key="workspace").set_value("教师病例管理").run()
     assert not page.exception, page.exception
+    page.radio(key="teacher_task").set_value("病例编写与发布").run()
+    assert not page.exception, page.exception
     button(page, "以此病例新建草稿").click().run()
     assert not page.exception, page.exception
     return api, page

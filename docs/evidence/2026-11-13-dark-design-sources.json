@@ -1,0 +1,65 @@
+{
+  "retrieved": "2026-11-13",
+  "sources": [
+    {
+      "name": "anthropic-frontend",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/main/skills/frontend-design/SKILL.md",
+      "status": 200,
+      "characters": 9363
+    },
+    {
+      "name": "linear",
+      "url": "https://linear.app/now/behind-the-latest-design-refresh",
+      "status": 200,
+      "characters": 8129
+    },
+    {
+      "name": "v0-prompting",
+      "url": "https://vercel.com/blog/how-to-prompt-v0",
+      "status": 200,
+      "characters": 10809
+    },
+    {
+      "name": "lovable-design",
+      "url": "https://docs.lovable.dev/tips-tricks/design",
+      "status": 404,
+      "characters": 0
+    },
+    {
+      "name": "lovable-prompts",
+      "url": "https://docs.lovable.dev/prompting/prompting-one",
+      "status": 200,
+      "characters": 15102
+    },
+    {
+      "name": "vscode",
+      "url": "https://code.visualstudio.com/api/ux-guidelines/overview",
+      "status": 200,
+      "characters": 8751
+    },
+    {
+      "name": "adobe-dark",
+      "url": "https://spectrum.adobe.com/page/color/",
+      "status": 200,
+      "characters": 6243
+    },
+    {
+      "name": "carbon",
+      "url": "https://carbondesignsystem.com/guidelines/color/overview/",
+      "status": 200,
+      "characters": 17793
+    },
+    {
+      "name": "fluent-layout",
+      "url": "https://fluent2.microsoft.design/layout",
+      "status": 200,
+      "characters": 13066
+    },
+    {
+      "name": "wcag",
+      "url": "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html",
+      "status": 200,
+      "characters": 34390
+    }
+  ]
+}

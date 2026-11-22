@@ -1,0 +1,61 @@
+{
+  "base": "http://127.0.0.1:8006",
+  "steps": [
+    {
+      "name": "登录页可见",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "学生登录并进入病例库",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "问诊9轮均有回答",
+      "ok": true,
+      "detail": "这个我也不清楚，得请医生帮我看看。"
+    },
+    {
+      "name": "开单并推进时间后显示检查结果",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "病历、鉴别与诊断已提交",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "封存后进入复盘并显示评分",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "本地规则反馈可生成",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "教师看板显示训练",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "评分复核自动载入所选训练",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "病例管理可打开病例版本",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "无前端脚本错误",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "console_errors": []
+}

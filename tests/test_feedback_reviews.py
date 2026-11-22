@@ -76,8 +76,8 @@ def test_review_api_requires_teacher_for_reads_and_writes(sealed, headers):
 def test_development_teacher_is_rejected_in_production(sealed, monkeypatch):
     env, state, _, items = sealed
     monkeypatch.setenv("APP_ENV", "production")
-    assert read(env, state).status_code == 403
-    assert save(env, state, payload(state, items)).status_code == 403
+    assert read(env, state).status_code == 401
+    assert save(env, state, payload(state, items)).status_code == 401
 
 
 def test_review_requires_matching_owner_and_sealed_session(tmp_path, monkeypatch):

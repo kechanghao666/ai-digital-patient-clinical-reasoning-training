@@ -6,6 +6,7 @@ from datetime import date
 from urllib.parse import quote
 
 import streamlit as st
+from dashboard import render_dashboard
 from score_review import render_score_review
 
 STATUS = {"draft": "草稿", "validated": "结构校验通过", "under_review": "待医学审核", "published": "已发布"}
@@ -42,7 +43,13 @@ def render_teacher(api, navigation):
         st.info("请使用有权限的教师身份。当前仅支持开发模式教师账号。")
         return
 
-    task = navigation.radio("教师任务", ["病例编写与发布", "训练反馈复核", "评分复核与裁定"], key="teacher_task")
+    tasks = ["班级训练看板", "病例编写与发布", "训练反馈复核", "评分复核与裁定"]
+    if st.session_state.get("teacher_task_next") in tasks:
+        st.session_state.teacher_task = st.session_state.pop("teacher_task_next")
+    task = navigation.radio("教师任务", tasks, key="teacher_task")
+    if task == "班级训练看板":
+        render_dashboard(api)
+        return
     if task == "训练反馈复核":
         render_feedback_review(api)
         return

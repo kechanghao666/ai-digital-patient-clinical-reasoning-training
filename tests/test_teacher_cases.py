@@ -42,11 +42,11 @@ def test_only_teachers_may_use_teacher_routes(tmp_path, monkeypatch):
         assert api.client.get("/api/teacher/cases", headers=headers).status_code in (401, 403)
         assert put(api, new_case(), headers).status_code in (401, 403)
     assert api.client.get("/api/teacher/cases", headers=TEACHER).status_code == 200
-    # Teacher ids are not students, and nothing works outside development mode.
+    # Self-entered teacher ids are not students and cannot authenticate in production.
     assert api.client.post("/api/sessions?case_id=CASE-002", headers=TEACHER).status_code == 401
     (tmp_path / "p").mkdir()
     prod = Api(tmp_path / "p", monkeypatch, env="production")
-    assert prod.client.get("/api/teacher/cases", headers=TEACHER).status_code == 403
+    assert prod.client.get("/api/teacher/cases", headers=TEACHER).status_code == 401
 
 
 def test_validation_reports_schema_and_leak_problems_without_saving(tmp_path, monkeypatch):

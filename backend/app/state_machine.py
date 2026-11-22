@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from . import exam_catalog
 from .case_store import CaseStore
 from .models import (
     ActionKind,
@@ -91,9 +92,9 @@ class StateMachine:
         newly_ready: list[str] = []
         for order in state.orders:
             if order.state == ExamState.PENDING and state.sim_time_minutes >= order.return_sim_time:
-                exam = next(e for e in self._case(state).exams if e.exam_id == order.exam_id)
+                exam = next((e for e in self._case(state).exams if e.exam_id == order.exam_id), None)
                 order.state = ExamState.READY
-                order.result = exam.result
+                order.result = exam.result if exam is not None else exam_catalog.GENERIC_RESULT
                 newly_ready.append(order.exam_id)
         return newly_ready
 
@@ -262,23 +263,36 @@ class StateMachine:
         revealed_fact_ids: list[str] = []
         if action == ActionKind.ORDER_EXAM:
             exam_id = payload.get("exam_id")
-            exam = next((e for e in self._case(state).exams if e.exam_id == exam_id), None)
-            if exam is None or not exam.configured:
+            case_def = self._case(state)
+            entry = exam_catalog.find(exam_id)
+            exam = next((e for e in case_def.exams if e.exam_id == exam_id), None)
+            if exam is None and entry is not None:
+                exam = exam_catalog.case_exam_for(case_def, entry)
+                if exam is not None:
+                    exam_id = exam.exam_id
+            if exam is not None and not exam.configured:
+                exam = None
+            if exam is None and entry is None:
                 raise ValueError("exam is not configured")
+            lead_minutes = exam.return_after_minutes if exam is not None else entry.minutes
+            exam_result = exam.result if exam is not None else exam_catalog.GENERIC_RESULT
+            # Record the canonical case exam id so rubric, rules and replay key off one identity.
+            # Idempotency was already checked against the student's original request above.
+            payload = {"exam_id": exam_id}
             if any(order.exam_id == exam_id and order.state in {ExamState.PENDING, ExamState.READY} for order in state.orders):
                 raise ValueError("exam already ordered; use a new order only for an explicit recheck")
             order = OrderInstance(
                 exam_id=exam_id,
                 ordered_sim_time=state.sim_time_minutes,
                 sample_sim_time=state.sim_time_minutes,
-                return_sim_time=state.sim_time_minutes + exam.return_after_minutes,
+                return_sim_time=state.sim_time_minutes + lead_minutes,
             )
             state.orders.append(order)
             state.workflow = Workflow.EXAMS
             response = {"order_id": order.order_id, "exam_id": exam_id, "state": order.state.value}
-            if exam.return_after_minutes == 0:
+            if lead_minutes == 0:
                 order.state = ExamState.READY
-                order.result = exam.result
+                order.result = exam_result
                 response["state"] = order.state.value
                 response["ready_exam_ids"] = [exam_id]
         elif action == ActionKind.WAIT:

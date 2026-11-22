@@ -1,0 +1,13 @@
+{
+  "url": "http://127.0.0.1:8508",
+  "mode": "local-accounts-simulator",
+  "checks": [
+    "student browser login, role-specific workspace and logout passed",
+    "teacher browser login, role-specific workspace and logout passed",
+    "login canvas responds to pointer",
+    "motion switches removed from login and workspaces; animation remains active",
+    "backend role authorization and revoked token rejection passed"
+  ],
+  "page_errors": [],
+  "complete": true
+}

@@ -1,6 +1,6 @@
 # 从零启动与隔离复现
 
-本指南针对单API进程、本机教学演练。生产身份尚未接入，服务只监听本机；不将development自填账号用于公开部署。真实Nexent联调与本地模拟分别验收。
+本指南针对单API进程、本机教学演练。项目已提供[独立账号与角色权限](local-accounts.md)，服务只监听本机；不将development自填账号用于公开部署。真实Nexent联调与本地模拟分别验收。
 
 ## 安装
 
@@ -21,6 +21,7 @@ Linux/macOS使用`python3.11 -m venv .venv`，后续解释器路径为`.venv/bin
 
 ```powershell
 $env:APP_ENV = 'development'
+$env:APP_AUTH_MODE = 'demo'
 $env:NEXENT_MODE = 'simulator'
 $env:APP_DATA_DIR = Join-Path (Get-Location) 'local-only\demo-data'
 & .\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
@@ -53,4 +54,4 @@ $env:APP_DATA_DIR = Join-Path (Get-Location) 'local-only\demo-data'
 5. 导入平台导出的病人与反馈配置，重新扫描工具并发布。病人只分配get_turn_context与submit_fact_selection。compact反馈只分配submit_feedback，设置`NEXENT_FEEDBACK_PROTOCOL=compact`；另一review_tool流程依独立说明配置，不能混用。
 6. 设置`NEXENT_MODE=nexent`并重启API。执行[中期演示](stemi-demo.md)及五科场景，检查可信工具、事件、重复请求和首个有效回答时间。平台健康探测、HTTP 200或一个成功问题不能证明完整验收。
 
-本轮已验证隔离目录下API与MCP共享数据及十二组模拟闭环，真实五科各一次问诊成功。异机安装、独立Nexent实例导入、随机现场用例和正式身份仍待验证，不能将本机结果写成这些门槛已完成。
+此前已验证隔离目录下API与MCP共享数据及十二组模拟闭环，真实五科各一次问诊成功。独立账号的启用、开通及撤销见[账号指南](local-accounts.md)。异机安装、独立Nexent实例导入、随机现场用例和公网身份部署仍待验证，不能将本机结果写成这些门槛已完成。

@@ -34,3 +34,7 @@ htmlcov/
 /官方Fork启动材料_*.zip
 /local-only/
 /KEY.txt
+# Historical import screenshots display one-time student credentials.
+/docs/evidence/clinical-redesign-20261113/02-teacher-roster.png
+/docs/evidence/exam-catalog-monitor-20261114/02-teacher-roster.png
+/web/shots/

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from pydantic import ValidationError
 
+from . import exam_catalog
 from .adapters import diagnosis_leak_terms
 from .disclosure import normalize
 from .models import CaseDefinition
@@ -68,6 +69,10 @@ def check_case(case: CaseDefinition, for_publish: bool = False) -> list[Issue]:
         found = leaks_in(text)
         if found:
             issues.append(Issue("error", "diagnosis_leak", f"{where} 含有诊断词 {found}，会向学生泄露答案"))
+
+    for name in exam_catalog.unmapped_case_exams(case):
+        issues.append(Issue("error", "exam_not_in_catalog",
+                            f"检查“{name}”不在全院检查目录中，学生无法开立；请改用目录名称或其别名"))
 
     rule_fact_ids = {fid for rule in case.rules for fid in rule.effect.new_fact_ids}
     facts = {fact.fact_id: fact for fact in case.facts}

@@ -1,0 +1,161 @@
+[
+  {
+    "title": "Claude by Anthropic | The AI for problem solvers",
+    "headings": [
+      {
+        "text": "Question what’s next",
+        "font": "anthropicSerif, \"anthropicSerif Fallback\", Georgia, serif",
+        "size": "56px",
+        "weight": "400",
+        "lineHeight": "64.4px"
+      },
+      {
+        "text": "Explore plans",
+        "font": "anthropicSerif, \"anthropicSerif Fallback\", Georgia, serif",
+        "size": "52px",
+        "weight": "500",
+        "lineHeight": "62.4px"
+      },
+      {
+        "text": "FAQ",
+        "font": "anthropicSerif, \"anthropicSerif Fallback\", Georgia, serif",
+        "size": "52px",
+        "weight": "500",
+        "lineHeight": "62.4px"
+      },
+      {
+        "text": "Products",
+        "font": "anthropicSans, \"anthropicSans Fallback\", system-ui, sans-serif",
+        "size": "12px",
+        "weight": "400",
+        "lineHeight": "19.2px"
+      },
+      {
+        "text": "Capabilities",
+        "font": "anthropicSans, \"anthropicSans Fallback\", system-ui, sans-serif",
+        "size": "12px",
+        "weight": "400",
+        "lineHeight": "19.2px"
+      },
+      {
+        "text": "Extensions",
+        "font": "anthropicSans, \"anthropicSans Fallback\", system-ui, sans-serif",
+        "size": "12px",
+        "weight": "400",
+        "lineHeight": "19.2px"
+      }
+    ],
+    "background": "rgb(250, 249, 245)",
+    "canvas": 0,
+    "video": 1,
+    "name": "claude",
+    "url": "https://claude.com",
+    "status": 200
+  },
+  {
+    "title": "Free AI Voice Generator & Voice Agents Platform | ElevenLabs",
+    "headings": [
+      {
+        "text": "Bringing technology to life",
+        "font": "Waldenburg, \"Waldenburg Fallback\"",
+        "size": "48px",
+        "weight": "300",
+        "lineHeight": "52px"
+      },
+      {
+        "text": "Powering the best enterprises, creators, and developers. From ElevenAgents for customer experience, ElevenCreative for content creation, to ",
+        "font": "Inter, \"Inter Fallback\"",
+        "size": "16px",
+        "weight": "400",
+        "lineHeight": "24px"
+      },
+      {
+        "text": "Trusted by leading developers and enterprises",
+        "font": "Inter, \"Inter Fallback\"",
+        "size": "16px",
+        "weight": "400",
+        "lineHeight": "24px"
+      },
+      {
+        "text": "Two platforms built on the same research foundation",
+        "font": "Waldenburg, \"Waldenburg Fallback\"",
+        "size": "36px",
+        "weight": "300",
+        "lineHeight": "42px"
+      },
+      {
+        "text": "Create, edit, and localize in one AI platform",
+        "font": "Waldenburg, \"Waldenburg Fallback\"",
+        "size": "36px",
+        "weight": "300",
+        "lineHeight": "42px"
+      },
+      {
+        "text": "Deploy agents that talk, type, and take action",
+        "font": "Waldenburg, \"Waldenburg Fallback\"",
+        "size": "36px",
+        "weight": "300",
+        "lineHeight": "42px"
+      }
+    ],
+    "background": "rgb(253, 252, 252)",
+    "canvas": 2,
+    "video": 0,
+    "name": "elevenlabs",
+    "url": "https://elevenlabs.io",
+    "status": 200
+  },
+  {
+    "title": "AI Coding Agent for Building Ambitious Software | Cursor",
+    "headings": [
+      {
+        "text": "Cursor 是您的编程智能体，助您构建雄心勃勃的软件。",
+        "font": "CursorGothic, \"CursorGothic Fallback\", system-ui, \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+        "size": "26px",
+        "weight": "400",
+        "lineHeight": "32.5px"
+      },
+      {
+        "text": "每天都深受构建世界级软件的团队信赖",
+        "font": "CursorGothic, \"CursorGothic Fallback\", system-ui, \"Helvetica Neue\", Helvetica, Arial, sans-serif",
+        "size": "14px",
+        "weight": "400",
+        "lineHeight": "21px"
+      },
+      {
+        "text": "Mission Control Interface",
+        "font": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"Helvetica Neue\", Arial, sans-serif",
+        "size": "20px",
+        "weight": "700",
+        "lineHeight": "31px"
+      },
+      {
+        "text": "Trigger",
+        "font": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"Helvetica Neue\", Arial, sans-serif",
+        "size": "14px",
+        "weight": "600",
+        "lineHeight": "21.7px"
+      },
+      {
+        "text": "View Behavior",
+        "font": "system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", \"Helvetica Neue\", Arial, sans-serif",
+        "size": "14px",
+        "weight": "600",
+        "lineHeight": "21.7px"
+      },
+      {
+        "text": "#feature-realtime-sync",
+        "font": "Lato, \"Lato Fallback\"",
+        "size": "16px",
+        "weight": "600",
+        "lineHeight": "21.3333px"
+      }
+    ],
+    "background": "rgb(247, 247, 244)",
+    "canvas": 0,
+    "video": 1,
+    "name": "cursor",
+    "url": "https://cursor.com",
+    "status": 200
+  }
+]

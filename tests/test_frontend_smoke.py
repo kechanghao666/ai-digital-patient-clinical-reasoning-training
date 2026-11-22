@@ -34,6 +34,7 @@ def test_submission_immediately_refreshes_count_and_replay(tmp_path, monkeypatch
 def _route_requests(monkeypatch, api: Api):
     def fake_request(method, url, headers=None, timeout=None, **kwargs):
         path = url.split("127.0.0.1:8000", 1)[1]
+        kwargs["follow_redirects"] = kwargs.pop("allow_redirects", True)
         return api.client.request(method, path, headers=headers, **kwargs)
 
     monkeypatch.setattr(requests, "request", fake_request)
@@ -76,7 +77,9 @@ def test_page_offers_case_configured_options_for_each_specialty(tmp_path, monkey
         resume.click().run()
         assert not app.exception, app.exception
         labels = {s.label: s for s in app.selectbox}
-        assert [labels["检查项目"].format_func(o) for o in labels["检查项目"].options] == exams
+        offered = [labels["检查项目"].format_func(o) for o in labels["检查项目"].options]
+        # Full catalogue for every case: the case's own exams are present but not singled out.
+        assert set(exams) <= set(offered) and len(offered) >= 40
         assert [labels["治疗动作"].format_func(o) for o in labels["治疗动作"].options] == treatments
         assert any(m.label == "候选诊断" for m in app.multiselect)
 
@@ -142,6 +145,17 @@ def test_case_search_is_read_only_and_has_an_empty_state(tmp_path, monkeypatch):
     assert api.client.get('/api/sessions', headers=api.headers).json() == []
     page.text_input(key="case_search").set_value("case-002").run()
     assert [b.key for b in page.button if b.label == "开始训练"] == ["start_CASE-002"]
+    assert api.client.get('/api/sessions', headers=api.headers).json() == []
+
+
+def test_identity_change_without_motion_switch_does_not_create_a_session(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch, owner="demo-student")
+    _route_requests(monkeypatch, api)
+    page = _page(api)
+    assert not any(toggle.label == "动态背景" for toggle in page.toggle)
+    page.text_input(key="student_identity").set_value("demo-motion-preference").run()
+    assert not page.exception
+    assert not any(toggle.label == "动态背景" for toggle in page.toggle)
     assert api.client.get('/api/sessions', headers=api.headers).json() == []
 
 

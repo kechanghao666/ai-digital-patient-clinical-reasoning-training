@@ -23,6 +23,23 @@ CANCELLED = "cancelled"
 EXPIRED = "expired"
 
 
+
+def _initialise(connect, schema: str, attempts: int = 50) -> None:
+    import time as _time
+
+    for attempt in range(attempts):
+        try:
+            with connect() as connection:
+                if connection.execute("PRAGMA journal_mode").fetchone()[0].lower() != "wal":
+                    connection.execute("PRAGMA journal_mode=WAL")
+                connection.executescript(schema)
+            return
+        except sqlite3.OperationalError as exc:
+            if "locked" not in str(exc) or attempt == attempts - 1:
+                raise
+            _time.sleep(0.05)
+
+
 class TurnError(Exception):
     """Raised for any rejected turn credential or transition. Messages are safe to show to a model."""
 
@@ -101,15 +118,15 @@ class TurnStore:
         self.path = str(path)
         Path(self.path).parent.mkdir(parents=True, exist_ok=True)
         self.lock = RLock()
-        with self._connect() as connection:
-            connection.executescript(_SCHEMA)
+        # WAL is persistent in the file; switch once here. Switching needs an exclusive lock and does not
+        # wait on the busy handler, so doing it on every connection fails under concurrent requests.
+        _initialise(self._connect, _SCHEMA)
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
         connection = sqlite3.connect(self.path, timeout=10, isolation_level=None)
         try:
             connection.row_factory = sqlite3.Row
-            connection.execute("PRAGMA journal_mode=WAL")
             connection.execute("PRAGMA busy_timeout=10000")
             yield connection
         finally:

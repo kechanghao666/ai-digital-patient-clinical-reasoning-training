@@ -77,7 +77,8 @@ def build_router(get_repository: Callable[[], SessionRepository], get_cases: Cal
                 "original_score": state.score_snapshot.model_dump(mode="json"), "reviews": reviews,
                 "current_revision": reviews[-1]["revision"] if reviews else 0,
                 "events": [_event_digest(event, case) for event in state.events[:state.seal_seq]],
-                "rubric": [item.model_dump(mode="json") for item in case.rubric],
+                "rubric": [item.model_dump(mode="json") for item in case.rubric]
+                + [{"item_id": "exam_stewardship", "description": "检查合理性（避免无关检查）", "stage": "检查选择"}],
                 "submissions": {"diagnosis": state.diagnosis_submission, "differential": state.differential_submission,
                                 "treatment": state.treatment_submission}, "case_notes": state.case_notes,
                 "basis_coverage": get_runtime().knowledge.coverage(case.case_id, case.version)}
