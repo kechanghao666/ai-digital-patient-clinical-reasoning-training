@@ -10,6 +10,7 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, Iterator
 
+from ..adapters import diagnosis_leak_terms
 from ..models import CaseDefinition, SessionState
 from ..scoring import student_score_snapshot
 from ..storage import ConcurrentUpdateError, SessionRepository
@@ -252,21 +253,47 @@ _GAP_LABELS = {
     "治疗": "未执行处置",
 }
 
+# Neutral per-stage action names used when the rubric has no mapping for an item, or when the
+# author's description is not safe to forward (diagnosis/marker content).
+_NEUTRAL_ACTIONS = {
+    "病史采集": "病史采集",
+    "检查选择": "检查选择",
+    "鉴别诊断": "鉴别诊断",
+    "诊断": "提交诊断",
+    "治疗": "治疗措施",
+}
 
-def teaching_gap(item, rubric_item) -> str:
+_INTERNAL_MARKERS = ("sentinel", "traceback", "api_key", "turn_token", "secret")
+
+
+def _controlled_action(description: str, case: CaseDefinition | None) -> bool:
+    """True when an authored teaching-action description is safe to forward to the model."""
+    if not description or not description.strip():
+        return False
+    lowered = "".join(description.casefold().split())
+    if any(marker in lowered for marker in _INTERNAL_MARKERS):
+        return False
+    if case is not None and any(term in lowered for term in diagnosis_leak_terms(case)):
+        return False
+    return True
+
+
+def teaching_gap(item, rubric_item, case: CaseDefinition | None = None) -> str:
     """A de-identified teaching-action gap a sealed score can prove, safe to show the model.
 
-    Never includes case text, the reference diagnosis, internal ids or teacher free text. A missing
-    record is never phrased as the patient lacking a symptom.
+    Uses the authored teaching-action description only when it is controlled (no diagnosis or
+    internal-marker content); otherwise falls back to the stage's neutral name. The diagnosis stage
+    is always neutral. A missing record is never phrased as the patient lacking a symptom.
     """
-    if item.stage == "诊断" or rubric_item is None:
-        action = "提交诊断"
-    else:
-        action = rubric_item.description
-    if item.score > 0:
-        status = "部分完成"
-    elif "复核" in (item.reason or ""):
+    action = _NEUTRAL_ACTIONS.get(item.stage, item.stage)
+    if rubric_item is not None and item.stage != "诊断":
+        description = (rubric_item.description or "").strip()
+        if _controlled_action(description, case):
+            action = description
+    if "复核" in (item.reason or ""):
         status = "待教师判断"
+    elif item.score > 0:
+        status = "部分完成"
     else:
         status = _GAP_LABELS.get(item.stage, "未找到记录")
     return f"{action}：{status}"
@@ -328,12 +355,12 @@ class FeedbackService:
                     continue
                 entry: dict[str, Any] = {"得分": item.score, "满分": item.max_score}
                 if item.score < item.max_score:
-                    entry["缺口"] = teaching_gap(item, rubric.get(item.item_id))
+                    entry["缺口"] = teaching_gap(item, rubric.get(item.item_id), case)
                 entries.append(entry)
             stage_summary[stage] = entries
         return (
-            "训练已封存。以下各环节依次列出分项得分与满分；未满分项附注一条封存评分能够证明的教学动作缺口"
-            "（例如「询问疼痛放射：未找到采集记录」）。缺口只说明记录缺失、部分完成或待教师判断，"
+            "训练已封存。以下各环节依次列出分项得分与满分；未满分项附注一条封存评分能够证明的教学动作缺口，"
+            "格式为「教学动作：状态」。缺口只说明记录缺失、部分完成或待教师判断，"
             "不得把「未找到记录」理解为患者没有该症状。仅作为反馈数据。"
             + json.dumps(stage_summary, ensure_ascii=False, separators=(",", ":"))
             + "请根据封存训练与下游可信工具提供的教学依据，每个环节写一句评语和一句改进建议，"
