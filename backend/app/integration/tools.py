@@ -91,7 +91,15 @@ class TrustedToolService:
             if audited:
                 self.turns.record_call(audited, tool, False, exc.code)
             return _fail(exc.code, str(exc))
-        self.turns.record_call(turn.turn_id, tool, bool(result.get("ok")), "" if result.get("ok") else str(result.get("error", "")))
+        detail = ""
+        if not result.get("ok"):
+            # Record the validator's de-identified reason (error category / stage / field), never
+            # the model payload, case text or credentials.
+            detail = str(result.get("error") or "")
+            message = str(result.get("message") or "")
+            if message and message != detail:
+                detail = f"{detail}: {message}"
+        self.turns.record_call(turn.turn_id, tool, bool(result.get("ok")), detail)
         return result
 
     # ---------------------------------------------------------------- patient tools
@@ -305,8 +313,10 @@ def validate_feedback_items(
         if any(stage not in knowledge.get(v, case.case_id, case.version).stages for v in basis):
             return "basis_ids must apply to the feedback stage"
         lowered = "".join((comment + " " + improvement).casefold().split())
-        if any(marker in lowered for marker in FORBIDDEN_MARKERS) or any(term in lowered for term in forbidden):
-            return "text contains content that is not allowed in student feedback"
+        if any(marker in lowered for marker in FORBIDDEN_MARKERS):
+            return "text contains an internal marker that is not allowed"
+        if any(term in lowered for term in forbidden):
+            return "text contains a diagnosis term that is not allowed"
         normalized.append(
             {
                 "stage": stage,
