@@ -14,12 +14,24 @@ from .config import IntegrationSettings
 
 logger = logging.getLogger(__name__)
 
-class NexentError(RuntimeError):
-    """A model-safe failure; never includes credentials, request bodies or model output."""
 
-    def __init__(self, kind: str, message: str):
+def _event_error_detail(event: dict) -> str:
+    """De-identified platform error summary: only error-code style fields, truncated."""
+    for key in ("error_code", "error", "code", "message", "reason", "content"):
+        value = event.get(key)
+        if isinstance(value, str) and value.strip():
+            return f"{key}={value.strip()[:160]}"
+    return "no-detail"
+
+
+class NexentError(RuntimeError):
+    """A model-safe failure; the message never includes credentials, request bodies or model output.
+    ``detail`` carries a truncated platform error summary for the audit store only."""
+
+    def __init__(self, kind: str, message: str, detail: str = ""):
         super().__init__(message)
         self.kind = kind
+        self.detail = detail
 
 
 @dataclass
@@ -98,6 +110,7 @@ class NexentClient:
         conv_id: int | None = None
         response_status: int | None = None
         failure_event: str | None = None
+        failure_detail: str = ""
         completed_by_tool = False
         async with self._client(self.settings.first_event_timeout_s) as client:
             client_ready_ms = int((time.monotonic() - started) * 1000)
@@ -143,7 +156,8 @@ class NexentClient:
                                     first_timer.reschedule(None)
                                 if event_type in {"error", "run_error", "failed"}:
                                     failure_event = event_type
-                                    raise NexentError("rejected", "Nexent reported a run error")
+                                    failure_detail = _event_error_detail(event)
+                                    raise NexentError("rejected", "Nexent reported a run error", failure_detail)
                                 # An SSE event is only a wakeup; completion comes from the trusted local store.
                                 if event_type in {"execution_logs", "execution_result"} and trusted_completion and trusted_completion():
                                     completed_by_tool = True
@@ -167,9 +181,11 @@ class NexentClient:
             except NexentError as exc:
                 logger.warning(
                     "nexent_run_rejected kind=%s http_status=%s error_event=%s elapsed_ms=%d "
-                    "first_event_ms=%s first_final_event_ms=%s event_count=%d",
-                    exc.kind, response_status, failure_event, int((time.monotonic() - started) * 1000),
+                    "first_event_ms=%s first_final_event_ms=%s event_count=%d event_types=%s",
+                    exc.kind, response_status, failure_event,
+                    int((time.monotonic() - started) * 1000),
                     first_event_ms, first_final_event_ms, sum(types.values()),
+                    json.dumps(types, ensure_ascii=False),
                 )
                 raise
             except (TimeoutError, httpx.TimeoutException) as exc:

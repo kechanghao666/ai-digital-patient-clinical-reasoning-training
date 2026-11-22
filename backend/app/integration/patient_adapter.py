@@ -47,8 +47,11 @@ class NexentPatientAdapter:
                 idempotency_key=f"{turn.turn_id}",
                 trusted_completion=lambda: self.turns.get(turn.turn_id).status == turn_states.SUBMITTED,
             )
-        except NexentError:
+        except NexentError as exc:
             self.turns.cancel(turn.turn_id, "run_failed")
+            # De-identified platform failure summary goes to the audit store, never the regular log.
+            if exc.detail:
+                self.turns.record_call(turn.turn_id, "run", ok=False, detail=exc.detail[:200])
             raise
         current = self.turns.get(turn.turn_id)
         calls = self.turns.calls(turn.turn_id)

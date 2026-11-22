@@ -265,10 +265,25 @@ _NEUTRAL_ACTIONS = {
 
 _INTERNAL_MARKERS = ("sentinel", "traceback", "api_key", "turn_token", "secret")
 
+# Standard action-name prefixes per evidence type. Only these controlled forms may be forwarded
+# as a teaching action; any other authored text (free teacher notes) falls back to the neutral name.
+_ACTION_PREFIXES = {
+    "ask_event": ("询问",),
+    "exam_order": ("开立", "优先开立", "测量"),
+    "ddx_evidence": ("提供",),
+    "diagnosis": ("提交",),
+    "treatment_execution": ("确认",),
+}
+_ACTION_MAX_LEN = 40
 
-def _controlled_action(description: str, case: CaseDefinition | None) -> bool:
-    """True when an authored teaching-action description is safe to forward to the model."""
-    if not description or not description.strip():
+
+def _controlled_action(rubric_item, case: CaseDefinition | None) -> bool:
+    """True only for standard authored action names: controlled verb, bounded length, and no
+    diagnosis or internal-marker content. Free teacher text is never forwarded to the model."""
+    description = (rubric_item.description or "").strip()
+    if not description or len(description) > _ACTION_MAX_LEN:
+        return False
+    if not description.startswith(_ACTION_PREFIXES.get(rubric_item.evidence_type, ())):
         return False
     lowered = "".join(description.casefold().split())
     if any(marker in lowered for marker in _INTERNAL_MARKERS):
@@ -281,15 +296,13 @@ def _controlled_action(description: str, case: CaseDefinition | None) -> bool:
 def teaching_gap(item, rubric_item, case: CaseDefinition | None = None) -> str:
     """A de-identified teaching-action gap a sealed score can prove, safe to show the model.
 
-    Uses the authored teaching-action description only when it is controlled (no diagnosis or
-    internal-marker content); otherwise falls back to the stage's neutral name. The diagnosis stage
-    is always neutral. A missing record is never phrased as the patient lacking a symptom.
+    Uses the authored teaching-action description only when it is a controlled action name;
+    otherwise falls back to the stage's neutral name. The diagnosis stage is always neutral. A
+    missing record is never phrased as the patient lacking a symptom.
     """
     action = _NEUTRAL_ACTIONS.get(item.stage, item.stage)
-    if rubric_item is not None and item.stage != "诊断":
-        description = (rubric_item.description or "").strip()
-        if _controlled_action(description, case):
-            action = description
+    if rubric_item is not None and item.stage != "诊断" and _controlled_action(rubric_item, case):
+        action = rubric_item.description
     if "复核" in (item.reason or ""):
         status = "待教师判断"
     elif item.score > 0:
@@ -399,6 +412,9 @@ class FeedbackService:
             )
         except NexentError as exc:
             self.turns.cancel(turn.turn_id, "run_failed")
+            # De-identified platform failure summary goes to the audit store, never the regular log.
+            if exc.detail:
+                self.turns.record_call(turn.turn_id, "run", ok=False, detail=exc.detail[:200])
             raise FeedbackUnavailable(exc.kind, "反馈服务暂不可用，请稍后重试") from exc
         current = self.turns.get(turn.turn_id)
         calls = self.turns.calls(turn.turn_id)

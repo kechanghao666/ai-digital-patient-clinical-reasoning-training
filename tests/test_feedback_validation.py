@@ -93,6 +93,19 @@ def test_teaching_gap_falls_back_to_neutral_on_unsafe_description():
     assert teaching_gap(item, custom, case) == "病史采集：未找到采集记录"
 
 
+def test_teaching_gap_falls_back_to_neutral_on_free_teacher_note():
+    """Ordinary teacher free text is not an approved model input and must fall back."""
+    from app.integration.feedback import teaching_gap
+    from app.models import RubricItem, ScoreItem
+
+    case = CaseStore(ROOT / "cases").get("STEMI-001")
+    custom = RubricItem(item_id="f_custom", stage="病史采集", description="这一项重点考察学员是否询问诱因",
+                        evidence_type="ask_event", weight=1)
+    item = ScoreItem(item_id="f_custom", stage="病史采集", hit=False, score=0.0, max_score=1.0,
+                     reason="未找到满足时点和证据类型的事件")
+    assert teaching_gap(item, custom, case) == "病史采集：未找到采集记录"
+
+
 def test_teaching_gap_missing_rubric_mapping_uses_stage_neutral_name():
     from app.integration.feedback import teaching_gap
     from app.models import ScoreItem
