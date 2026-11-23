@@ -51,6 +51,11 @@ class IntegrationSettings:
     embedding_base_url: str = ""
     embedding_api_key: str = ""
     embedding_model: str = ""
+    # Optional rerank service for the teacher-side basis shortlist; same trust level as the
+    # embedding settings: empty values disable the feature, keys stay in the process environment.
+    rerank_base_url: str = ""
+    rerank_api_key: str = ""
+    rerank_model: str = ""
 
     @classmethod
     def from_env(cls) -> "IntegrationSettings":
@@ -75,6 +80,9 @@ class IntegrationSettings:
             embedding_base_url=os.getenv("EMBEDDING_BASE_URL", "").strip().rstrip("/"),
             embedding_api_key=os.getenv("EMBEDDING_API_KEY", ""),
             embedding_model=os.getenv("EMBEDDING_MODEL", "").strip(),
+            rerank_base_url=os.getenv("RERANK_BASE_URL", "").strip().rstrip("/"),
+            rerank_api_key=os.getenv("RERANK_API_KEY", ""),
+            rerank_model=os.getenv("RERANK_MODEL", "").strip(),
         )
 
     def __post_init__(self):
@@ -97,3 +105,7 @@ class IntegrationSettings:
     @property
     def embedding_enabled(self) -> bool:
         return bool(self.embedding_base_url and self.embedding_api_key and self.embedding_model)
+
+    @property
+    def rerank_enabled(self) -> bool:
+        return bool(self.rerank_base_url and self.rerank_api_key and self.rerank_model)

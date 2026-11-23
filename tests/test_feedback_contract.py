@@ -4,7 +4,10 @@ import copy
 import pytest
 
 from app.integration.tools import FEEDBACK_STAGES, validate_feedback_items
-from test_integration import Env, _play_and_seal
+from test_integration import Env, _play_and_seal, ok_response, token_of
+
+# A unique token used as the name of an unknown field, so the audit store can be searched for it.
+MARKER = "synth-marker-2f9c"
 
 
 @pytest.fixture
@@ -111,3 +114,118 @@ def test_feedback_exposes_attributable_sources_without_hidden_diagnosis(sealed):
     assert basis["sources"] == ["项目自拟的反馈撰写规范"] and basis["restricted"]
     assert "心肌梗死" not in response.text and "STEMI" not in response.text
     assert library.entries[entry.basis_id].title == "含心肌梗死的参考说明"
+
+
+# --------------------------------------------------- rejection reason is auditable, content is not
+def _sealed_appendix(env: Env) -> str:
+    """A sealed APPENDICITIS session; the STEMI-only clinical basis never applies to it."""
+    started = env.client.post("/api/sessions?case_id=CASE-002", headers=env.headers)
+    assert started.status_code == 200, started.text
+    sid = started.json()["session_id"]
+    sealed = env.client.post(f"/api/sessions/{sid}/seal", headers=env.headers, json={"request_id": "seal"})
+    assert sealed.status_code == 200, sealed.text
+    return sid
+
+
+def _valid_items() -> list[dict]:
+    return [
+        {
+            "stage": stage,
+            "comment": "请结合已记录的操作复核本环节。",
+            "improvement": "回看本环节事件，补充尚未记录的依据。",
+            "evidence_event_ids": [],
+            "basis_ids": ["kb_feedback_principles"],
+        }
+        for stage in FEEDBACK_STAGES
+    ]
+
+
+def _run_feedback(env: Env, sid: str, mutate, record: dict):
+    def agent(request, body, service):
+        token = token_of(body)
+        items = _valid_items()
+        mutate(items)
+        record["result"] = service.submit_feedback(token, items)
+        return ok_response("反馈已提交")
+
+    env.agent = agent
+    return env.client.post(f"/api/sessions/{sid}/feedback", headers=env.headers, json={"request_id": "f"})
+
+
+def _feedback_audit(db_path, session_id: str):
+    import sqlite3
+
+    connection = sqlite3.connect(db_path)
+    try:
+        return connection.execute(
+            "SELECT c.tool, c.ok, c.detail FROM turn_calls c JOIN turns t ON c.turn_id=t.turn_id "
+            "WHERE t.session_id=? AND t.kind='feedback' ORDER BY c.call_id",
+            (session_id,),
+        ).fetchall()
+    finally:
+        connection.close()
+
+
+def _integration_text(db_path) -> str:
+    """Every stored value across all tables, so a synthetic marker can be searched for anywhere."""
+    import sqlite3
+
+    connection = sqlite3.connect(db_path)
+    try:
+        tables = [row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")]
+        rows = [" ".join("" if value is None else str(value) for value in row)
+                for table in tables for row in connection.execute(f"SELECT * FROM {table}")]
+    finally:
+        connection.close()
+    return "\n".join(rows)
+
+
+@pytest.mark.parametrize(
+    ("mutate", "category"),
+    [
+        (lambda items: items[4].update(stage=items[3]["stage"]),
+         "each of the five stages must appear exactly once"),
+        (lambda items: items[0].update(basis_ids=["kb_ecg_first"]),
+         "basis_ids must reference teaching-basis entries available for this case"),
+        (lambda items: items[0].update({MARKER: "x"}),
+         "unknown fields are not allowed"),
+    ],
+)
+def test_rejected_feedback_keeps_a_fixed_audit_category_without_the_payload(tmp_path, monkeypatch, mutate, category):
+    env = Env(tmp_path, monkeypatch)
+    sid = _sealed_appendix(env)
+    before = env.repository.get(sid, "demo-integration").model_dump_json()
+    record: dict = {}
+
+    response = _run_feedback(env, sid, mutate, record)
+
+    assert record["result"] == {"ok": False, "error": "invalid_feedback", "message": category}
+    assert response.status_code == 502
+    # Nothing is persisted and the sealed score snapshot is untouched.
+    assert env.runtime.feedback_store.get(sid, "demo-integration") is None
+    assert env.client.get(f"/api/sessions/{sid}/feedback", headers=env.headers).status_code == 404
+    assert env.repository.get(sid, "demo-integration").model_dump_json() == before
+    # The audit distinguishes the three reasons by a fixed category and stores no caller content.
+    audit = _feedback_audit(env.settings.integration_db_path, sid)
+    assert audit and all(tool == "submit_feedback" for tool, _, _ in audit)
+    assert [row[2] for row in audit] == [f"invalid_feedback: {category}"]
+    assert MARKER not in _integration_text(env.settings.integration_db_path)
+
+
+def test_valid_feedback_control_is_accepted_and_persisted_once(tmp_path, monkeypatch):
+    env = Env(tmp_path, monkeypatch)
+    sid = _sealed_appendix(env)
+    before = env.repository.get(sid, "demo-integration").model_dump_json()
+    record: dict = {}
+
+    response = _run_feedback(env, sid, lambda items: None, record)
+
+    assert record["result"] == {"ok": True, "accepted_items": 5}
+    assert response.status_code == 200, response.text
+    assert response.json()["source"] == "nexent"
+    stored = env.runtime.feedback_store.get(sid, "demo-integration")
+    assert stored is not None and [item["stage"] for item in stored["items"]] == list(FEEDBACK_STAGES)
+    # The sealed score snapshot is unchanged by feedback generation.
+    assert env.repository.get(sid, "demo-integration").model_dump_json() == before
+    assert all(ok for _, ok, _ in _feedback_audit(env.settings.integration_db_path, sid))
+    assert MARKER not in _integration_text(env.settings.integration_db_path)

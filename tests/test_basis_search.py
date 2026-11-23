@@ -12,7 +12,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import main
-from app.integration.embedding import EmbeddingClient, EmbeddingError
+from app.integration.embedding import BasisSemanticSearch, EmbeddingClient, EmbeddingError
+from app.integration.knowledge import BasisEntry
 from app.integration.runtime import IntegrationRuntime
 from app.state_machine import StateMachine
 from app.storage import SessionRepository
@@ -205,3 +206,310 @@ def test_search_requires_teacher(tmp_path, monkeypatch, headers):
     assert response.status_code in (401, 403)
     assert calls == []  # a rejected caller never reaches the embedding service
     assert search(client, "心电图", session_id).status_code == 200
+
+
+# ------------------------------------------------------------ embedding response contract
+# The embedding service returns one item per input, each carrying an `index` that points back at
+# the input position. Vectors must be restored to input order before they are cached: the array
+# order of the response is NOT part of the contract. A response that cannot be aligned to the
+# inputs (wrong count, duplicate or out-of-range index) is unusable and must raise instead of
+# producing candidates or polluting the vector cache with plausible-looking wrong material.
+
+
+def _synthetic_entry(basis_id: str, keyword: str) -> BasisEntry:
+    return BasisEntry.from_record({
+        "basis_id": basis_id, "title": f"条目{keyword}", "text": f"本条目教学要点关键词：{keyword}",
+        "tags": [keyword], "stages": ["诊断"], "applies_to_cases": ["STEMI-001"],
+        "sources": ["离线测试来源"], "kind": "clinical", "revision": 1,
+        "applies_to_versions": {"STEMI-001": [1, 2, 3]},
+    })
+
+
+def _keyword_vector(text: str) -> list[float]:
+    return [1.0 if "心电图" in text else 0.0]
+
+
+def _configured_client(tmp_path) -> EmbeddingClient:
+    return EmbeddingClient(settings_for(
+        tmp_path, embedding_base_url="http://embed.test/v1",
+        embedding_api_key="offline-test-key", embedding_model="offline-model"))
+
+
+@pytest.mark.parametrize("reverse", [False, True], ids=["in-order", "reversed"])
+def test_vectors_follow_the_response_index_regardless_of_array_order(tmp_path, monkeypatch, reverse):
+    # Minimal reproduction: materials A and B are embedded together and the query must hit A.
+    # When the stand-in returns the two vectors in the opposite array order (indexes 1 then 0),
+    # position-based pairing ranked B first; pairing by the response index keeps A first.
+    client = _configured_client(tmp_path)
+    a = _synthetic_entry("kb_a", "心电图")
+    b = _synthetic_entry("kb_b", "再灌注")
+
+    def responder(url, json=None, headers=None, timeout=None):  # noqa: ANN001
+        texts = json["input"]
+        items = [{"index": i, "embedding": _keyword_vector(t)} for i, t in enumerate(texts)]
+        if reverse:
+            items.reverse()
+        return httpx.Response(200, json={"data": items})
+
+    monkeypatch.setattr(httpx, "post", responder)
+    ranked = BasisSemanticSearch(client).search([a, b], "心电图")
+    assert [entry.basis_id for _, entry in ranked] == ["kb_a", "kb_b"]
+
+
+BAD_ITEMS = [
+    pytest.param([{"index": 0, "embedding": [1.0]}], id="count_mismatch"),
+    pytest.param([{"index": 0, "embedding": [1.0]}, {"index": 0, "embedding": [0.0]}], id="duplicate_index"),
+    pytest.param([{"index": 0, "embedding": [1.0]}, {"index": 9, "embedding": [0.0]}], id="index_out_of_range"),
+    pytest.param([{"index": 0, "embedding": [1.0]}, {"index": -1, "embedding": [0.0]}], id="negative_index"),
+    pytest.param([{"embedding": [1.0]}, {"embedding": [0.0]}], id="missing_index"),
+    pytest.param([{"index": "0", "embedding": [1.0]}, {"index": 1, "embedding": [0.0]}], id="non_int_index"),
+    pytest.param([{"index": 0, "embedding": [10 ** 400]}, {"index": 1, "embedding": [1.0]}], id="oversized_integer"),
+    pytest.param('{"data":[{"index":0,"embedding":[1e400]},{"index":1,"embedding":[1.0]}]}', id="non_finite_value"),
+    pytest.param([{"index": 0, "embedding": [1.0, 0.0]}, {"index": 1, "embedding": [1.0]}], id="mismatched_batch_dimensions"),
+]
+
+
+@pytest.mark.parametrize("items", BAD_ITEMS)
+def test_unalignable_responses_raise_instead_of_returning_vectors(tmp_path, monkeypatch, items):
+    client = _configured_client(tmp_path)
+    # A raw body is passed through untouched, so 1e400 reaches the real parser and becomes inf there.
+    body = items if isinstance(items, str) else json.dumps({"data": items})
+    monkeypatch.setattr(httpx, "post", lambda url, json=None, headers=None, timeout=None: httpx.Response(
+        200, content=body.encode(), headers={"content-type": "application/json"}))
+    with pytest.raises(EmbeddingError) as raised:
+        client.embed(["材料A", "材料B"])
+    assert raised.value.reason == "embedding_bad_response"
+
+
+def test_bad_batch_response_shows_no_candidates_and_the_next_query_recovers(tmp_path, monkeypatch):
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.delenv("APP_AUTH_MODE", raising=False)
+    repository = SessionRepository(tmp_path / "app.db")
+    monkeypatch.setattr(main, "REPOSITORY", repository)
+    monkeypatch.setattr(main, "MACHINE", StateMachine(main.CASE_STORE, repository))
+    runtime = make_runtime(tmp_path, True)
+    monkeypatch.setattr(main, "RUNTIME", runtime)
+    calls: list[list[str]] = []
+
+    def responder(url, json=None, headers=None, timeout=None):  # noqa: ANN001
+        texts = json["input"]
+        calls.append(list(texts))
+        if len(calls) == 1:
+            # First batch returns fewer vectors than requested: unalignable and unusable.
+            return httpx.Response(200, json={"data": [{"index": 0, "embedding": [1.0]}]})
+        items = [{"index": i, "embedding": _keyword_vector(t)} for i, t in enumerate(texts)]
+        return httpx.Response(200, json={"data": items})
+
+    monkeypatch.setattr(httpx, "post", responder)
+    client = TestClient(main.app)
+    session_id = seal_session(client)
+
+    first = search(client, "心电图", session_id)
+    assert first.status_code == 200
+    body = first.json()
+    assert body["available"] is False and body["results"] == []
+    assert runtime.basis_search._cache == {}  # the bad response never pollutes the vector cache
+
+    second = search(client, "心电图", session_id)
+    body2 = second.json()
+    assert body2["available"] is True
+    assert body2["results"]  # the next normal query recovers with real candidates
+    assert all("心电图" in item["text"] for item in body2["results"])
+    assert len(runtime.basis_search._cache) == body2["scope"]["clinical_candidates"]
+
+    assert search(client, "心电图", session_id).json()["available"] is True
+    assert len(calls) == 4  # bad batch, good batch + query, query: cached vectors are reused after recovery
+
+
+# ------------------------------------------------- vector dimensions and finite values
+# A vector is only comparable with vectors of the same dimension: zip() silently truncates to the
+# shorter one, so a one-element material scored 1.0 against a two-element query. Non-finite numbers
+# (NaN, or 1e400, which the JSON parser turns into inf) poison every score they touch. Neither may
+# produce candidates or enter the vector cache.
+
+
+def _one_dimensional(text: str) -> list[float]:
+    return [1.0 if "心电图" in text else 0.0]
+
+
+# Written by hand: json.dumps(float("inf")) would emit `Infinity`, not the `1e400` a provider sends.
+# Every requested material gets a valid one-dimensional vector except the last, which is 1e400.
+def _infinite_batch_body(count: int) -> str:
+    valid = json.dumps([{"index": i, "embedding": [1.0]} for i in range(count - 1)])[:-1]
+    return '{"data":' + valid + ',{"index":%d,"embedding":[1e400]}]}' % (count - 1)
+
+
+INFINITE_QUERY_BODY = '{"data":[{"index":0,"embedding":[1e400]}]}'
+
+
+def _raw(body: str) -> httpx.Response:
+    return httpx.Response(200, content=body.encode(), headers={"content-type": "application/json"})
+
+
+def _install_responder(tmp_path, monkeypatch, responder):
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.delenv("APP_AUTH_MODE", raising=False)
+    repository = SessionRepository(tmp_path / "app.db")
+    monkeypatch.setattr(main, "REPOSITORY", repository)
+    monkeypatch.setattr(main, "MACHINE", StateMachine(main.CASE_STORE, repository))
+    runtime = make_runtime(tmp_path, True)
+    monkeypatch.setattr(main, "RUNTIME", runtime)
+    calls: list[list[str]] = []
+
+    def record(url, json=None, headers=None, timeout=None):  # noqa: ANN001
+        calls.append(list(json["input"]))
+        return responder(len(calls), json["input"])
+
+    monkeypatch.setattr(httpx, "post", record)
+    return runtime, TestClient(main.app), calls
+
+
+def _good(call, texts):
+    items = [{"index": i, "embedding": _one_dimensional(t)} for i, t in enumerate(texts)]
+    return httpx.Response(200, json={"data": items})
+
+
+def test_a_shorter_material_vector_does_not_score_as_a_perfect_match(tmp_path, monkeypatch):
+    def responder(call, texts):
+        if call == 2:  # the query answers in two dimensions while the materials are one-dimensional
+            return httpx.Response(200, json={"data": [{"index": 0, "embedding": [1.0, 0.0]}]})
+        return _good(call, texts)
+
+    runtime, client, _ = _install_responder(tmp_path, monkeypatch, responder)
+    session_id = seal_session(client)
+    body = search(client, "心电图", session_id).json()
+    assert body["available"] is False
+    assert body["reason"] == "embedding_bad_response"
+    assert body["results"] == []
+    assert all(len(vector) == 1 for vector in runtime.basis_search._cache.values())  # sound materials stay
+
+
+def test_infinite_number_in_the_raw_response_rejects_the_whole_batch(tmp_path, monkeypatch):
+    # The first materials of the batch are fine; the last is 1e400. None may be kept.
+    monkeypatch.setattr(httpx, "post", lambda url, json=None, headers=None, timeout=None: _raw(_infinite_batch_body(3)))
+    search_engine = BasisSemanticSearch(_configured_client(tmp_path))
+    with pytest.raises(EmbeddingError) as raised:
+        search_engine.search([_synthetic_entry(f"kb_{i}", "心电图") for i in range(3)], "心电图")
+    assert raised.value.reason == "embedding_bad_response"
+    assert search_engine._cache == {}
+
+
+def test_infinite_batch_caches_nothing_and_the_next_query_recovers(tmp_path, monkeypatch):
+    def responder(call, texts):
+        return _raw(_infinite_batch_body(len(texts))) if call == 1 else _good(call, texts)
+
+    runtime, client, calls = _install_responder(tmp_path, monkeypatch, responder)
+    session_id = seal_session(client)
+    body = search(client, "心电图", session_id).json()
+    assert body["available"] is False and body["reason"] == "embedding_bad_response"
+    assert body["results"] == []
+    assert runtime.basis_search._cache == {}  # the valid first two vectors are not kept either
+
+    body2 = search(client, "心电图", session_id).json()
+    assert body2["available"] is True and body2["results"]
+    assert len(runtime.basis_search._cache) == body2["scope"]["clinical_candidates"]
+
+
+def test_short_material_vector_caches_nothing(tmp_path, monkeypatch):
+    def responder(call, texts):
+        if call == 1:  # every material one-dimensional except the last, which is two-dimensional
+            items = [{"index": i, "embedding": [1.0]} for i in range(len(texts) - 1)]
+            return httpx.Response(200, json={"data": items + [{"index": len(texts) - 1, "embedding": [1.0, 0.0]}]})
+        return _good(call, texts)
+
+    runtime, client, _ = _install_responder(tmp_path, monkeypatch, responder)
+    session_id = seal_session(client)
+    body = search(client, "心电图", session_id).json()
+    assert body["available"] is False and body["reason"] == "embedding_bad_response"
+    assert body["results"] == []
+    assert runtime.basis_search._cache == {}
+
+
+BAD_QUERIES = [
+    pytest.param(lambda: _raw(INFINITE_QUERY_BODY), id="infinite_query"),
+    pytest.param(lambda: httpx.Response(200, json={"data": [{"index": 0, "embedding": [1.0, 0.0]}]}),
+                 id="query_of_another_dimension"),
+]
+
+
+@pytest.mark.parametrize("bad_query", BAD_QUERIES)
+def test_bad_query_leaves_cached_vectors_intact_and_the_next_query_hits_the_same_material(
+    tmp_path, monkeypatch, bad_query
+):
+    def responder(call, texts):
+        # 1: material batch and 2: query of the good search; 3: the bad query; 4: the recovery query.
+        return bad_query() if call == 3 else _good(call, texts)
+
+    runtime, client, calls = _install_responder(tmp_path, monkeypatch, responder)
+    session_id = seal_session(client)
+    first = search(client, "心电图", session_id).json()
+    assert first["available"] is True and first["results"]
+    cached = dict(runtime.basis_search._cache)
+    assert len(cached) == first["scope"]["clinical_candidates"]
+
+    failed = search(client, "心电图", session_id).json()
+    assert failed["available"] is False and failed["reason"] == "embedding_bad_response"
+    assert failed["results"] == []
+    assert runtime.basis_search._cache == cached  # neither cleared nor rewritten
+
+    recovered = search(client, "心电图", session_id).json()
+    assert recovered["available"] is True
+    assert [(item["basis_id"], item["score"]) for item in recovered["results"]] == [
+        (item["basis_id"], item["score"]) for item in first["results"]
+    ]
+    assert runtime.basis_search._cache == cached
+    assert len(calls) == 4 and all(len(texts) == 1 for texts in calls[2:])  # only queries after the first batch
+
+
+def test_new_material_of_another_dimension_is_not_cached_beside_cached_material(tmp_path, monkeypatch):
+    # Every material of the case is cached as a two-dimensional vector (A). B is then the only
+    # material not in the cache, the state an edited material leaves behind, and it answers in one
+    # dimension. B must neither be stored nor make the cached vectors unusable from then on.
+    narrow = {"title": ""}
+
+    def two_dimensional(text):
+        return [1.0 if "心电图" in text else 0.0, 0.5]
+
+    def responder(call, texts):
+        vectors = [[1.0] if narrow["title"] and narrow["title"] in text else two_dimensional(text) for text in texts]
+        return httpx.Response(200, json={"data": [{"index": i, "embedding": v} for i, v in enumerate(vectors)]})
+
+    runtime, client, calls = _install_responder(tmp_path, monkeypatch, responder)
+    session_id = seal_session(client)
+    clinical = [e for e in runtime.knowledge.for_case("STEMI-001", 3) if e.kind == "clinical"]
+    wide = {e.content_hash for e in clinical}
+    assert len(wide) == 8
+
+    def cache():
+        return {h: list(v) for h, v in runtime.basis_search._cache.items()}
+
+    assert search(client, "心电图", session_id).json()["available"] is True
+    cached = cache()
+    assert set(cached) == wide and all(len(v) == 2 for v in cached.values())
+
+    b = runtime.knowledge.entries["kb_aspirin_consideration"]
+    del runtime.basis_search._cache[b.content_hash]  # B's text changed, so its hash is no longer cached
+    cached = cache()
+    assert set(cached) == wide - {b.content_hash}
+    narrow["title"] = b.title
+
+    failed = search(client, "心电图", session_id).json()
+    assert failed["available"] is False and failed["reason"] == "embedding_bad_response"
+    assert failed["results"] == []
+    assert cache() == cached  # A is kept and B is not written
+    assert calls[2:] == [[runtime.basis_search._text(b)]]  # only B was requested; no query followed
+
+    narrow["title"] = ""
+    recovered = search(client, "心电图", session_id).json()
+    assert recovered["available"] is True and recovered["results"]
+    assert "心电图" in recovered["results"][0]["text"]
+    assert set(cache()) == wide and all(len(v) == 2 for v in cache().values())
+    assert calls[3] == calls[2]  # only the still-missing B is fetched again, then the query
+    assert calls[4] == ["心电图"]
+
+    again = search(client, "心电图", session_id).json()
+    assert again["available"] is True
+    assert [(i["basis_id"], i["score"]) for i in again["results"]] == [
+        (i["basis_id"], i["score"]) for i in recovered["results"]
+    ]
+    assert len(calls) == 6 and calls[5] == ["心电图"]  # A and B are both reused

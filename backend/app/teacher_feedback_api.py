@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .case_store import CaseStore
 from .integration.embedding import EmbeddingError
 from .integration.knowledge import STAGES
+from .integration.rerank import RerankError
 from .integration.runtime import IntegrationRuntime
 from .integration.tools import _event_digest, validate_feedback_items, validate_feedback_record
 from .models import CaseDefinition, SessionState
@@ -38,6 +39,23 @@ class BasisSearchRequest(BaseModel):
     query: str = Field(min_length=1, max_length=200)
     # The feedback stage the teacher is currently looking at; absent means the whole-case scope.
     stage: str | None = Field(default=None, max_length=20)
+
+
+class BasisRerankRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    session_id: str = Field(min_length=1, max_length=200)
+    owner_id: str = Field(min_length=1, max_length=200)
+    query: str = Field(min_length=1, max_length=200)
+    stage: str | None = Field(default=None, max_length=20)
+    # Optional fixed submission order (a permutation of the in-scope basis ids); absent means
+    # the library's own candidate order. Explicit, validated, never silently reordered.
+    order: list[str] | None = Field(default=None, max_length=10)
+
+
+def _entry_summary(entry) -> dict[str, Any]:
+    return {"basis_id": entry.basis_id, "title": entry.title, "stages": list(entry.stages),
+            "applies_to_cases": list(entry.applies_to_cases), "sources": list(entry.sources),
+            "revision": entry.revision, "text": entry.text}
 
 
 def build_router(
@@ -164,5 +182,53 @@ def build_router(
         ]
         return {"available": True, "status": runtime.knowledge.status,
                 "notice": _BASIS_DRAFT_NOTICE, "scope": scope, "results": results}
+
+    @router.post("/basis/rerank")
+    def rerank_basis(request: BasisRerankRequest, _: str = Depends(current_teacher)) -> dict[str, Any]:
+        # Read-only rerank of the already-narrowed candidates for the sealed training's case/version
+        # and the teacher's stage. No embedding call is made here: the candidate list comes from the
+        # scope filter alone. The documents are submitted in the given fixed order; the response
+        # array order is never trusted, ranking comes from relevance_score. On any service failure
+        # the original order is returned and clearly marked as "not reranked" — a failed rerank must
+        # never look like a successful model output. Read-only: never writes feedback or scores.
+        if request.stage is not None and request.stage not in STAGES:
+            raise HTTPException(status_code=422, detail="环节不在反馈环节范围内")
+        _state, case = context(request.session_id, request.owner_id)
+        runtime = get_runtime()
+        candidates = [
+            entry for entry in runtime.knowledge.for_case(case.case_id, case.version)
+            if entry.kind == "clinical" and (request.stage is None or request.stage in entry.stages)
+        ]
+        scope = {"case_id": case.case_id, "case_version": case.version, "stage": request.stage,
+                 "clinical_candidates": len(candidates)}
+        by_id = {entry.basis_id: entry for entry in candidates}
+        if request.order is not None:
+            if sorted(request.order) != sorted(by_id) or len(set(request.order)) != len(request.order):
+                raise HTTPException(status_code=422, detail="order 必须是当前范围候选的一次排列")
+            ordered = [by_id[basis_id] for basis_id in request.order]
+        else:
+            ordered = candidates
+        original = [_entry_summary(entry) for entry in ordered]
+        if not runtime.reranker.enabled:
+            return {"available": False, "reason": "rerank_unconfigured", "reranked": False,
+                    "notice": _BASIS_DRAFT_NOTICE, "status": runtime.knowledge.status,
+                    "scope": scope, "results": original}
+        if not ordered:
+            return {"available": True, "reranked": False, "status": runtime.knowledge.status,
+                    "notice": _BASIS_DRAFT_NOTICE, "scope": scope, "results": []}
+        try:
+            ranked = runtime.reranker.rerank(request.query, [entry.text for entry in ordered])
+        except RerankError as exc:
+            return {"available": False, "reason": exc.reason, "reranked": False,
+                    "notice": "重排失败，显示原顺序；" + _BASIS_DRAFT_NOTICE,
+                    "status": runtime.knowledge.status, "scope": scope, "results": original}
+        results = [
+            {**original[index], "relevance_score": round(score, 4)}
+            for score, index in ranked
+        ]
+        return {"available": True, "reranked": True, "status": runtime.knowledge.status,
+                "notice": _BASIS_DRAFT_NOTICE, "scope": scope,
+                "original_order": [entry.basis_id for entry in ordered],
+                "results": results}
 
     return router

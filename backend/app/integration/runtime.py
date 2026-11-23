@@ -7,6 +7,7 @@ import httpx
 from ..adapters import PatientAdapter, SimulatorPatientAdapter
 from .config import IntegrationSettings
 from .embedding import BasisSemanticSearch, EmbeddingClient
+from .rerank import RerankClient
 from .feedback import FeedbackService, FeedbackStore
 from .knowledge import KnowledgeStore
 from .nexent_client import NexentClient, NexentError
@@ -48,6 +49,11 @@ class IntegrationRuntime:
         # Process-level so the fixed teaching-basis library is embedded once and its vectors are
         # reused across queries; only the query text is embedded per search request.
         return BasisSemanticSearch(EmbeddingClient(self.settings))
+
+    @cached_property
+    def reranker(self) -> RerankClient:
+        # Read-only rerank helper over the already-narrowed candidate list; stateless per call.
+        return RerankClient(self.settings)
 
     @cached_property
     def feedback_service(self) -> FeedbackService:

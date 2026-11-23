@@ -93,8 +93,8 @@ class TrustedToolService:
             return _fail(exc.code, str(exc))
         detail = ""
         if not result.get("ok"):
-            # Record the validator's de-identified reason (error category / stage / field), never
-            # the model payload, case text or credentials.
+            # Record the validator's de-identified reason (error category / stage), never the
+            # caller payload, model payload, case text or credentials.
             detail = str(result.get("error") or "")
             message = str(result.get("message") or "")
             if message and message != detail:
@@ -290,7 +290,7 @@ def validate_feedback_items(
             return "each item must be an object"
         extra = set(item) - {"stage", "comment", "improvement", "evidence_event_ids", "basis_ids"}
         if extra:
-            return f"unknown fields are not allowed: {sorted(extra)}"
+            return "unknown fields are not allowed"
         stage, comment = item.get("stage"), item.get("comment")
         improvement = item.get("improvement", "")
         if not isinstance(stage, str) or stage not in FEEDBACK_STAGES or stage in seen:
