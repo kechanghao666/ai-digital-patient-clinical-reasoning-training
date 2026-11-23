@@ -6,10 +6,18 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from .case_store import CaseStore
+from .integration.embedding import EmbeddingError
 from .integration.runtime import IntegrationRuntime
 from .integration.tools import _event_digest, validate_feedback_items, validate_feedback_record
 from .models import CaseDefinition, SessionState
 from .storage import ConcurrentUpdateError, SessionRepository
+
+# Cosine-similarity floor below which a teaching-basis entry is not offered as a semantic match.
+_BASIS_MIN_SCORE = 0.45
+# The teacher only needs a shortlist to choose from; never a full dump of the library.
+_BASIS_RESULT_LIMIT = 3
+# The library is an unreviewed engineering draft; every result must carry this label.
+_BASIS_DRAFT_NOTICE = "草稿，未医学审核"
 
 
 class FeedbackReviewRequest(BaseModel):
@@ -20,6 +28,11 @@ class FeedbackReviewRequest(BaseModel):
     reason: str = Field(min_length=1, max_length=1000)
     items: list[dict[str, Any]] = Field(min_length=5, max_length=5)
     basis_hashes: dict[str, str]
+
+
+class BasisSearchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    query: str = Field(min_length=1, max_length=200)
 
 
 def build_router(
@@ -103,5 +116,31 @@ def build_router(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {"revision": revision, "score_status": state.score_snapshot.status,
                 "notice": "已保存反馈复核版本，原始反馈、轨迹和封存分数保持不变。"}
+
+    @router.post("/basis/search")
+    def search_basis(request: BasisSearchRequest, _: str = Depends(current_teacher)) -> dict[str, Any]:
+        # Read-only helper: rank the teaching-basis library by embedding similarity to a teacher
+        # query, so the teacher can pick a source-checkable basis when writing feedback. It never
+        # writes feedback, scores or training records, and it never auto-cites a result.
+        runtime = get_runtime()
+        if not runtime.settings.embedding_enabled:
+            return {"available": False, "reason": "embedding_unconfigured", "results": []}
+        try:
+            # basis_search lives on the runtime, so the fixed library is embedded once and reused
+            # across queries; only the query text is embedded per request.
+            ranked = runtime.basis_search.search(
+                list(runtime.knowledge.entries.values()), request.query, limit=_BASIS_RESULT_LIMIT
+            )
+        except EmbeddingError as exc:
+            return {"available": False, "reason": exc.reason, "results": []}
+        results = [
+            {"basis_id": entry.basis_id, "title": entry.title, "stages": list(entry.stages),
+             "applies_to_cases": list(entry.applies_to_cases), "sources": list(entry.sources),
+             "revision": entry.revision, "score": round(score, 4), "text": entry.text}
+            for score, entry in ranked
+            if score >= _BASIS_MIN_SCORE
+        ]
+        return {"available": True, "status": runtime.knowledge.status,
+                "notice": _BASIS_DRAFT_NOTICE, "results": results}
 
     return router

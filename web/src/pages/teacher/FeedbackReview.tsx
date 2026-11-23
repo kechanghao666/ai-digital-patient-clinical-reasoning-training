@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ApiError, enc, get, mutate } from "../../api";
+import { ApiError, enc, get, mutate, request } from "../../api";
 import type { ScoreSnapshot } from "../../types";
 import { STAGES } from "../../types";
 import { Pick, JsonView, Msg, Panel, useAction } from "../../ui";
@@ -15,16 +15,25 @@ interface FbRecord {
   basis_coverage: { missing_clinical_stages: string[] };
 }
 
+interface BasisSearchResult { basis_id: string; title: string; stages: string[]; applies_to_cases: string[]; sources: string[]; revision: number; score: number; text: string; }
+interface BasisSearchResponse { available: boolean; reason?: string; status?: string; notice?: string; results: BasisSearchResult[]; }
+
 export function FeedbackReview({ params }: { params: URLSearchParams }) {
   const [record, setRecord] = useState<FbRecord | null>(null);
   const [items, setItems] = useState<FbItem[]>([]);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  const [basisQuery, setBasisQuery] = useState("");
+  const [basisResults, setBasisResults] = useState<BasisSearchResult[] | null>(null);
+  const [basisMsg, setBasisMsg] = useState<string | null>(null);
+  const [basisNotice, setBasisNotice] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
   const { busy, run } = useAction();
 
   const load = async (owner: string, session: string) => {
     setError(null); setSaved(null); setRecord(null);
+    setBasisResults(null); setBasisMsg(null); setBasisNotice(null); setBasisQuery("");
     try {
       const r = await get<FbRecord>(`/api/teacher/feedback/${enc(session)}?owner_id=${enc(owner)}`);
       const existing = Object.fromEntries((Array.isArray(r.editable_items) ? r.editable_items : []).map((i) => [i.stage, i]));
@@ -50,6 +59,28 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
     await load(record.owner_id, record.session_id);
   });
   const complete = items.every((i) => i.comment.trim() && i.improvement.trim()) && reason.trim();
+
+  const searchBasis = async () => {
+    const q = basisQuery.trim();
+    if (!q) return;
+    setSearching(true); setBasisMsg(null); setBasisResults(null); setBasisNotice(null);
+    try {
+      const r = await request<BasisSearchResponse>("POST", "/api/teacher/feedback/basis/search", { query: q });
+      if (!r.available) {
+        setBasisMsg(r.reason === "embedding_unconfigured" ? "语义检索未配置，暂不可用。" : "语义检索服务暂时不可用，请稍后重试。");
+        setBasisResults([]);
+      } else if (!r.results.length) {
+        setBasisMsg("未找到语义相关的教学依据。");
+        setBasisResults([]);
+      } else {
+        setBasisNotice(r.notice || "草稿，未医学审核");
+        setBasisResults(r.results);
+      }
+    } catch (e) {
+      setBasisMsg(e instanceof ApiError ? e.message : "检索失败");
+      setBasisResults([]);
+    } finally { setSearching(false); }
+  };
 
   return (
     <div className="stack-lg">
@@ -91,6 +122,27 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
             <Panel title={`封存前事件（${record.events.length}）`}>
               <div className="stack" style={{ gap: 6, maxHeight: 360, overflowY: "auto" }}>
                 {record.events.map((e) => <div key={e.event_id} className="small"><b className="num" style={{ fontWeight: 500 }}>{digestLabel(e)}</b>{e.answer && <div className="muted">答：{e.answer}</div>}</div>)}
+              </div>
+            </Panel>
+            <Panel title="教学依据语义检索（未医学审核）">
+              <div className="stack">
+                <div className="row">
+                  <input className="input" style={{ flex: 1 }} value={basisQuery} onChange={(e) => setBasisQuery(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") searchBasis(); }}
+                    placeholder="输入教学要点，如：胸痛应先做心电图" maxLength={200} aria-label="语义检索教学依据" />
+                  <button className="btn" disabled={searching || !basisQuery.trim()} onClick={searchBasis}>{searching ? "检索中…" : "检索"}</button>
+                </div>
+                {basisMsg && <Msg tone="warn">{basisMsg}</Msg>}
+                {basisResults && basisResults.length > 0 && <div className="stack" style={{ gap: 6 }}>
+                  <div className="faint">候选 {basisResults.length} 条　{basisNotice || "草稿，未医学审核"}　仅辅助定位，不会自动引用。</div>
+                  {basisResults.map((r) => (
+                    <div key={r.basis_id} className="small">
+                      <b style={{ fontWeight: 500 }}>{r.title}</b> <span className="faint">{r.stages.join("、")}　适用：{r.applies_to_cases.join("、")}　匹配 {Math.round(r.score * 100)}%</span>
+                      <p className="muted" style={{ whiteSpace: "pre-wrap" }}>{r.text}</p>
+                      {r.sources.map((s) => <div key={s} className="faint">来源：{s}</div>)}
+                    </div>
+                  ))}
+                </div>}
               </div>
             </Panel>
             <details className="fold"><summary>适用教学依据全文（{record.teaching_basis.length}）</summary><div className="stack">

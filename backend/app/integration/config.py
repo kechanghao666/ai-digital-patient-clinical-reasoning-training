@@ -46,6 +46,11 @@ class IntegrationSettings:
     # turn's authorised candidates provided inline in the query.
     patient_protocol: str = "dual"
     patient_agent_single: str = ""
+    # Optional text-embedding service for teacher-side semantic teaching-basis search.
+    # Empty values disable the feature; keys stay in the protected process environment.
+    embedding_base_url: str = ""
+    embedding_api_key: str = ""
+    embedding_model: str = ""
 
     @classmethod
     def from_env(cls) -> "IntegrationSettings":
@@ -67,6 +72,9 @@ class IntegrationSettings:
             feedback_protocol=os.getenv("NEXENT_FEEDBACK_PROTOCOL", "review_tool").strip(),
             patient_protocol=os.getenv("NEXENT_PATIENT_PROTOCOL", "dual").strip().lower() or "dual",
             patient_agent_single=os.getenv("NEXENT_PATIENT_AGENT_SINGLE", "").strip(),
+            embedding_base_url=os.getenv("EMBEDDING_BASE_URL", "").strip().rstrip("/"),
+            embedding_api_key=os.getenv("EMBEDDING_API_KEY", ""),
+            embedding_model=os.getenv("EMBEDDING_MODEL", "").strip(),
         )
 
     def __post_init__(self):
@@ -85,3 +93,7 @@ class IntegrationSettings:
     @property
     def uses_nexent(self) -> bool:
         return self.mode == "nexent"
+
+    @property
+    def embedding_enabled(self) -> bool:
+        return bool(self.embedding_base_url and self.embedding_api_key and self.embedding_model)

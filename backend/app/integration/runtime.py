@@ -6,6 +6,7 @@ import httpx
 
 from ..adapters import PatientAdapter, SimulatorPatientAdapter
 from .config import IntegrationSettings
+from .embedding import BasisSemanticSearch, EmbeddingClient
 from .feedback import FeedbackService, FeedbackStore
 from .knowledge import KnowledgeStore
 from .nexent_client import NexentClient, NexentError
@@ -41,6 +42,12 @@ class IntegrationRuntime:
     @cached_property
     def score_reviews(self) -> ScoreReviewStore:
         return ScoreReviewStore(self.settings.integration_db_path)
+
+    @cached_property
+    def basis_search(self) -> BasisSemanticSearch:
+        # Process-level so the fixed teaching-basis library is embedded once and its vectors are
+        # reused across queries; only the query text is embedded per search request.
+        return BasisSemanticSearch(EmbeddingClient(self.settings))
 
     @cached_property
     def feedback_service(self) -> FeedbackService:
