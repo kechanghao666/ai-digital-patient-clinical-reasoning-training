@@ -393,11 +393,17 @@ def treatment_evidence_by_item(state: SessionState, case: CaseDefinition) -> dic
     out: dict[str, dict[str, Any]] = {}
     for treatment in case.treatments:
         anchor = anchor_by_treatment.get(treatment.treatment_id)
+        anchor_name = None
+        if anchor is not None:
+            anchor_exam = exam_by_id.get(anchor)
+            if anchor_exam is not None:
+                anchor_name = anchor_exam.standard_name
         exec_time = executed_at.get(treatment.treatment_id)
         out[treatment.treatment_id] = {
             "处置": treatment.name,
             "已执行": exec_time is not None,
             "执行时间分": exec_time,
+            "关联检查": anchor_name,
             "相关已回报检查": [dict(returned[anchor])] if anchor and anchor in returned else [],
             "封存时间分": state.seal_sim_time,
         }
@@ -469,7 +475,7 @@ class FeedbackService:
             "不得把「未找到记录」理解为患者没有该症状。仅作为反馈数据。"
             "另附与治疗环节直接相关的封存记录（含模拟时间）：「治疗依据」逐项给出处置的执行状态"
             "（已执行的时间或未见执行记录）及该处置直接相关的已回报检查；"
-            "只可引用列出的检查，未列出的检查与本条无关；执行状态以列表为准，"
+            "仅引用列出的记录，不要推断未列出项的状态或相关性；执行状态以列表为准，"
             "不得把未见执行记录写成执行过，也不得写成执行得太晚；评语只陈述已回报与执行状态的事实，"
             "不得断言病情变化由未执行处置导致。治疗环节评语按「相关已回报检查→执行状态」陈述；"
             "没有相关已回报检查时只说明执行状态。"

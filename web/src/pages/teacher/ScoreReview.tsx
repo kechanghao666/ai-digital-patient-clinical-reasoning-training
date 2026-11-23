@@ -7,6 +7,7 @@ import { Pick, JsonView, Msg, Panel, useAction } from "../../ui";
 export interface Digest { event_id: string; seq: number; action: string; sim_time: number; question?: string; answer?: string; exam?: string; [k: string]: unknown; }
 interface TreatmentEvidence {
   处置: string; 已执行: boolean; 执行时间分: number | null;
+  关联检查: string | null;
   相关已回报检查: { 检查: string; 结果: string; 回报时间分: number; event_id: string }[];
   封存时间分: number;
 }
@@ -150,7 +151,9 @@ export function ScoreReview({ params }: { params: URLSearchParams }) {
                               <button type="button" className="btn" onClick={() => locateEvidence(original.item_id, [r.event_id], 0)}>定位回报</button>
                             </div>
                           ))}
-                          {te.相关已回报检查.length === 0 && <div>封存时未见相关检查的回报结果</div>}
+                          {te.相关已回报检查.length === 0 && (
+                            te.关联检查 ? <div>关联检查「{te.关联检查}」尚未回报</div> : <div>此分项未配置关联检查</div>
+                          )}
                           <div>{te.已执行 ? `${te.执行时间分} 分已执行「${te.处置}」处置` : `截至 ${te.封存时间分} 分封存，未见「${te.处置}」处置执行记录`}</div>
                         </div>
                       );

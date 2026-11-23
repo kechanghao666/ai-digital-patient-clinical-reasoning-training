@@ -211,6 +211,24 @@ def test_treatment_evidence_unrelated_exams_do_not_mix_in(tmp_path, monkeypatch)
     assert next(t for t in evidence["治疗依据"] if t["处置"] == "再灌注路径")["相关已回报检查"][0]["检查"] == "心电图"
 
 
+def test_treatment_evidence_distinguishes_no_anchor_from_unreturned(tmp_path, monkeypatch):
+    """A treatment without a configured related exam reports 关联检查 None; a configured but
+    unreturned one reports the anchor name with an empty returns list."""
+    from app.integration.feedback import treatment_evidence_by_item
+    from test_cases_config import Api
+
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start("CASE-001")
+    api.act(sid, "order_exam", {"exam_id": "ex_ecg"})
+    api.seal_and_score(sid)  # ordered but never returned
+    state = api.repository.get(sid, "demo-cfg")
+    case = api.store.get(state.case_id, state.case_version)
+    evidence = treatment_evidence_by_item(state, case)
+    assert evidence["aspirin"]["关联检查"] is None  # no rule links aspirin to any exam
+    assert evidence["reperfusion_pathway"]["关联检查"] == "心电图"
+    assert evidence["reperfusion_pathway"]["相关已回报检查"] == []
+
+
 def test_compact_query_omits_filtered_records_without_asserting_them_missing(tmp_path, monkeypatch):
     """Filtered-out records are absent, and the prompt never claims unlisted means not returned."""
     from app.integration.feedback import FeedbackService
