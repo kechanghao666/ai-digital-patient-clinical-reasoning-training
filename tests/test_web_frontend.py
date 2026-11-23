@@ -53,3 +53,18 @@ def test_teacher_feedback_load_discards_a_superseded_record():
     assert "loadSeq=useRef" in flat
     assert "++loadSeq.current" in flat
     assert flat.count("!==loadSeq.current") >= 2  # one after the record resolves, one on its error
+
+
+def test_teacher_score_load_discards_a_superseded_record():
+    # The score-review page loads a whole score record through a separate code path from the feedback
+    # page, and it writes score adjudications. It has the same race: the teacher loads training A, then
+    # loads training B via the in-page form and starts adjudicating it (per-item reasons, overall
+    # reason, cited evidence). If A's whole-record response (success or failure) arrives last, it must
+    # be dropped instead of swapping the page back to A and discarding B's unsaved decisions, and A's
+    # error must not surface on B. A monotonic load counter gates both outcomes. No JS runtime here, so
+    # this guards the shipped source like the feedback regression above.
+    src = (ROOT / "web/src/pages/teacher/ScoreReview.tsx").read_text(encoding="utf-8")
+    flat = re.sub(r"\s+", "", src)
+    assert "loadSeq=useRef" in flat
+    assert "++loadSeq.current" in flat
+    assert flat.count("!==loadSeq.current") >= 2  # one after the record resolves, one on its error

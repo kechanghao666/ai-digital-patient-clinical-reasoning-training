@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ApiError, enc, get, mutate } from "../../api";
 import { navigate } from "../../App";
 import type { ScoreSnapshot } from "../../types";
@@ -54,16 +54,19 @@ export function ScoreReview({ params }: { params: URLSearchParams }) {
   const [saved, setSaved] = useState<string | null>(null);
   const [located, setLocated] = useState<{ itemId: string; eventId: string } | null>(null);
   const { busy, run } = useAction();
+  const loadSeq = useRef(0);
 
   const load = async (owner: string, session: string) => {
+    const seq = ++loadSeq.current;
     setError(null); setSaved(null); setRecord(null); setLocated(null);
     try {
       const r = await get<Record_>(`/api/teacher/scores/${enc(session)}?owner_id=${enc(owner)}`);
+      if (seq !== loadSeq.current) return;
       const current = r.reviews.length ? r.reviews[r.reviews.length - 1].snapshot : r.original_score;
       setRecord(r);
       setDecisions(current.items.map((i) => ({ item_id: i.item_id, score: i.score, reason: i.reason, evidence_event_ids: [...i.evidence_event_ids] })));
       setReason(""); setConfirmed(false);
-    } catch (e) { setError(e instanceof ApiError ? e.message : "载入失败"); }
+    } catch (e) { if (seq !== loadSeq.current) return; setError(e instanceof ApiError ? e.message : "载入失败"); }
   };
   const descriptions = Object.fromEntries((record?.rubric || []).map((r) => [r.item_id, r.description]));
   const events = (record?.events || []).map((e) => ({ id: e.event_id, label: digestLabel(e) }));
