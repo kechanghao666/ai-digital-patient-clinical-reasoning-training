@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .case_store import CaseStore
 from .integration.embedding import EmbeddingError
+from .integration.knowledge import STAGES
 from .integration.runtime import IntegrationRuntime
 from .integration.tools import _event_digest, validate_feedback_items, validate_feedback_record
 from .models import CaseDefinition, SessionState
@@ -32,7 +33,11 @@ class FeedbackReviewRequest(BaseModel):
 
 class BasisSearchRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    session_id: str = Field(min_length=1, max_length=200)
+    owner_id: str = Field(min_length=1, max_length=200)
     query: str = Field(min_length=1, max_length=200)
+    # The feedback stage the teacher is currently looking at; absent means the whole-case scope.
+    stage: str | None = Field(default=None, max_length=20)
 
 
 def build_router(
@@ -120,20 +125,36 @@ def build_router(
 
     @router.post("/basis/search")
     def search_basis(request: BasisSearchRequest, _: str = Depends(current_teacher)) -> dict[str, Any]:
-        # Read-only helper: rank the teaching-basis library by embedding similarity to a teacher
-        # query, so the teacher can pick a source-checkable basis when writing feedback. It never
-        # writes feedback, scores or training records, and it never auto-cites a result.
+        # Read-only helper: rank the teaching-basis entries that apply to the sealed training's
+        # case/version and to the feedback stage the teacher picked, so the semantic shortlist can
+        # never surface another specialty's material. Candidates are narrowed BEFORE any similarity
+        # is computed; taking the whole library's top matches and filtering afterwards would let an
+        # unrelated high score push out an applicable entry. It never writes feedback, scores or
+        # training records, and it never auto-cites a result.
+        if request.stage is not None and request.stage not in STAGES:
+            raise HTTPException(status_code=422, detail="环节不在反馈环节范围内")
+        _state, case = context(request.session_id, request.owner_id)
         runtime = get_runtime()
+        applies = runtime.knowledge.for_case(case.case_id, case.version)
+        candidates = [
+            entry for entry in applies
+            if entry.kind == "clinical" and (request.stage is None or request.stage in entry.stages)
+        ]
+        scope = {"case_id": case.case_id, "case_version": case.version, "stage": request.stage,
+                 "clinical_candidates": len(candidates)}
         if not runtime.settings.embedding_enabled:
-            return {"available": False, "reason": "embedding_unconfigured", "results": []}
+            return {"available": False, "reason": "embedding_unconfigured", "scope": scope, "results": []}
+        if not candidates:
+            # No specialty clinical basis applies here. Report that honestly instead of ranking the
+            # whole library, and never offer the general feedback guidance as clinical evidence.
+            return {"available": True, "status": runtime.knowledge.status,
+                    "notice": _BASIS_DRAFT_NOTICE, "scope": scope, "results": []}
         try:
-            # basis_search lives on the runtime, so the fixed library is embedded once and reused
-            # across queries; only the query text is embedded per request.
-            ranked = runtime.basis_search.search(
-                list(runtime.knowledge.entries.values()), request.query, limit=_BASIS_RESULT_LIMIT
-            )
+            # basis_search lives on the runtime, so each candidate's vector is embedded once and
+            # reused across queries; only the query text is embedded per request.
+            ranked = runtime.basis_search.search(candidates, request.query, limit=_BASIS_RESULT_LIMIT)
         except EmbeddingError as exc:
-            return {"available": False, "reason": exc.reason, "results": []}
+            return {"available": False, "reason": exc.reason, "scope": scope, "results": []}
         results = [
             {"basis_id": entry.basis_id, "title": entry.title, "stages": list(entry.stages),
              "applies_to_cases": list(entry.applies_to_cases), "sources": list(entry.sources),
@@ -142,6 +163,6 @@ def build_router(
             if score >= _BASIS_MIN_SCORE
         ]
         return {"available": True, "status": runtime.knowledge.status,
-                "notice": _BASIS_DRAFT_NOTICE, "results": results}
+                "notice": _BASIS_DRAFT_NOTICE, "scope": scope, "results": results}
 
     return router

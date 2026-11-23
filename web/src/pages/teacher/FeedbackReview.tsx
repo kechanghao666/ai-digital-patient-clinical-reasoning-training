@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ApiError, enc, get, mutate, request } from "../../api";
 import type { ScoreSnapshot } from "../../types";
 import { STAGES } from "../../types";
@@ -26,7 +26,10 @@ const BASIS_STATUS: Record<string, string> = { draft_unreviewed: "草稿，未�
 const BASIS_ALL = "全部";
 
 interface BasisSearchResult { basis_id: string; title: string; stages: string[]; applies_to_cases: string[]; sources: string[]; revision: number; score: number; text: string; }
-interface BasisSearchResponse { available: boolean; reason?: string; status?: string; notice?: string; results: BasisSearchResult[]; }
+// The server echoes the exact scope it ranked, so the panel can tell "no applicable specialty
+// basis" apart from "applicable entries that scored below the match floor".
+interface BasisScope { case_id: string; case_version: number; stage: string | null; clinical_candidates: number; }
+interface BasisSearchResponse { available: boolean; reason?: string; status?: string; notice?: string; scope?: BasisScope; results: BasisSearchResult[]; }
 
 export function FeedbackReview({ params }: { params: URLSearchParams }) {
   const [record, setRecord] = useState<FbRecord | null>(null);
@@ -41,10 +44,22 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
   const [searching, setSearching] = useState(false);
   const [basisStage, setBasisStage] = useState<string>(BASIS_ALL);
   const { busy, run } = useAction();
+  // Monotonic id for basis searches. Switching case or stage (or starting a newer search) bumps it,
+  // so a slow response from a previous scope is discarded instead of overwriting the current panel.
+  const searchSeq = useRef(0);
+
+  const clearBasisResults = () => {
+    searchSeq.current += 1;
+    setBasisResults(null); setBasisMsg(null); setBasisNotice(null); setSearching(false);
+  };
+  // Changing the stage only clears the semantic shortlist; it never touches the review text the
+  // teacher is editing.
+  const changeStage = (stage: string) => { clearBasisResults(); setBasisStage(stage); };
 
   const load = async (owner: string, session: string) => {
     setError(null); setSaved(null); setRecord(null);
     setBasisResults(null); setBasisMsg(null); setBasisNotice(null); setBasisQuery(""); setBasisStage(BASIS_ALL);
+    searchSeq.current += 1; setSearching(false);
     try {
       const r = await get<FbRecord>(`/api/teacher/feedback/${enc(session)}?owner_id=${enc(owner)}`);
       const existing = Object.fromEntries((Array.isArray(r.editable_items) ? r.editable_items : []).map((i) => [i.stage, i]));
@@ -89,24 +104,32 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
 
   const searchBasis = async () => {
     const q = basisQuery.trim();
-    if (!q) return;
+    if (!q || !record) return;
+    const seq = ++searchSeq.current;
+    const stage = basisStage === BASIS_ALL ? null : basisStage;
     setSearching(true); setBasisMsg(null); setBasisResults(null); setBasisNotice(null);
     try {
-      const r = await request<BasisSearchResponse>("POST", "/api/teacher/feedback/basis/search", { query: q });
+      const r = await request<BasisSearchResponse>("POST", "/api/teacher/feedback/basis/search", {
+        session_id: record.session_id, owner_id: record.owner_id, query: q, stage,
+      });
+      if (seq !== searchSeq.current) return;  // superseded by a newer search or a case/stage switch
       if (!r.available) {
         setBasisMsg(r.reason === "embedding_unconfigured" ? "语义检索未配置，暂不可用。" : "语义检索服务暂时不可用，请稍后重试。");
         setBasisResults([]);
       } else if (!r.results.length) {
-        setBasisMsg("未找到语义相关的教学依据。");
+        setBasisMsg(r.scope?.clinical_candidates === 0
+          ? "当前病例／环节暂无适用专科依据；通用反馈规范不能替代临床依据。"
+          : "在本病例／环节的适用依据中未找到语义相关条目。");
         setBasisResults([]);
       } else {
         setBasisNotice(r.notice || "草稿，未医学审核");
         setBasisResults(r.results);
       }
     } catch (e) {
+      if (seq !== searchSeq.current) return;
       setBasisMsg(e instanceof ApiError ? e.message : "检索失败");
       setBasisResults([]);
-    } finally { setSearching(false); }
+    } finally { if (seq === searchSeq.current) setSearching(false); }
   };
 
   return (
@@ -153,6 +176,12 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
             </Panel>
             <Panel title="教学依据语义检索（未医学审核）">
               <div className="stack">
+                <div className="faint">检索范围：{record.case.public_id} · {basisStage === BASIS_ALL ? "全部环节" : basisStage}。仅在本病例当前版本的适用专科依据内排序，不会推荐其他科材料。</div>
+                <div className="chips">
+                  {[BASIS_ALL, ...STAGES].map((stage) => (
+                    <button key={stage} type="button" aria-pressed={basisStage === stage} onClick={() => changeStage(stage)}>{stage}</button>
+                  ))}
+                </div>
                 <div className="row">
                   <input className="input" style={{ flex: 1 }} value={basisQuery} onChange={(e) => setBasisQuery(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") searchBasis(); }}
@@ -176,7 +205,7 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
               <div className="faint">按当前病例的本地材料筛选，不调用语义模型，也不代表“AI 语义命中”。</div>
               <div className="chips">
                 {[BASIS_ALL, ...STAGES].map((stage) => (
-                  <button key={stage} type="button" aria-pressed={basisStage === stage} onClick={() => setBasisStage(stage)}>{stage}</button>
+                  <button key={stage} type="button" aria-pressed={basisStage === stage} onClick={() => changeStage(stage)}>{stage}</button>
                 ))}
               </div>
               {basisClinical.length > 0 ? basisClinical.map(basisEntry) : <Msg tone="warn">当前病例／环节暂无适用依据</Msg>}
