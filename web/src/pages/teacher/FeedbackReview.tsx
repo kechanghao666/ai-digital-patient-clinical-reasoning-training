@@ -5,15 +5,25 @@ import { STAGES } from "../../types";
 import { Pick, JsonView, Msg, Panel, useAction } from "../../ui";
 import { digestLabel, Lookup, type Digest } from "./ScoreReview";
 
-interface Basis { basis_id: string; title: string; stages: string[]; text: string; sources: string[]; revision: number; content_hash: string; }
+interface Basis { basis_id: string; title: string; stages: string[]; applies_to_cases: string[]; kind: string; text: string; sources: string[]; revision: number; content_hash: string; }
 interface FbItem { stage: string; comment: string; improvement: string; evidence_event_ids: string[]; basis_ids: string[]; }
 interface FbRecord {
   session_id: string; owner_id: string; case: { title: string; public_id: string; version: number };
   score_snapshot: ScoreSnapshot; events: Digest[]; submissions: Record<string, unknown>; case_notes: string;
   original: unknown; reviews: unknown[]; current_revision: number; validation_error: string | null; original_validation_error: string | null;
   editable_items: Partial<FbItem>[]; basis_provenance: string | null; teaching_basis: Basis[]; notice: string;
-  basis_coverage: { missing_clinical_stages: string[] };
+  basis_coverage: BasisCoverage;
 }
+
+// Per-stage clinical coverage and the general (non-clinical) guidance ids, as returned by the API.
+interface BasisCoverage {
+  status: string; clinical_by_stage: Record<string, string[]>; guidance_ids: string[];
+  missing_clinical_stages: string[]; notice: string;
+}
+
+// The library status is a single, library-wide fact; it is never presented as a medical review.
+const BASIS_STATUS: Record<string, string> = { draft_unreviewed: "草稿，未医学审核" };
+const BASIS_ALL = "全部";
 
 interface BasisSearchResult { basis_id: string; title: string; stages: string[]; applies_to_cases: string[]; sources: string[]; revision: number; score: number; text: string; }
 interface BasisSearchResponse { available: boolean; reason?: string; status?: string; notice?: string; results: BasisSearchResult[]; }
@@ -29,11 +39,12 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
   const [basisMsg, setBasisMsg] = useState<string | null>(null);
   const [basisNotice, setBasisNotice] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
+  const [basisStage, setBasisStage] = useState<string>(BASIS_ALL);
   const { busy, run } = useAction();
 
   const load = async (owner: string, session: string) => {
     setError(null); setSaved(null); setRecord(null);
-    setBasisResults(null); setBasisMsg(null); setBasisNotice(null); setBasisQuery("");
+    setBasisResults(null); setBasisMsg(null); setBasisNotice(null); setBasisQuery(""); setBasisStage(BASIS_ALL);
     try {
       const r = await get<FbRecord>(`/api/teacher/feedback/${enc(session)}?owner_id=${enc(owner)}`);
       const existing = Object.fromEntries((Array.isArray(r.editable_items) ? r.editable_items : []).map((i) => [i.stage, i]));
@@ -59,6 +70,22 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
     await load(record.owner_id, record.session_id);
   });
   const complete = items.every((i) => i.comment.trim() && i.improvement.trim()) && reason.trim();
+
+  // Local, non-semantic lookup: the case-filtered library entries, narrowed to the chosen stage.
+  // Clinical entries are the stage-specific basis; general feedback guidance is shown separately
+  // because it must not be presented as specialty clinical coverage.
+  const basisScoped = (record?.teaching_basis || []).filter((b) => basisStage === BASIS_ALL || b.stages.includes(basisStage));
+  const basisClinical = basisScoped.filter((b) => b.kind !== "feedback_guidance");
+  const basisGuidance = basisScoped.filter((b) => b.kind === "feedback_guidance");
+  const basisStatus = BASIS_STATUS[record?.basis_coverage?.status || ""] || record?.basis_coverage?.status || "草稿，未医学审核";
+  const basisEntry = (b: Basis) => (
+    <div key={b.basis_id} className="small">
+      <b style={{ fontWeight: 500 }}>{b.title}</b>{" "}
+      <span className="faint">{b.stages.join("、")}　适用范围：{b.applies_to_cases.includes("*") ? "全部病例" : b.applies_to_cases.join("、")}　修订 {b.revision}　{basisStatus}</span>
+      <p className="muted" style={{ whiteSpace: "pre-wrap" }}>{b.text}</p>
+      {b.sources.map((s) => <div key={s} className="faint">来源：{s}</div>)}
+    </div>
+  );
 
   const searchBasis = async () => {
     const q = basisQuery.trim();
@@ -145,8 +172,18 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
                 </div>}
               </div>
             </Panel>
-            <details className="fold"><summary>适用教学依据全文（{record.teaching_basis.length}）</summary><div className="stack">
-              {record.teaching_basis.map((b) => <div key={b.basis_id} className="small"><b style={{ fontWeight: 500 }}>{b.title}</b> <span className="faint">修订 {b.revision}　{b.stages.join("、")}</span><p className="muted" style={{ whiteSpace: "pre-wrap" }}>{b.text}</p>{b.sources.map((s) => <div key={s} className="faint">来源：{s}</div>)}</div>)}
+            <details className="fold" open><summary>适用教学依据全文（本地清单筛选·非 AI 语义）（{record.teaching_basis.length}）</summary><div className="stack">
+              <div className="faint">按当前病例的本地材料筛选，不调用语义模型，也不代表“AI 语义命中”。</div>
+              <div className="chips">
+                {[BASIS_ALL, ...STAGES].map((stage) => (
+                  <button key={stage} type="button" aria-pressed={basisStage === stage} onClick={() => setBasisStage(stage)}>{stage}</button>
+                ))}
+              </div>
+              {basisClinical.length > 0 ? basisClinical.map(basisEntry) : <Msg tone="warn">当前病例／环节暂无适用依据</Msg>}
+              {basisGuidance.length > 0 && <>
+                <div className="faint">通用反馈规范（非专科临床依据，不能替代缺失的临床依据）</div>
+                {basisGuidance.map(basisEntry)}
+              </>}
             </div></details>
             <details className="fold"><summary>原始反馈与历次复核（只读）</summary><div><JsonView value={{ original: record.original, reviews: record.reviews }} /></div></details>
           </div>

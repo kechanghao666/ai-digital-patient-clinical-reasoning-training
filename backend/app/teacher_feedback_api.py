@@ -80,6 +80,7 @@ def build_router(
             "editable_items": effective["items"] if effective else [],
             "basis_provenance": ("snapshot" if effective.get("basis_snapshot") is not None else "legacy_unversioned") if effective else None,
             "teaching_basis": [{"basis_id": e.basis_id, "title": e.title, "stages": e.stages,
+                                "applies_to_cases": list(e.applies_to_cases), "kind": e.kind,
                                 "text": e.text, "sources": e.sources,
                                 "revision": e.revision, "content_hash": e.content_hash}
                                for e in runtime.knowledge.for_case(case.case_id, case.version)],
