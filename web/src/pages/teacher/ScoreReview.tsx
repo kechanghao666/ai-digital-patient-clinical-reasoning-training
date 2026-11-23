@@ -51,22 +51,35 @@ export function ScoreReview({ params }: { params: URLSearchParams }) {
   const [reason, setReason] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState<string | null>(null);
+  // The save receipt names the training it belongs to, so it survives the refresh its own save triggers
+  // but never leaks onto a different training the teacher has since loaded.
+  const [saved, setSaved] = useState<{ session_id: string; text: string; stale?: boolean } | null>(null);
   const [located, setLocated] = useState<{ itemId: string; eventId: string } | null>(null);
   const { busy, run } = useAction();
   const loadSeq = useRef(0);
+  // The training currently on screen. A save's receipt and its refresh only apply while it still matches,
+  // so a late save response for A cannot surface on the B the teacher has since loaded.
+  const activeSession = useRef<string | null>(null);
 
-  const load = async (owner: string, session: string) => {
+  const load = async (owner: string, session: string): Promise<boolean | null> => {
     const seq = ++loadSeq.current;
-    setError(null); setSaved(null); setRecord(null); setLocated(null);
+    activeSession.current = session;
+    setError(null);
+    setSaved((cur) => (cur && cur.session_id === session ? cur : null));  // keep a receipt only for its own training
+    setRecord(null); setLocated(null);
     try {
       const r = await get<Record_>(`/api/teacher/scores/${enc(session)}?owner_id=${enc(owner)}`);
-      if (seq !== loadSeq.current) return;
+      if (seq !== loadSeq.current) return null;
       const current = r.reviews.length ? r.reviews[r.reviews.length - 1].snapshot : r.original_score;
       setRecord(r);
       setDecisions(current.items.map((i) => ({ item_id: i.item_id, score: i.score, reason: i.reason, evidence_event_ids: [...i.evidence_event_ids] })));
       setReason(""); setConfirmed(false);
-    } catch (e) { if (seq !== loadSeq.current) return; setError(e instanceof ApiError ? e.message : "载入失败"); }
+      return true;
+    } catch (e) {
+      if (seq !== loadSeq.current) return null;
+      setError(e instanceof ApiError ? e.message : "载入失败");
+      return false;
+    }
   };
   const descriptions = Object.fromEntries((record?.rubric || []).map((r) => [r.item_id, r.description]));
   const events = (record?.events || []).map((e) => ({ id: e.event_id, label: digestLabel(e) }));
@@ -88,11 +101,21 @@ export function ScoreReview({ params }: { params: URLSearchParams }) {
   };
 
   const save = () => record && run("save", async () => {
-    const result = await mutate<{ revision: number; notice: string }>(`score-review:${record.session_id}`, "POST", `/api/teacher/scores/${enc(record.session_id)}`, {
-      owner_id: record.owner_id, expected_revision: record.current_revision, reason, confirmed, items: decisions.map((d) => ({ ...d, score: Number(d.score) })),
-    });
-    setSaved(`已保存第 ${result.revision} 版裁定。${result.notice}`);
-    await load(record.owner_id, record.session_id);
+    const session = record.session_id;
+    let result: { revision: number; notice: string };
+    try {
+      result = await mutate<{ revision: number; notice: string }>(`score-review:${session}`, "POST", `/api/teacher/scores/${enc(session)}`, {
+        owner_id: record.owner_id, expected_revision: record.current_revision, reason, confirmed, items: decisions.map((d) => ({ ...d, score: Number(d.score) })),
+      });
+    } catch (e) {
+      if (activeSession.current !== session) return;  // teacher moved to another training: A's rejection must not surface here
+      throw e;  // still on this training: the rejection shows, the teacher's input is kept, nothing is saved
+    }
+    if (activeSession.current !== session) return;  // teacher moved on: drop A's receipt so it cannot appear on B
+    setSaved({ session_id: session, text: `已保存评分裁定第 ${result.revision} 版。${result.notice}` });
+    const refreshed = await load(record.owner_id, session);
+    if (activeSession.current !== session) return;  // moved on during the refresh: say nothing about A
+    if (refreshed === false) setSaved({ session_id: session, stale: true, text: `已保存评分裁定第 ${result.revision} 版，但页面刷新失败，请重新载入确认。` });
   });
 
   return (
@@ -100,7 +123,7 @@ export function ScoreReview({ params }: { params: URLSearchParams }) {
       <div className="page-title"><h1>评分复核</h1></div>
       <Lookup params={params} onLoad={load} title="载入封存训练" />
       {error && <Msg tone="bad">{error}</Msg>}
-      {saved && <Msg tone="ok">{saved}</Msg>}
+      {saved && <Msg tone={saved.stale ? "warn" : "ok"}>{saved.text}</Msg>}
       {record && <>
         <Msg tone="warn">裁定另存为独立版本，原规则评分保留。分项说明对学生可见，请勿写出参考诊断。</Msg>
         <div className="work">

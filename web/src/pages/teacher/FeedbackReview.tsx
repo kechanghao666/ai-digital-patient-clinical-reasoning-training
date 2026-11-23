@@ -36,7 +36,9 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
   const [items, setItems] = useState<FbItem[]>([]);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState<string | null>(null);
+  // The save receipt names the training it belongs to, so it survives the refresh its own save triggers
+  // but never leaks onto a different training the teacher has since loaded.
+  const [saved, setSaved] = useState<{ session_id: string; text: string; stale?: boolean } | null>(null);
   const [basisQuery, setBasisQuery] = useState("");
   const [basisResults, setBasisResults] = useState<BasisSearchResult[] | null>(null);
   const [basisMsg, setBasisMsg] = useState<string | null>(null);
@@ -50,6 +52,9 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
   // Monotonic id for whole-record loads. Loading another training bumps it, so a slow response for a
   // previously loaded training is dropped instead of replacing the record (and draft) now on screen.
   const loadSeq = useRef(0);
+  // The training currently on screen. A save's receipt and its refresh only apply while it still matches,
+  // so a late save response for A cannot surface on the B the teacher has since loaded.
+  const activeSession = useRef<string | null>(null);
 
   const clearBasisResults = () => {
     searchSeq.current += 1;
@@ -59,14 +64,17 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
   // teacher is editing.
   const changeStage = (stage: string) => { clearBasisResults(); setBasisStage(stage); };
 
-  const load = async (owner: string, session: string) => {
+  const load = async (owner: string, session: string): Promise<boolean | null> => {
     const seq = ++loadSeq.current;
-    setError(null); setSaved(null); setRecord(null);
+    activeSession.current = session;
+    setError(null);
+    setSaved((cur) => (cur && cur.session_id === session ? cur : null));  // keep a receipt only for its own training
+    setRecord(null);
     setBasisResults(null); setBasisMsg(null); setBasisNotice(null); setBasisQuery(""); setBasisStage(BASIS_ALL);
     searchSeq.current += 1; setSearching(false);
     try {
       const r = await get<FbRecord>(`/api/teacher/feedback/${enc(session)}?owner_id=${enc(owner)}`);
-      if (seq !== loadSeq.current) return;  // superseded by a newer load; do not replace what is on screen
+      if (seq !== loadSeq.current) return null;  // superseded by a newer load; do not replace what is on screen
       const existing = Object.fromEntries((Array.isArray(r.editable_items) ? r.editable_items : []).map((i) => [i.stage, i]));
       const ids = new Set(r.events.map((e) => e.event_id));
       setItems(STAGES.map((stage) => {
@@ -76,21 +84,33 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
           evidence_event_ids: (old.evidence_event_ids || []).filter((v: string) => ids.has(v)), basis_ids: (old.basis_ids || []).filter((v: string) => allowed.has(v)) };
       }));
       setRecord(r); setReason("");
+      return true;
     } catch (e) {
-      if (seq !== loadSeq.current) return;  // a superseded load's failure must not surface on the current training
+      if (seq !== loadSeq.current) return null;  // a superseded load's failure must not surface on the current training
       setError(e instanceof ApiError ? e.message : "载入失败");
+      return false;
     }
   };
   const update = (i: number, patch: Partial<FbItem>) => setItems(items.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const events = (record?.events || []).map((e) => ({ id: e.event_id, label: digestLabel(e) }));
   const save = () => record && run("save", async () => {
+    const session = record.session_id;
     const used = new Set(items.flatMap((i) => i.basis_ids));
-    const result = await mutate<{ revision: number; notice: string }>(`feedback-review:${record.session_id}`, "POST", `/api/teacher/feedback/${enc(record.session_id)}`, {
-      owner_id: record.owner_id, expected_revision: record.current_revision, reason, items,
-      basis_hashes: Object.fromEntries(record.teaching_basis.filter((b) => used.has(b.basis_id)).map((b) => [b.basis_id, b.content_hash])),
-    });
-    setSaved(`已保存反馈复核第 ${result.revision} 版。${result.notice}`);
-    await load(record.owner_id, record.session_id);
+    let result: { revision: number; notice: string };
+    try {
+      result = await mutate<{ revision: number; notice: string }>(`feedback-review:${session}`, "POST", `/api/teacher/feedback/${enc(session)}`, {
+        owner_id: record.owner_id, expected_revision: record.current_revision, reason, items,
+        basis_hashes: Object.fromEntries(record.teaching_basis.filter((b) => used.has(b.basis_id)).map((b) => [b.basis_id, b.content_hash])),
+      });
+    } catch (e) {
+      if (activeSession.current !== session) return;  // teacher moved to another training: A's rejection must not surface here
+      throw e;  // still on this training: the rejection shows, the teacher's input is kept, nothing is saved
+    }
+    if (activeSession.current !== session) return;  // teacher moved on: drop A's receipt so it cannot appear on B
+    setSaved({ session_id: session, text: `已保存反馈复核第 ${result.revision} 版。${result.notice}` });
+    const refreshed = await load(record.owner_id, session);
+    if (activeSession.current !== session) return;  // moved on during the refresh: say nothing about A
+    if (refreshed === false) setSaved({ session_id: session, stale: true, text: `已保存反馈复核第 ${result.revision} 版，但页面刷新失败，请重新载入确认。` });
   });
   const complete = items.every((i) => i.comment.trim() && i.improvement.trim()) && reason.trim();
 
@@ -145,7 +165,7 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
       <div className="page-title"><h1>反馈复核</h1></div>
       <Lookup params={params} onLoad={load} title="载入封存训练" />
       {error && <Msg tone="bad">{error}</Msg>}
-      {saved && <Msg tone="ok">{saved}</Msg>}
+      {saved && <Msg tone={saved.stale ? "warn" : "ok"}>{saved.text}</Msg>}
       {record && <>
         <Msg tone="warn">只修订评语与引用，不改变评分。保存后学生看到最新复核版本。</Msg>
         {record.validation_error && <Msg tone="bad">当前反馈未通过学生展示校验：{record.validation_error}</Msg>}

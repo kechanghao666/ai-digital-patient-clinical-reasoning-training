@@ -68,3 +68,23 @@ def test_teacher_score_load_discards_a_superseded_record():
     assert "loadSeq=useRef" in flat
     assert "++loadSeq.current" in flat
     assert flat.count("!==loadSeq.current") >= 2  # one after the record resolves, one on its error
+
+
+def test_teacher_review_save_receipt_survives_refresh_and_names_its_training():
+    # Both review pages save a version and then refresh from the server. The receipt must survive that
+    # refresh (so the teacher can tell which training and which version was saved without clicking save
+    # again), name which kind of version it is, and be scoped to the training it belongs to. Each page
+    # keeps the on-screen training in activeSession; the receipt is kept only while it matches, and is
+    # dropped if a newer load (another training) took over mid-save. Save failure and refresh failure are
+    # judged apart: a rejection keeps the input, a successful save whose refresh fails says so. There is
+    # no JS test runner in this repo, so this guards the shipped source.
+    for page, kind in (("FeedbackReview", "已保存反馈复核第"), ("ScoreReview", "已保存评分裁定第")):
+        src = (ROOT / f"web/src/pages/teacher/{page}.tsx").read_text(encoding="utf-8")
+        flat = re.sub(r"\s+", "", src)
+        assert "activeSession=useRef" in flat
+        assert "activeSession.current=session" in flat  # recorded on every load
+        assert "cur&&cur.session_id===session?cur:null" in flat  # receipt kept only for its own training
+        assert kind in src  # distinguishes feedback-review from score-adjudication versions
+        assert "页面刷新失败" in src  # saved-but-refresh-failed is stated, not hidden by the refresh
+        assert flat.count("activeSession.current!==session)return") >= 3  # reject / success / post-refresh
+        assert "refreshed===false" in flat
