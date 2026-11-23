@@ -56,6 +56,11 @@ class IntegrationSettings:
     rerank_base_url: str = ""
     rerank_api_key: str = ""
     rerank_model: str = ""
+    # Optional OCR service for teacher-side checklist text drafts; same trust level as the other
+    # model settings: empty values disable the feature, keys stay in the process environment.
+    ocr_base_url: str = ""
+    ocr_api_key: str = ""
+    ocr_model: str = ""
 
     @classmethod
     def from_env(cls) -> "IntegrationSettings":
@@ -83,6 +88,9 @@ class IntegrationSettings:
             rerank_base_url=os.getenv("RERANK_BASE_URL", "").strip().rstrip("/"),
             rerank_api_key=os.getenv("RERANK_API_KEY", ""),
             rerank_model=os.getenv("RERANK_MODEL", "").strip(),
+            ocr_base_url=os.getenv("OCR_BASE_URL", "").strip().rstrip("/"),
+            ocr_api_key=os.getenv("OCR_API_KEY", ""),
+            ocr_model=os.getenv("OCR_MODEL", "").strip(),
         )
 
     def __post_init__(self):
@@ -109,3 +117,7 @@ class IntegrationSettings:
     @property
     def rerank_enabled(self) -> bool:
         return bool(self.rerank_base_url and self.rerank_api_key and self.rerank_model)
+
+    @property
+    def ocr_enabled(self) -> bool:
+        return bool(self.ocr_base_url and self.ocr_api_key and self.ocr_model)

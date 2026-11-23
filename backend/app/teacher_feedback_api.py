@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from .case_store import CaseStore
 from .integration.embedding import EmbeddingError
 from .integration.knowledge import STAGES
+from .integration.ocr import OcrError, validate_image_data_url
 from .integration.rerank import RerankError
 from .integration.runtime import IntegrationRuntime
 from .integration.tools import _event_digest, validate_feedback_items, validate_feedback_record
@@ -50,6 +51,13 @@ class BasisRerankRequest(BaseModel):
     # Optional fixed submission order (a permutation of the in-scope basis ids); absent means
     # the library's own candidate order. Explicit, validated, never silently reordered.
     order: list[str] | None = Field(default=None, max_length=10)
+
+
+class ChecklistOcrRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=False)
+    # Rough wire limit: a 2 MiB decoded image is ~2.7 MiB of base64 text. The strict decoded-size
+    # and format checks live in validate_image_data_url; this only keeps oversized payloads out.
+    image_data_url: str = Field(min_length=1, max_length=2_800_000)
 
 
 def _entry_summary(entry) -> dict[str, Any]:
@@ -230,5 +238,25 @@ def build_router(
                 "notice": _BASIS_DRAFT_NOTICE, "scope": scope,
                 "original_order": [entry.basis_id for entry in ordered],
                 "results": results}
+
+    @router.post("/ocr/draft")
+    def ocr_draft(request: ChecklistOcrRequest, _: str = Depends(current_teacher)) -> dict[str, Any]:
+        # Read-only teacher helper: transcribe a (synthetic) teaching checklist image into a text
+        # draft the teacher checks by hand. It never writes anything — no case fact, no score, no
+        # feedback item — and on any service failure no draft is returned at all, so a stale or
+        # partial transcription can never be mistaken for a fresh one.
+        try:
+            image = validate_image_data_url(request.image_data_url)
+        except OcrError as exc:
+            raise HTTPException(status_code=422, detail=exc.reason) from exc
+        runtime = get_runtime()
+        if not runtime.ocr.enabled:
+            return {"available": False, "reason": "ocr_unconfigured"}
+        try:
+            draft = runtime.ocr.extract_draft(image)
+        except OcrError as exc:
+            return {"available": False, "reason": exc.reason}
+        return {"available": True, "notice": "文字草稿，未经核对", "draft_text": draft,
+                "warning": "缺失字段须人工核对，不得作为已识别值使用；仅辅助阅读，不自动写入病例或评分。"}
 
     return router

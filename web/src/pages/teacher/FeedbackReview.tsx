@@ -52,6 +52,12 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
   const [rerankMsg, setRerankMsg] = useState<string | null>(null);
   const [rerankNotice, setRerankNotice] = useState<string | null>(null);
   const [reranking, setReranking] = useState(false);
+  // OCR checklist draft: teacher-uploaded synthetic teaching checklist -> unchecked text draft.
+  // Read-only: it never writes into the case, the review or the score. On any failure the
+  // previous draft is dropped, so a stale transcription can never pass as a fresh one.
+  const [ocrDraft, setOcrDraft] = useState<string | null>(null);
+  const [ocrMsg, setOcrMsg] = useState<string | null>(null);
+  const [ocrBusy, setOcrBusy] = useState(false);
   const [basisStage, setBasisStage] = useState<string>(BASIS_ALL);
   const { busy, run } = useAction();
   // Monotonic id for basis searches. Switching case or stage (or starting a newer search) bumps it,
@@ -60,6 +66,9 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
   // Separate monotonic id for reranks, for the same reason: a late rerank response from a previous
   // scope or training must never overwrite the panel (or the draft) now on screen.
   const rerankSeq = useRef(0);
+  // Separate monotonic id for OCR drafts: selecting a new image, switching stage or loading another
+  // training invalidates the in-flight request, so its late result is discarded on arrival.
+  const ocrSeq = useRef(0);
   // Monotonic id for whole-record loads. Loading another training bumps it, so a slow response for a
   // previously loaded training is dropped instead of replacing the record (and draft) now on screen.
   const loadSeq = useRef(0);
@@ -70,8 +79,10 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
   const clearBasisResults = () => {
     searchSeq.current += 1;
     rerankSeq.current += 1;
+    ocrSeq.current += 1;
     setBasisResults(null); setBasisMsg(null); setBasisNotice(null); setSearching(false);
     setRerankResults(null); setRerankMsg(null); setRerankNotice(null); setReranking(false);
+    setOcrDraft(null); setOcrMsg(null); setOcrBusy(false);
   };
   // Changing the stage only clears the semantic shortlist; it never touches the review text the
   // teacher is editing.
@@ -85,7 +96,8 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
     setRecord(null);
     setBasisResults(null); setBasisMsg(null); setBasisNotice(null); setBasisQuery(""); setBasisStage(BASIS_ALL);
     setRerankResults(null); setRerankMsg(null); setRerankNotice(null); setReranking(false);
-    searchSeq.current += 1; rerankSeq.current += 1; setSearching(false);
+    setOcrDraft(null); setOcrMsg(null); setOcrBusy(false);
+    searchSeq.current += 1; rerankSeq.current += 1; ocrSeq.current += 1; setSearching(false);
     try {
       const r = await get<FbRecord>(`/api/teacher/feedback/${enc(session)}?owner_id=${enc(owner)}`);
       if (seq !== loadSeq.current) return null;  // superseded by a newer load; do not replace what is on screen
@@ -223,6 +235,45 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
     } finally { if (seq === rerankSeq.current) setReranking(false); }
   };
 
+  // Teacher-triggered OCR of a (synthetic) teaching checklist image. The transcription is shown
+  // as a raw draft for manual checking only — it never becomes a case fact, a review item or a
+  // score. On any failure the previous draft is dropped and the reason is shown honestly. Every
+  // transition (new image picked, request about to be sent, result applied, busy cleared) re-checks
+  // ownership, so a superseded request can never surface here — success or failure alike.
+  const ocrChecklist = async (file: File | undefined) => {
+    if (!file || !record) return;
+    const seq = ++ocrSeq.current;
+    // Same criterion as the server (decoded bytes ≤ 2 MiB; for these formats the file size is the
+    // decoded size), checked before reading so an oversized image never even enters the pipeline.
+    const MAX_BYTES = 2 * 1024 * 1024;
+    if (file.size > MAX_BYTES) {
+      setOcrDraft(null);
+      setOcrMsg("图片超过 2 MiB 限制，请压缩后重试。");
+      return;
+    }
+    setOcrBusy(true); setOcrMsg(null); setOcrDraft(null);
+    let dataUrl: string;
+    try {
+      dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("read_failed"));
+        reader.readAsDataURL(file);
+      });
+    } catch { if (seq === ocrSeq.current) { setOcrBusy(false); setOcrMsg("读取图片失败。"); } return; }
+    if (seq !== ocrSeq.current) return;  // superseded while reading: send nothing
+    try {
+      const r = await request<{ available: boolean; reason?: string; notice?: string; draft_text?: string }>(
+        "POST", "/api/teacher/feedback/ocr/draft", { image_data_url: dataUrl });
+      if (seq !== ocrSeq.current) return;  // superseded in flight: drop the result
+      if (r.available && typeof r.draft_text === "string") setOcrDraft(r.draft_text);
+      else setOcrMsg(r.reason === "ocr_unconfigured" ? "OCR 未配置，暂不可用。" : "OCR 服务暂时不可用，未生成文字草稿。");
+    } catch (e) {
+      if (seq !== ocrSeq.current) return;
+      setOcrMsg(e instanceof ApiError ? e.message : "OCR 服务暂时不可用，未生成文字草稿。");
+    } finally { if (seq === ocrSeq.current) setOcrBusy(false); }
+  };
+
   return (
     <div className="stack-lg">
       <div className="page-title"><h1>反馈复核</h1></div>
@@ -305,6 +356,21 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
                       {r.sources.map((s) => <div key={s} className="faint">来源：{s}</div>)}
                     </div>
                   ))}
+                </div>}
+              </div>
+            </Panel>
+            <Panel title="检查单文字草稿（OCR·未经核对）">
+              <div className="stack">
+                <div className="faint">仅上传合成教学样例，不要上传真实患者资料。系统返回可核对的文字草稿：缺失字段须人工核对，不得作为已识别值使用；仅辅助阅读，不自动写入病例或评分。</div>
+                <div className="row">
+                  <input type="file" accept="image/png,image/jpeg,image/webp" aria-label="教学检查单图片"
+                    onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; ocrChecklist(f); }} />
+                  {ocrBusy && <span className="faint">识别中…</span>}
+                </div>
+                {ocrMsg && <Msg tone="warn">{ocrMsg}</Msg>}
+                {ocrDraft && <div className="stack" style={{ gap: 6 }}>
+                  <div className="faint">文字草稿，未经核对　缺失字段须人工核对，不得作为已识别值使用。　仅辅助阅读，不自动写入病例或评分。</div>
+                  <div className="small muted" style={{ whiteSpace: "pre-wrap" }}>{ocrDraft}</div>
                 </div>}
               </div>
             </Panel>

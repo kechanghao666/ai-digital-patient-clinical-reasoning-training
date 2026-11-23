@@ -7,6 +7,7 @@ import httpx
 from ..adapters import PatientAdapter, SimulatorPatientAdapter
 from .config import IntegrationSettings
 from .embedding import BasisSemanticSearch, EmbeddingClient
+from .ocr import OcrClient
 from .rerank import RerankClient
 from .feedback import FeedbackService, FeedbackStore
 from .knowledge import KnowledgeStore
@@ -54,6 +55,11 @@ class IntegrationRuntime:
     def reranker(self) -> RerankClient:
         # Read-only rerank helper over the already-narrowed candidate list; stateless per call.
         return RerankClient(self.settings)
+
+    @cached_property
+    def ocr(self) -> OcrClient:
+        # Read-only OCR helper; each call is independent and nothing extracted is ever persisted.
+        return OcrClient(self.settings)
 
     @cached_property
     def feedback_service(self) -> FeedbackService:
