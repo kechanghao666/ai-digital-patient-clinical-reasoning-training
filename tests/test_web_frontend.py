@@ -1,4 +1,6 @@
 """The built React front end is served by the API process without shadowing API routes."""
+import re
+
 from fastapi.testclient import TestClient
 
 from app import main
@@ -27,3 +29,14 @@ def test_built_bundle_has_no_hidden_case_data():
 def test_self_introduction_before_opening_question_counts_as_opening():
     assert detect_intents("您好，我是今天接诊的医生，请问哪里不舒服？")[0] is True
     assert detect_intents("您好，我是今天接诊的医生")[0] is False
+
+
+def test_built_bundle_ships_the_ask_failure_notice():
+    # A failed ask must leave a persistent, student-visible explanation in the main React UI instead of only
+    # a transient toast. A lost response cannot be told apart from an unrecorded turn, so the notice must
+    # never claim the turn was not recorded; it keeps the draft and asks the student to resend the same
+    # question so the idempotent retry can confirm what, if anything, was saved.
+    bundle = (ROOT / "web/dist/assets/main.js").read_text(encoding="utf-8")
+    decoded = re.sub(r"\\u([0-9A-Fa-f]{4})", lambda m: chr(int(m.group(1), 16)), bundle)
+    assert "未收到本次提问的结果。输入已保留，请先原样重试以确认记录。" in decoded
+    assert "本轮未记录任何问诊" not in decoded

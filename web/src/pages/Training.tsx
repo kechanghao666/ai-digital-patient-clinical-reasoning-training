@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { enc, get, mutate, type Identity } from "../api";
+import { ApiError, enc, get, mutate, type Identity } from "../api";
 import { navigate, setUnsavedGuard } from "../App";
 import type { DifferentialDraft, SessionDetail, TrainingEvent } from "../types";
 import { CLINICAL_STATE, ORDER_STATE, patientLine, type CatalogExam } from "../types";
@@ -220,6 +220,7 @@ function Intake({ data, sealed, busy, run, reload, act, sessionId }: {
 }) {
   const { state, options, history_coverage: coverage } = data;
   const [question, setQuestion] = useState("");
+  const [askError, setAskError] = useState<{ reason: string; unconfirmed: boolean } | null>(null);
   const [minutes, setMinutes] = useState(5);
   const active = new Set(state.orders.filter((o) => o.state === "pending" || o.state === "ready").map((o) => o.catalog_id || ""));
   const [latency, setLatency] = useState<number | null>(null);
@@ -229,9 +230,23 @@ function Intake({ data, sealed, busy, run, reload, act, sessionId }: {
   const ask = () => {
     const q = question.trim();
     if (!q) return;
+    setAskError(null);
     run("ask", async () => {
       const t = performance.now();
-      await mutate(`${sessionId}:ask`, "POST", `/api/sessions/${enc(sessionId)}/ask`, { question: q });
+      try {
+        await mutate(`${sessionId}:ask`, "POST", `/api/sessions/${enc(sessionId)}/ask`, { question: q });
+      } catch (e) {
+        // Keep the draft and the rest of the training state. `mutate` keeps the same request id while the
+        // question is unchanged, so retrying the same text can never register a second turn; only an edited
+        // question gets a new id. A network-level failure carries no response, so we cannot tell whether the
+        // turn reached the server and must not claim it was not recorded. Anything we did parse is the
+        // server's own verdict.
+        const api = e instanceof ApiError ? e : null;
+        setAskError(api && api.status !== 0
+          ? { reason: api.message, unconfirmed: false }
+          : { reason: "", unconfirmed: true });
+        return;
+      }
       setLatency(performance.now() - t);
       setQuestion("");
       await reload();
@@ -250,9 +265,12 @@ function Intake({ data, sealed, busy, run, reload, act, sessionId }: {
           {state.events.map((e) => <Line key={e.event_id} event={e} examName={e.action === "order_exam" ? state.orders[ordered.indexOf(e)]?.exam_name : undefined} />)}
           {busy === "ask" && <div className="turn patient"><span className="who">患者</span><span className="text faint">…</span></div>}
         </div>
+        {askError && <Msg tone="warn">{askError.unconfirmed
+          ? "未收到本次提问的结果。输入已保留，请先原样重试以确认记录。"
+          : `本次提问未取得有效回答（${askError.reason}）。输入已保留，请先原样重试以确认记录。`}</Msg>}
         <form className="composer" onSubmit={(e) => { e.preventDefault(); ask(); }}>
           <input className="input" placeholder={sealed ? "已提交，只读" : "输入问诊内容，回车发送"} value={question} disabled={sealed}
-            onChange={(e) => setQuestion(e.target.value)} aria-label="问诊内容" autoComplete="off" />
+            onChange={(e) => { setQuestion(e.target.value); setAskError(null); }} aria-label="问诊内容" autoComplete="off" />
           <button className="btn btn-primary" style={{ height: 34 }} disabled={sealed || !question.trim() || busy !== null}>发送</button>
         </form>
       </section>

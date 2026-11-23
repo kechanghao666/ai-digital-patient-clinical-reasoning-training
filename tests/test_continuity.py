@@ -73,6 +73,22 @@ def test_location_question_answers_location():
     assert _fact_ids("CASE-001", "具体是哪里疼", {"f_cc"}) == ["f_location"]
 
 
+def test_where_question_after_complaint_answers_location_not_the_complaint():
+    # "哪里不舒服" is opening-shaped but asks for the *site*. Before any complaint it is answered with
+    # the chief complaint; once the complaint is on the table it discloses the pain-location fact
+    # instead of repeating the complaint.
+    assert _fact_ids("CASE-001", "哪里不舒服", set()) == ["f_cc"]
+    assert _fact_ids("CASE-001", "哪里不舒服", {"f_cc"}) == ["f_location"]
+    assert _fact_ids("CASE-001", "哪儿不舒服", {"f_cc"}) == ["f_location"]
+    assert _fact_ids("CASE-001", "什么地方不舒服", {"f_cc"}) == ["f_location"]
+
+
+def test_where_question_without_a_location_fact_keeps_the_complaint():
+    chief = Fact(fact_id="f_cc", field="主诉", content="我肚子疼。")
+    state = SessionState(owner_id="t", case_id="t", case_version=1, disclosed_fact_ids=["f_cc"])
+    assert [fact.fact_id for fact in classify_turn(state, "哪里不舒服", [chief])[0]] == ["f_cc"]
+
+
 # --- topic-aware continuation (integration, real session state) --------------
 
 def test_later_after_onset_answers_course_not_location(tmp_path, monkeypatch):
@@ -159,6 +175,8 @@ def test_full_four_turn_sequence_is_answered_coherently(tmp_path, monkeypatch):
     sid = api.start("CASE-001")
     answers = {q: _ask(api, sid, q)["answer"] for q in ["怎么了？", "哪里不舒服？", "什么时候开始的？", "后来呢？"]}
     assert answers["怎么了？"] == "我两个小时前突然开始胸痛。"
-    assert answers["哪里不舒服？"] == "我两个小时前突然开始胸痛。"
+    # The follow-up "哪里不舒服" asks for the site, so it no longer repeats the chief complaint.
+    assert answers["哪里不舒服？"] == "就在胸口正中间，一大片，说不清具体哪一点。"
+    assert answers["哪里不舒服？"] != answers["怎么了？"]
     assert "两个小时前" in answers["什么时候开始的？"]
     assert "持续没有缓解" in answers["后来呢？"]

@@ -22,6 +22,15 @@ OPENING_FILLER = re.compile(r"^(?:你好|您好|请问|请|您|你|现在|目前
                             r"老人家|同学|小伙子|姑娘|这回|呢|吗|呀|啊|么|了|的|是|来|说说|"
                             r"我是\S{0,10}?(?:医生|大夫|实习生|学生))*$")
 
+# A where-question in opening form ("哪里不舒服", "哪儿难受", "什么地方不得劲") asks for the *site* of
+# the discomfort, not the whole complaint. It is only read as a location question once the chief
+# complaint is already on the table; before that the patient still starts with the chief complaint.
+LOCATION_OPENING = re.compile(r"(?:哪(?:里|儿)?|什么(?:地方|位置))(?:不舒服|难受|不好|不得劲)")
+
+# Trigger words the ``location`` intent routes by, shared with the opening branch so a where-question
+# can be answered from the same pain-location fact the explicit location intent would disclose.
+LOCATION_CANONICALS = "哪里疼 哪里痛 部位 位置 哪个地方".split()
+
 # Clinical history intents. Each maps natural phrasings to canonical words that contain the
 # trigger words cases already use. Intents only *route* a question to existing synthetic facts;
 # they never create clinical content. Ordered as a standard history.
@@ -34,7 +43,7 @@ CLINICAL_INTENTS: tuple[tuple[str, re.Pattern[str], str], ...] = tuple(
          "诱因"),
         ("recent_infection", r"感冒|受凉|着凉", "感冒 受凉"),
         ("location", r"(哪(里|儿|个地方|个位置|块|边|个部位)|什么(地方|位置)|具体在哪)(疼|痛)|(疼|痛)(在|的)?(哪|什么地方)|部位|位置",
-         "哪里疼 哪里痛 部位 位置 哪个地方"),
+         " ".join(LOCATION_CANONICALS)),
         ("character", r"怎么(个)?(疼|痛)|(什么|啥)(样)?的?(疼|痛)|(疼|痛)(法|起来|得怎么样|的时候)|(什么|啥)感觉|性质|像什么|压榨|闷痛|刺痛|绞痛|胀痛|隐痛|撕裂|闷着|压着|针扎|刀割|烧灼|(疼|痛)得(厉害|很)|多(疼|痛)|有多(疼|痛)|(疼|痛)的程度",
          "性质 怎么疼 怎么痛 什么样的痛"),
         ("radiation", r"放射|窜|传到|牵扯|跑到|扩散|蔓延|别的地方也(疼|痛)|后背|背(疼|痛)",
@@ -281,13 +290,24 @@ def classify_turn(state: SessionState, question: str, facts: list[Fact]) -> tupl
     opening, intents, by_intent = detect_intents(question)
     masked = _mask(query)
     visible = [fact for fact in facts if _visible(fact, state)]
-    if opening:
-        chief = [fact for fact in visible if fact.field == "主诉"]
-        return chief, ("fact" if chief else "unknown")
 
     def hits(fact: Fact, canonicals: list[str]) -> bool:
         triggers = [normalize(t) for t in fact.disclosure_triggers]
         return any(_trigger_hit(trigger, query, masked, canonicals) for trigger in triggers)
+
+    if opening:
+        chief = [fact for fact in visible if fact.field == "主诉"]
+        # "哪里不舒服" asks where the patient is uncomfortable. Once the chief complaint is already
+        # disclosed, answer it from the case's pain-location fact (via the same routing as the
+        # explicit location intent) instead of repeating the complaint. Before any complaint is
+        # given, or when the case defines no location fact, the chief-complaint answer is kept.
+        if LOCATION_OPENING.search(query) and any(
+            fact.fact_id in state.disclosed_fact_ids for fact in chief
+        ):
+            location = [fact for fact in visible if hits(fact, LOCATION_CANONICALS)]
+            if location:
+                return location, "fact"
+        return chief, ("fact" if chief else "unknown")
 
     social = social_intent(question)
     # Test results and diagnoses are never the patient's to give, whatever words they contain.

@@ -52,7 +52,9 @@ def test_screenshot_questions_work_through_api_without_changing_scores_or_replay
         body = {"request_id": f"natural-{index}", "question": question}
         response = api.client.post(f"/api/sessions/{sid}/ask", headers=api.headers, json=body)
         assert response.status_code == 200
-        expected_id = ["f_cc", "f_cc", "f_pain_migration", "f_onset"][index]
+        # "哪里不舒服" follows the chief complaint, so it asks the site and discloses the
+        # pain-location fact instead of repeating the complaint.
+        expected_id = ["f_cc", "f_pain_migration", "f_pain_migration", "f_onset"][index]
         assert response.json()["answer"] == next(f.content for f in CASES.get("APPY-001").facts if f.fact_id == expected_id)
         replay = api.client.post(f"/api/sessions/{sid}/ask", headers=api.headers, json=body)
         assert replay.json()["event"] == response.json()["event"]

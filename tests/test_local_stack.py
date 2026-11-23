@@ -204,6 +204,43 @@ def test_slow_platform_times_out_and_registers_nothing(stack):
     assert retry.status_code == 200 and retry.json()["answer"] == "有高血压10年。"
 
 
+def test_pre_commit_failure_keeps_prior_turns_and_adds_exactly_one_on_retry(stack):
+    client, headers, script, log, repository, _ = stack
+    sid = client.post("/api/sessions?case_id=CASE-001", headers=headers).json()["session_id"]
+    # A turn recorded before the failure must survive it untouched.
+    first = client.post(f"/api/sessions/{sid}/ask", headers=headers, json={"request_id": "ok", "question": "有高血压吗"})
+    assert first.status_code == 200, first.text
+    script["hang"] = 4
+    for request_id in ("f1", "f2"):
+        failed = client.post(f"/api/sessions/{sid}/ask", headers=headers,
+                             json={"request_id": request_id, "question": "有糖尿病吗"})
+        assert failed.status_code == 504, failed.text
+    # Two failures before commit add nothing: only the prior turn remains, no partial record.
+    assert [e.request_id for e in repository.get(sid, "demo-stack").events] == ["ok"]
+    script["hang"] = 0
+    # Resending the same question reuses its request id and adds exactly one turn, never two.
+    ok = client.post(f"/api/sessions/{sid}/ask", headers=headers, json={"request_id": "f1", "question": "有糖尿病吗"})
+    assert ok.status_code == 200, ok.text
+    assert [e.request_id for e in repository.get(sid, "demo-stack").events] == ["ok", "f1"]
+
+
+def test_saved_turn_replays_without_duplicating_when_the_response_is_lost(stack):
+    client, headers, script, log, repository, _ = stack
+    sid = client.post("/api/sessions?case_id=CASE-001", headers=headers).json()["session_id"]
+    prior = client.post(f"/api/sessions/{sid}/ask", headers=headers, json={"request_id": "ok", "question": "有高血压吗"})
+    assert prior.status_code == 200, prior.text
+    # The platform answered and the server committed the turn, but the client never received the response.
+    saved = client.post(f"/api/sessions/{sid}/ask", headers=headers, json={"request_id": "q2", "question": "有糖尿病吗"})
+    assert saved.status_code == 200 and saved.json()["timing"]["replayed"] is False, saved.text
+    assert len(repository.get(sid, "demo-stack").events) == 2
+    # The browser, holding no response, resends the unchanged question with the same request id.
+    replay = client.post(f"/api/sessions/{sid}/ask", headers=headers, json={"request_id": "q2", "question": "有糖尿病吗"})
+    assert replay.status_code == 200 and replay.json()["timing"]["replayed"] is True, replay.text
+    assert replay.json()["answer"] == saved.json()["answer"]
+    # The lost response is not registered twice: still exactly one turn for that request.
+    assert [e.request_id for e in repository.get(sid, "demo-stack").events] == ["ok", "q2"]
+
+
 def test_mcp_service_rejects_missing_or_wrong_bearer(stack):
     import httpx
 
