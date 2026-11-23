@@ -6,11 +6,23 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from .case_store import CaseStore
+from .integration.feedback import treatment_evidence_by_item
 from .integration.runtime import IntegrationRuntime
 from .integration.tools import _event_digest
 from .models import ScoreSnapshot
 from .scoring import student_score_snapshot
 from .storage import ConcurrentUpdateError, SessionRepository
+
+
+def _model_stage_comments(runtime: IntegrationRuntime, session_id: str, owner_id: str) -> dict[str, str]:
+    """The model's original stage comments (before any teacher edit), if a real draft exists."""
+    try:
+        feedback = runtime.feedback_store.get(session_id, owner_id)
+    except Exception:
+        return {}
+    if not feedback or feedback.get("source") != "nexent":
+        return {}
+    return {item.get("stage", ""): item.get("comment", "") for item in feedback.get("items", [])}
 
 
 class ScoreDecision(BaseModel):
@@ -72,6 +84,7 @@ def build_router(get_repository: Callable[[], SessionRepository], get_cases: Cal
              _: str = Depends(current_teacher)) -> dict:
         state, case = context(session_id, owner_id)
         reviews = get_runtime().score_reviews.list(session_id, owner_id)
+        model_comments = _model_stage_comments(get_runtime(), session_id, owner_id)
         return {"session_id": session_id, "owner_id": owner_id,
                 "case": {"title": case.title, "public_id": case.public_id, "version": case.version},
                 "original_score": state.score_snapshot.model_dump(mode="json"), "reviews": reviews,
@@ -81,7 +94,9 @@ def build_router(get_repository: Callable[[], SessionRepository], get_cases: Cal
                 + [{"item_id": "exam_stewardship", "description": "检查合理性（避免无关检查）", "stage": "检查选择"}],
                 "submissions": {"diagnosis": state.diagnosis_submission, "differential": state.differential_submission,
                                 "treatment": state.treatment_submission}, "case_notes": state.case_notes,
-                "basis_coverage": get_runtime().knowledge.coverage(case.case_id, case.version)}
+                "basis_coverage": get_runtime().knowledge.coverage(case.case_id, case.version),
+                "treatment_evidence": treatment_evidence_by_item(state, case),
+                "model_comments": model_comments}
 
     @router.post("/{session_id}")
     def save(session_id: str, request: ScoreReviewRequest, teacher_id: str = Depends(current_teacher)) -> dict:

@@ -320,38 +320,88 @@ def _safe_evidence_text(text: str, case: CaseDefinition) -> bool:
 
 
 def treatment_evidence(state: SessionState, case: CaseDefinition) -> dict[str, Any]:
-    """Sealed records directly relevant to treatment timing, safe to show the model.
+    """Per-treatment sealed records: execution status plus the directly related returned exams.
 
-    Only exam results that were actually returned (ready before sealing) are listed, each with the
-    simulated time it became visible; executed treatments are listed with their execution time.
-    Records are omitted when their text is not safe to forward. This proves visibility, not that
-    the student read a result, and never asserts causation for any clinical change.
+    Only facts with a clear link (a case delay rule ties its anchor exam to the exclusion
+    treatment) and safe text are listed. Filtered or unmappable records are omitted — never
+    asserted as not-happened — and internal ids are never emitted.
     """
+    anchor_by_treatment: dict[str, str] = {}
+    for rule in case.rules:
+        if rule.delay_anchor_exam is not None:
+            for treatment_id in rule.delay_exclusion_treatments:
+                anchor_by_treatment[treatment_id] = rule.delay_anchor_exam
     exam_by_id = {exam.exam_id: exam for exam in case.exams}
-    visible_at: dict[str, int] = {}
+    returned: dict[str, dict[str, Any]] = {}
     for event in state.events:
         for exam_id in event.result.get("ready_exam_ids", []):
-            if exam_id not in visible_at:
-                visible_at[exam_id] = event.sim_time
-    returned: list[dict[str, Any]] = []
-    for exam_id, sim_time in sorted(visible_at.items(), key=lambda kv: (kv[1], kv[0])):
-        exam = exam_by_id.get(exam_id)
-        if exam is None or exam.result is None or not _safe_evidence_text(exam.standard_name + exam.result, case):
-            continue
-        returned.append({"检查": exam.standard_name, "结果": exam.result, "回报时间分": sim_time})
-    treatment_names = {treatment.treatment_id: treatment.name for treatment in case.treatments}
+            if exam_id in returned:
+                continue
+            exam = exam_by_id.get(exam_id)
+            if exam is not None and exam.result and _safe_evidence_text(exam.standard_name + exam.result, case):
+                returned[exam_id] = {"检查": exam.standard_name, "结果": exam.result,
+                                     "回报时间分": event.sim_time}
     executed_at: dict[str, int] = {}
     for event in state.events:
         if event.action == ActionKind.EXECUTE_TREATMENT and event.executed:
             treatment_id = str(event.payload.get("treatment_id", ""))
             if treatment_id not in executed_at:
                 executed_at[treatment_id] = event.sim_time
-    executed: list[dict[str, Any]] = []
-    for treatment_id, sim_time in sorted(executed_at.items(), key=lambda kv: (kv[1], kv[0])):
-        name = treatment_names.get(treatment_id, treatment_id)
-        if _safe_evidence_text(name, case):
-            executed.append({"处置": name, "执行时间分": sim_time})
-    return {"封存时间分": state.seal_sim_time, "已回报检查": returned, "已执行处置": executed}
+    entries: list[dict[str, Any]] = []
+    for treatment in case.treatments:
+        if not _safe_evidence_text(treatment.name, case):
+            continue  # omit the entry entirely instead of asserting anything about it
+        anchor = anchor_by_treatment.get(treatment.treatment_id)
+        related = [dict(returned[anchor])] if anchor and anchor in returned else []
+        exec_time = executed_at.get(treatment.treatment_id)
+        entries.append({
+            "处置": treatment.name,
+            "执行状态": f"{exec_time}分已执行" if exec_time is not None else "未见执行记录",
+            "相关已回报检查": related,
+        })
+    return {"封存时间分": state.seal_sim_time, "治疗依据": entries}
+
+
+def treatment_evidence_by_item(state: SessionState, case: CaseDefinition) -> dict[str, dict[str, Any]]:
+    """Per-treatment-item sealed evidence for the teacher review page (teacher-facing facts).
+
+    For each treatment: the directly related returned exam with its visible time and the sealed
+    event id (locatable), the execution status derived from the complete pre-seal event list, and
+    the seal time. A missing execution is a real absence in the event list, never a fake event.
+    """
+    anchor_by_treatment: dict[str, str] = {}
+    for rule in case.rules:
+        if rule.delay_anchor_exam is not None:
+            for treatment_id in rule.delay_exclusion_treatments:
+                anchor_by_treatment[treatment_id] = rule.delay_anchor_exam
+    exam_by_id = {exam.exam_id: exam for exam in case.exams}
+    returned: dict[str, dict[str, Any]] = {}
+    for event in state.events:
+        for exam_id in event.result.get("ready_exam_ids", []):
+            if exam_id in returned:
+                continue
+            exam = exam_by_id.get(exam_id)
+            if exam is not None and exam.result:
+                returned[exam_id] = {"检查": exam.standard_name, "结果": exam.result,
+                                     "回报时间分": event.sim_time, "event_id": event.event_id}
+    executed_at: dict[str, int] = {}
+    for event in state.events:
+        if event.action == ActionKind.EXECUTE_TREATMENT and event.executed:
+            treatment_id = str(event.payload.get("treatment_id", ""))
+            if treatment_id not in executed_at:
+                executed_at[treatment_id] = event.sim_time
+    out: dict[str, dict[str, Any]] = {}
+    for treatment in case.treatments:
+        anchor = anchor_by_treatment.get(treatment.treatment_id)
+        exec_time = executed_at.get(treatment.treatment_id)
+        out[treatment.treatment_id] = {
+            "处置": treatment.name,
+            "已执行": exec_time is not None,
+            "执行时间分": exec_time,
+            "相关已回报检查": [dict(returned[anchor])] if anchor and anchor in returned else [],
+            "封存时间分": state.seal_sim_time,
+        }
+    return out
 
 
 class FeedbackService:
@@ -417,13 +467,12 @@ class FeedbackService:
             "训练已封存。以下各环节依次列出分项得分与满分；未满分项附注一条封存评分能够证明的教学动作缺口，"
             "格式为「教学动作：状态」。缺口只说明记录缺失、部分完成或待教师判断，"
             "不得把「未找到记录」理解为患者没有该症状。仅作为反馈数据。"
-            "另附封存时已确定的检查回报与处置执行记录（含模拟时间）：只有「已回报检查」列出的才是已回报、"
-            "学生可见的结果，未列出的检查未回报，不得引用其结果；处置执行以「已执行处置」为准，"
-            "不得把未见执行写成执行过，也不得写成执行得太晚；评语只陈述已回报与未执行的事实，"
-            "不得断言病情变化由未执行处置导致。"
-            "治疗环节评语必须依据封存记录撰写，按「已回报检查→此后未执行的处置」结构："
-            "先说明已回报的关键检查及回报时间（如「心电图在5分已回报」），再说明此后至封存未见执行的处置；"
-            "已回报检查为空时只说明未执行的处置，不得提及任何检查结果或数值。"
+            "另附与治疗环节直接相关的封存记录（含模拟时间）：「治疗依据」逐项给出处置的执行状态"
+            "（已执行的时间或未见执行记录）及该处置直接相关的已回报检查；"
+            "只可引用列出的检查，未列出的检查与本条无关；执行状态以列表为准，"
+            "不得把未见执行记录写成执行过，也不得写成执行得太晚；评语只陈述已回报与执行状态的事实，"
+            "不得断言病情变化由未执行处置导致。治疗环节评语按「相关已回报检查→执行状态」陈述；"
+            "没有相关已回报检查时只说明执行状态。"
             + json.dumps({"环节": stage_summary, "封存记录": treatment_evidence(state, case)},
                          ensure_ascii=False, separators=(",", ":"))
             + "请根据封存训练与下游可信工具提供的教学依据，每个环节写一句评语和一句改进建议，"

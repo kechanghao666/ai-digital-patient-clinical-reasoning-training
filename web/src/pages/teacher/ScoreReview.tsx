@@ -5,11 +5,17 @@ import type { ScoreSnapshot } from "../../types";
 import { Pick, JsonView, Msg, Panel, useAction } from "../../ui";
 
 export interface Digest { event_id: string; seq: number; action: string; sim_time: number; question?: string; answer?: string; exam?: string; [k: string]: unknown; }
+interface TreatmentEvidence {
+  处置: string; 已执行: boolean; 执行时间分: number | null;
+  相关已回报检查: { 检查: string; 结果: string; 回报时间分: number; event_id: string }[];
+  封存时间分: number;
+}
 interface Record_ {
   session_id: string; owner_id: string; case: { title: string; public_id: string; version: number };
   original_score: ScoreSnapshot; reviews: { revision: number; snapshot: ScoreSnapshot; reason: string; teacher_id: string; created_at: string }[];
   current_revision: number; events: Digest[]; rubric: { item_id: string; description: string; stage: string }[];
   submissions: Record<string, unknown>; case_notes: string; basis_coverage: { missing_clinical_stages: string[] };
+  treatment_evidence: Record<string, TreatmentEvidence>; model_comments: Record<string, string>;
 }
 interface Decision { item_id: string; score: number; reason: string; evidence_event_ids: string[]; }
 
@@ -132,6 +138,25 @@ export function ScoreReview({ params }: { params: URLSearchParams }) {
                           <button type="button" className="btn" style={{ marginTop: 4 }} onClick={viewConsultation}>查看封存前事件</button>
                         </div>
                       )
+                    )}
+                    {original.stage === "治疗" && record.treatment_evidence[original.item_id] && (() => {
+                      const te = record.treatment_evidence[original.item_id];
+                      return (
+                        <div className="small" style={{ marginTop: 6, borderLeft: "2px solid var(--line-2)", paddingLeft: 8 }}>
+                          <div className="faint">封存记录依据（系统整理，非模型生成）</div>
+                          {te.相关已回报检查.map((r) => (
+                            <div key={r.event_id} className="row" style={{ gap: 6, alignItems: "center", marginTop: 2 }}>
+                              <span>{r.回报时间分} 分：{r.检查}已回报（{r.结果}）</span>
+                              <button type="button" className="btn" onClick={() => locateEvidence(original.item_id, [r.event_id], 0)}>定位回报</button>
+                            </div>
+                          ))}
+                          {te.相关已回报检查.length === 0 && <div>封存时未见相关检查的回报结果</div>}
+                          <div>{te.已执行 ? `${te.执行时间分} 分已执行「${te.处置}」处置` : `截至 ${te.封存时间分} 分封存，未见「${te.处置}」处置执行记录`}</div>
+                        </div>
+                      );
+                    })()}
+                    {original.stage === "治疗" && record.model_comments["治疗"] && (
+                      <div className="small muted" style={{ marginTop: 4 }}>模型原评语（治疗环节，教师修改前）：{record.model_comments["治疗"]}</div>
                     )}
                     <details className="fold"><summary>证据 {d.evidence_event_ids.length} 条{d.score > 0 && !d.evidence_event_ids.length ? "（得分项须引用证据）" : ""}</summary>
                       <div><Pick label="选择封存前事件" items={events} value={d.evidence_event_ids} onChange={(v) => update(i, { evidence_event_ids: v })} /></div></details>

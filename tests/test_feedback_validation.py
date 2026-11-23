@@ -163,14 +163,14 @@ def test_treatment_evidence_keeps_each_return_time(tmp_path, monkeypatch):
     state = api.repository.get(sid, "demo-cfg")
     case = api.store.get(state.case_id, state.case_version)
     evidence = treatment_evidence(state, case)
-    by_name = {r["检查"]: r for r in evidence["已回报检查"]}
-    assert by_name["心电图"]["回报时间分"] == 5
-    assert by_name["肌钙蛋白"]["回报时间分"] == 65
+    by_treatment = {t["处置"]: t for t in evidence["治疗依据"]}
+    related = by_treatment["再灌注路径"]["相关已回报检查"]
+    assert related == [{"检查": "心电图", "结果": "II/III/aVF导联ST段抬高", "回报时间分": 5}]
+    assert by_treatment["再灌注路径"]["执行状态"] == "未见执行记录"
     assert evidence["封存时间分"] == 65
-    assert evidence["已执行处置"] == []
 
 
-def test_treatment_evidence_lists_executed_treatments(tmp_path, monkeypatch):
+def test_treatment_evidence_timely_execution_is_recorded_as_executed(tmp_path, monkeypatch):
     """Timely execution is recorded as executed, never as a missing action."""
     from app.integration.feedback import treatment_evidence
     from test_cases_config import Api
@@ -184,22 +184,48 @@ def test_treatment_evidence_lists_executed_treatments(tmp_path, monkeypatch):
     state = api.repository.get(sid, "demo-cfg")
     case = api.store.get(state.case_id, state.case_version)
     evidence = treatment_evidence(state, case)
-    assert [t["处置"] for t in evidence["已执行处置"]] == ["再灌注路径"]
-    assert evidence["已执行处置"][0]["执行时间分"] == 5
+    entry = next(t for t in evidence["治疗依据"] if t["处置"] == "再灌注路径")
+    assert entry["执行状态"] == "5分已执行"
+    assert entry["相关已回报检查"][0]["回报时间分"] == 5
 
 
-def test_compact_query_order_without_return_omits_results(tmp_path, monkeypatch):
-    """An ordered-but-unreturned exam must not leak its result text into the model input."""
+def test_treatment_evidence_unrelated_exams_do_not_mix_in(tmp_path, monkeypatch):
+    """An unrelated exam return must not appear inside a treatment's related returns."""
+    from app.integration.feedback import treatment_evidence
+    from test_cases_config import Api
+
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start("CASE-001")
+    from app import exam_catalog
+    unrelated = exam_catalog.entry_for_name("腹部超声").catalog_id
+    api.act(sid, "order_exam", {"exam_id": "ex_ecg"})
+    api.act(sid, "order_exam", {"exam_id": unrelated})  # unrelated to any STEMI treatment
+    api.wait(sid, 5)
+    api.seal_and_score(sid)
+    state = api.repository.get(sid, "demo-cfg")
+    case = api.store.get(state.case_id, state.case_version)
+    evidence = treatment_evidence(state, case)
+    for entry in evidence["治疗依据"]:
+        names = [r["检查"] for r in entry["相关已回报检查"]]
+        assert "腹部超声" not in names
+    assert next(t for t in evidence["治疗依据"] if t["处置"] == "再灌注路径")["相关已回报检查"][0]["检查"] == "心电图"
+
+
+def test_compact_query_omits_filtered_records_without_asserting_them_missing(tmp_path, monkeypatch):
+    """Filtered-out records are absent, and the prompt never claims unlisted means not returned."""
     from app.integration.feedback import FeedbackService
     from test_cases_config import Api
 
     api = Api(tmp_path, monkeypatch)
     sid = api.start("CASE-001")
     api.act(sid, "order_exam", {"exam_id": "ex_ecg"})
-    api.seal_and_score(sid)  # sealed with no wait -> nothing returned
+    api.seal_and_score(sid)  # ordered but never returned -> no related returns at all
     state = api.repository.get(sid, "demo-cfg")
     case = api.store.get(state.case_id, state.case_version)
     query = FeedbackService(None, None, None, None)._compact_query(state, case)
-    assert '"已回报检查":[]' in query
+    assert "未列出的检查未回报" not in query
+    assert "心电图在5分已回报" not in query  # the fixed example is gone
     assert "ST段" not in query and "抬高" not in query
     assert "心肌梗死" not in query and "stemi" not in query.casefold()
+    # the evidence block itself carries no result values for the unreturned order
+    assert '"相关已回报检查":[]' in query.replace(" ", "")
