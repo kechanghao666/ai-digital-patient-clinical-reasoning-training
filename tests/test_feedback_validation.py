@@ -142,3 +142,64 @@ def test_compact_query_content_is_what_reaches_the_model(tmp_path, monkeypatch):
     query = FeedbackService(None, None, None, None)._compact_query(state, case)
     assert "询问疼痛放射" in query and "未找到采集记录" in query
     assert "心肌梗死" not in query and "stemi" not in query.casefold()
+
+
+# --- sealed treatment evidence in the compact query --------------------------
+
+def test_treatment_evidence_keeps_each_return_time(tmp_path, monkeypatch):
+    """ECG returned at 5 min and troponin at 65 min must not be merged into one time."""
+    from app.integration.feedback import treatment_evidence
+    from test_cases_config import Api
+
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start("CASE-001")
+    api.ask(sid, "疼痛是什么性质")
+    api.ask(sid, "当时在干什么")
+    api.act(sid, "order_exam", {"exam_id": "ex_ecg"})
+    api.act(sid, "order_exam", {"exam_id": "ex_troponin"})
+    api.wait(sid, 5)
+    api.wait(sid, 60)
+    api.seal_and_score(sid)
+    state = api.repository.get(sid, "demo-cfg")
+    case = api.store.get(state.case_id, state.case_version)
+    evidence = treatment_evidence(state, case)
+    by_name = {r["检查"]: r for r in evidence["已回报检查"]}
+    assert by_name["心电图"]["回报时间分"] == 5
+    assert by_name["肌钙蛋白"]["回报时间分"] == 65
+    assert evidence["封存时间分"] == 65
+    assert evidence["已执行处置"] == []
+
+
+def test_treatment_evidence_lists_executed_treatments(tmp_path, monkeypatch):
+    """Timely execution is recorded as executed, never as a missing action."""
+    from app.integration.feedback import treatment_evidence
+    from test_cases_config import Api
+
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start("CASE-001")
+    api.act(sid, "order_exam", {"exam_id": "ex_ecg"})
+    api.wait(sid, 5)
+    api.act(sid, "execute_treatment", {"treatment_id": "reperfusion_pathway", "confirm_execution": True})
+    api.seal_and_score(sid)
+    state = api.repository.get(sid, "demo-cfg")
+    case = api.store.get(state.case_id, state.case_version)
+    evidence = treatment_evidence(state, case)
+    assert [t["处置"] for t in evidence["已执行处置"]] == ["再灌注路径"]
+    assert evidence["已执行处置"][0]["执行时间分"] == 5
+
+
+def test_compact_query_order_without_return_omits_results(tmp_path, monkeypatch):
+    """An ordered-but-unreturned exam must not leak its result text into the model input."""
+    from app.integration.feedback import FeedbackService
+    from test_cases_config import Api
+
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start("CASE-001")
+    api.act(sid, "order_exam", {"exam_id": "ex_ecg"})
+    api.seal_and_score(sid)  # sealed with no wait -> nothing returned
+    state = api.repository.get(sid, "demo-cfg")
+    case = api.store.get(state.case_id, state.case_version)
+    query = FeedbackService(None, None, None, None)._compact_query(state, case)
+    assert '"已回报检查":[]' in query
+    assert "ST段" not in query and "抬高" not in query
+    assert "心肌梗死" not in query and "stemi" not in query.casefold()

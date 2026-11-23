@@ -11,7 +11,7 @@ from threading import RLock
 from typing import Any, Iterator
 
 from ..adapters import diagnosis_leak_terms
-from ..models import CaseDefinition, SessionState
+from ..models import ActionKind, CaseDefinition, SessionState
 from ..scoring import student_score_snapshot
 from ..storage import ConcurrentUpdateError, SessionRepository
 from . import turns as turn_states
@@ -312,6 +312,48 @@ def teaching_gap(item, rubric_item, case: CaseDefinition | None = None) -> str:
     return f"{action}：{status}"
 
 
+def _safe_evidence_text(text: str, case: CaseDefinition) -> bool:
+    lowered = "".join(text.casefold().split())
+    if any(marker in lowered for marker in _INTERNAL_MARKERS):
+        return False
+    return not any(term in lowered for term in diagnosis_leak_terms(case))
+
+
+def treatment_evidence(state: SessionState, case: CaseDefinition) -> dict[str, Any]:
+    """Sealed records directly relevant to treatment timing, safe to show the model.
+
+    Only exam results that were actually returned (ready before sealing) are listed, each with the
+    simulated time it became visible; executed treatments are listed with their execution time.
+    Records are omitted when their text is not safe to forward. This proves visibility, not that
+    the student read a result, and never asserts causation for any clinical change.
+    """
+    exam_by_id = {exam.exam_id: exam for exam in case.exams}
+    visible_at: dict[str, int] = {}
+    for event in state.events:
+        for exam_id in event.result.get("ready_exam_ids", []):
+            if exam_id not in visible_at:
+                visible_at[exam_id] = event.sim_time
+    returned: list[dict[str, Any]] = []
+    for exam_id, sim_time in sorted(visible_at.items(), key=lambda kv: (kv[1], kv[0])):
+        exam = exam_by_id.get(exam_id)
+        if exam is None or exam.result is None or not _safe_evidence_text(exam.standard_name + exam.result, case):
+            continue
+        returned.append({"检查": exam.standard_name, "结果": exam.result, "回报时间分": sim_time})
+    treatment_names = {treatment.treatment_id: treatment.name for treatment in case.treatments}
+    executed_at: dict[str, int] = {}
+    for event in state.events:
+        if event.action == ActionKind.EXECUTE_TREATMENT and event.executed:
+            treatment_id = str(event.payload.get("treatment_id", ""))
+            if treatment_id not in executed_at:
+                executed_at[treatment_id] = event.sim_time
+    executed: list[dict[str, Any]] = []
+    for treatment_id, sim_time in sorted(executed_at.items(), key=lambda kv: (kv[1], kv[0])):
+        name = treatment_names.get(treatment_id, treatment_id)
+        if _safe_evidence_text(name, case):
+            executed.append({"处置": name, "执行时间分": sim_time})
+    return {"封存时间分": state.seal_sim_time, "已回报检查": returned, "已执行处置": executed}
+
+
 class FeedbackService:
     def __init__(
         self,
@@ -375,7 +417,12 @@ class FeedbackService:
             "训练已封存。以下各环节依次列出分项得分与满分；未满分项附注一条封存评分能够证明的教学动作缺口，"
             "格式为「教学动作：状态」。缺口只说明记录缺失、部分完成或待教师判断，"
             "不得把「未找到记录」理解为患者没有该症状。仅作为反馈数据。"
-            + json.dumps(stage_summary, ensure_ascii=False, separators=(",", ":"))
+            "另附封存时已确定的检查回报与处置执行记录（含模拟时间）：只有「已回报检查」列出的才是已回报、"
+            "学生可见的结果，未列出的检查未回报，不得引用其结果；处置执行以「已执行处置」为准，"
+            "不得把未见执行写成执行过，也不得写成执行得太晚；评语只陈述已回报与未执行的事实，"
+            "不得断言病情变化由未执行处置导致。"
+            + json.dumps({"环节": stage_summary, "封存记录": treatment_evidence(state, case)},
+                         ensure_ascii=False, separators=(",", ":"))
             + "请根据封存训练与下游可信工具提供的教学依据，每个环节写一句评语和一句改进建议，"
             "评语须准确指出该环节的实际缺口。一次调用 submit_feedback，items 每项只含 stage、comment、improvement，"
             "设置 use_stage_basis=True。只评价得分与完成程度，不凭分数判断诊疗合理性。"
