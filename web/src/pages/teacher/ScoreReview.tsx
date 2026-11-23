@@ -13,8 +13,13 @@ interface Record_ {
 }
 interface Decision { item_id: string; score: number; reason: string; evidence_event_ids: string[]; }
 
-export const digestLabel = (e: Digest) =>
-  `#${e.seq}　${e.sim_time}分　${e.question ? `问诊：${e.question}` : e.exam ? `检查：${e.exam}` : e.action}`;
+export const digestLabel = (e: Digest) => {
+  const results = e.exam_results as { name: string }[] | undefined;
+  if (e.question) return `#${e.seq}　${e.sim_time}分　问诊：${e.question}`;
+  if (e.exam) return `#${e.seq}　${e.sim_time}分　检查：${e.exam}`;
+  if (results && results.length) return `#${e.seq}　${e.sim_time}分　回报`;
+  return `#${e.seq}　${e.sim_time}分　${e.action}`;
+};
 
 export function Lookup({ params, onLoad, title }: { params: URLSearchParams; onLoad: (owner: string, session: string) => void; title: string }) {
   const [owner, setOwner] = useState(params.get("owner") || "");
@@ -124,7 +129,7 @@ export function ScoreReview({ params }: { params: URLSearchParams }) {
                       !original.hit && (
                         <div className="small muted" style={{ marginTop: 6 }}>
                           <div>缺项说明：{original.reason || "未找到符合条件的记录"}{original.improvement ? `。建议：${original.improvement}` : ""}</div>
-                          <button type="button" className="btn" style={{ marginTop: 4 }} onClick={viewConsultation}>查看封存前问诊记录</button>
+                          <button type="button" className="btn" style={{ marginTop: 4 }} onClick={viewConsultation}>查看封存前事件</button>
                         </div>
                       )
                     )}
@@ -148,7 +153,14 @@ export function ScoreReview({ params }: { params: URLSearchParams }) {
               <div className="stack" id="sealed-events" style={{ gap: 6, maxHeight: 420, overflowY: "auto" }}>
                 {record.events.map((e) => (
                   <div key={e.event_id} id={`ev-${e.event_id}`} className={`small${located?.eventId === e.event_id ? " ev-located" : ""}`}>
-                    <b className="num" style={{ fontWeight: 500 }}>{digestLabel(e)}</b>{e.answer && <div className="muted">答：{e.answer}</div>}
+                    <b className="num" style={{ fontWeight: 500 }}>{digestLabel(e)}</b>
+                    {e.answer && <div className="muted">答：{e.answer}</div>}
+                    {(e.exam_results as { name: string; result: string }[] | undefined)?.map((r) => (
+                      <div className="muted" key={r.name}>回报：{r.name}：{r.result}</div>
+                    ))}
+                    {(e.clinical_updates as string[] | undefined)?.map((u) => (
+                      <div className="muted" key={u} style={{ color: "var(--warn)" }}>{u}</div>
+                    ))}
                   </div>
                 ))}
               </div>
