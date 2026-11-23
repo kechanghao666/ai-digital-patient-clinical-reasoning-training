@@ -245,9 +245,13 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
     const seq = ++ocrSeq.current;
     // Same criterion as the server (decoded bytes ≤ 2 MiB; for these formats the file size is the
     // decoded size), checked before reading so an oversized image never even enters the pipeline.
+    // This selection already bumped the sequence, so it OWNS the panel state: the busy flag of a
+    // superseded in-flight request is cleared here, and that request's late result will be dropped
+    // on arrival without touching this message.
     const MAX_BYTES = 2 * 1024 * 1024;
     if (file.size > MAX_BYTES) {
       setOcrDraft(null);
+      setOcrBusy(false);
       setOcrMsg("图片超过 2 MiB 限制，请压缩后重试。");
       return;
     }
