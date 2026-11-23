@@ -26,10 +26,14 @@ const BASIS_STATUS: Record<string, string> = { draft_unreviewed: "草稿，未�
 const BASIS_ALL = "全部";
 
 interface BasisSearchResult { basis_id: string; title: string; stages: string[]; applies_to_cases: string[]; sources: string[]; revision: number; score: number; text: string; }
+// Rerank reorders the already-narrowed candidates by relevance. A failed rerank returns the
+// candidates in their original order WITHOUT scores, and the UI must never invent a score.
+interface RerankResult { basis_id: string; title: string; stages: string[]; applies_to_cases: string[]; sources: string[]; revision: number; text: string; relevance_score?: number; }
 // The server echoes the exact scope it ranked, so the panel can tell "no applicable specialty
 // basis" apart from "applicable entries that scored below the match floor".
 interface BasisScope { case_id: string; case_version: number; stage: string | null; clinical_candidates: number; }
 interface BasisSearchResponse { available: boolean; reason?: string; status?: string; notice?: string; scope?: BasisScope; results: BasisSearchResult[]; }
+interface RerankResponse { available: boolean; reranked: boolean; reason?: string; status?: string; notice?: string; scope?: BasisScope; results: RerankResult[]; original_order?: string[]; }
 
 export function FeedbackReview({ params }: { params: URLSearchParams }) {
   const [record, setRecord] = useState<FbRecord | null>(null);
@@ -44,11 +48,18 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
   const [basisMsg, setBasisMsg] = useState<string | null>(null);
   const [basisNotice, setBasisNotice] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
+  const [rerankResults, setRerankResults] = useState<RerankResult[] | null>(null);
+  const [rerankMsg, setRerankMsg] = useState<string | null>(null);
+  const [rerankNotice, setRerankNotice] = useState<string | null>(null);
+  const [reranking, setReranking] = useState(false);
   const [basisStage, setBasisStage] = useState<string>(BASIS_ALL);
   const { busy, run } = useAction();
   // Monotonic id for basis searches. Switching case or stage (or starting a newer search) bumps it,
   // so a slow response from a previous scope is discarded instead of overwriting the current panel.
   const searchSeq = useRef(0);
+  // Separate monotonic id for reranks, for the same reason: a late rerank response from a previous
+  // scope or training must never overwrite the panel (or the draft) now on screen.
+  const rerankSeq = useRef(0);
   // Monotonic id for whole-record loads. Loading another training bumps it, so a slow response for a
   // previously loaded training is dropped instead of replacing the record (and draft) now on screen.
   const loadSeq = useRef(0);
@@ -58,7 +69,9 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
 
   const clearBasisResults = () => {
     searchSeq.current += 1;
+    rerankSeq.current += 1;
     setBasisResults(null); setBasisMsg(null); setBasisNotice(null); setSearching(false);
+    setRerankResults(null); setRerankMsg(null); setRerankNotice(null); setReranking(false);
   };
   // Changing the stage only clears the semantic shortlist; it never touches the review text the
   // teacher is editing.
@@ -71,7 +84,8 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
     setSaved((cur) => (cur && cur.session_id === session ? cur : null));  // keep a receipt only for its own training
     setRecord(null);
     setBasisResults(null); setBasisMsg(null); setBasisNotice(null); setBasisQuery(""); setBasisStage(BASIS_ALL);
-    searchSeq.current += 1; setSearching(false);
+    setRerankResults(null); setRerankMsg(null); setRerankNotice(null); setReranking(false);
+    searchSeq.current += 1; rerankSeq.current += 1; setSearching(false);
     try {
       const r = await get<FbRecord>(`/api/teacher/feedback/${enc(session)}?owner_id=${enc(owner)}`);
       if (seq !== loadSeq.current) return null;  // superseded by a newer load; do not replace what is on screen
@@ -160,6 +174,55 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
     } finally { if (seq === searchSeq.current) setSearching(false); }
   };
 
+  // Teacher-triggered rerank of the already-narrowed candidates. It never calls the embedding
+  // service (the scope filter alone picks the candidates), never writes anything, and never
+  // auto-cites: it only reorders the shortlist. A failed rerank keeps the original order and
+  // says so — it must never look like a successful model output, and no score is invented.
+  const rerankBasis = async () => {
+    const q = basisQuery.trim();
+    if (!q || !record) return;
+    const seq = ++rerankSeq.current;
+    const stage = basisStage === BASIS_ALL ? null : basisStage;
+    setReranking(true); setRerankMsg(null); setRerankResults(null); setRerankNotice(null);
+    try {
+      const r = await request<RerankResponse>("POST", "/api/teacher/feedback/basis/rerank", {
+        session_id: record.session_id, owner_id: record.owner_id, query: q, stage,
+      });
+      if (seq !== rerankSeq.current) return;  // superseded by a newer rerank or a case/stage switch
+      if (!r.available) {
+        if (r.reason === "rerank_unconfigured") {
+          setRerankMsg("重排序未配置，暂不可用。");
+          setRerankResults([]);
+        } else {
+          // A service failure keeps the original candidate order (returned by the server, without
+          // scores) and says so honestly — it must never look like a successful model output.
+          setRerankMsg(r.notice || "重排失败，显示原顺序。");
+          setRerankResults(r.results);
+        }
+      } else if (r.scope?.clinical_candidates === 0) {
+        // Zero candidates is an honest empty state about the scope, NOT a model failure — it must
+        // be reported before the rerank-failure branch so it never reads as "重排失败".
+        setRerankMsg("当前病例／环节暂无适用专科依据；通用反馈规范不能替代临床依据。");
+        setRerankResults([]);
+      } else if (!r.reranked) {
+        setRerankMsg(r.notice || "重排失败，显示原顺序。");
+        setRerankResults(r.results);
+      } else if (!r.results.length) {
+        setRerankMsg(r.scope?.clinical_candidates === 0
+          ? "当前病例／环节暂无适用专科依据；通用反馈规范不能替代临床依据。"
+          : "当前范围没有可重排的候选条目。");
+        setRerankResults([]);
+      } else {
+        setRerankNotice(r.notice || "草稿，未医学审核");
+        setRerankResults(r.results);
+      }
+    } catch (e) {
+      if (seq !== rerankSeq.current) return;
+      setRerankMsg(e instanceof ApiError ? e.message : "重排失败，显示原顺序。");
+      setRerankResults([]);
+    } finally { if (seq === rerankSeq.current) setReranking(false); }
+  };
+
   return (
     <div className="stack-lg">
       <div className="page-title"><h1>反馈复核</h1></div>
@@ -215,8 +278,24 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
                     onKeyDown={(e) => { if (e.key === "Enter") searchBasis(); }}
                     placeholder="输入教学要点，如：胸痛应先做心电图" maxLength={200} aria-label="语义检索教学依据" />
                   <button className="btn" disabled={searching || !basisQuery.trim()} onClick={searchBasis}>{searching ? "检索中…" : "检索"}</button>
+                  <button className="btn" disabled={reranking || !basisQuery.trim()} onClick={rerankBasis}
+                    title="对当前病例／环节的候选做相关性重排，不调用语义检索模型">{reranking ? "重排中…" : "重排"}</button>
                 </div>
                 {basisMsg && <Msg tone="warn">{basisMsg}</Msg>}
+                {rerankMsg && <Msg tone="warn">{rerankMsg}</Msg>}
+                {rerankResults && rerankResults.length > 0 && <div className="stack" style={{ gap: 6 }}>
+                  <div className="faint">重排候选 {rerankResults.length} 条　{rerankNotice || "草稿，未医学审核"}　仅辅助定位，不会自动引用。</div>
+                  {rerankResults.map((r, i) => (
+                    <div key={r.basis_id} className="small">
+                      <b style={{ fontWeight: 500 }}>{i + 1}. {r.title}</b>{" "}
+                      <span className="faint">{r.stages.join("、")}　适用：{r.applies_to_cases.join("、")}
+                        {typeof r.relevance_score === "number" && <>　相关度 {Math.round(r.relevance_score * 100)}%</>}
+                      </span>
+                      <p className="muted" style={{ whiteSpace: "pre-wrap" }}>{r.text}</p>
+                      {r.sources.map((s) => <div key={s} className="faint">来源：{s}</div>)}
+                    </div>
+                  ))}
+                </div>}
                 {basisResults && basisResults.length > 0 && <div className="stack" style={{ gap: 6 }}>
                   <div className="faint">候选 {basisResults.length} 条　{basisNotice || "草稿，未医学审核"}　仅辅助定位，不会自动引用。</div>
                   {basisResults.map((r) => (
