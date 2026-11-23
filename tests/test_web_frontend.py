@@ -40,3 +40,16 @@ def test_built_bundle_ships_the_ask_failure_notice():
     decoded = re.sub(r"\\u([0-9A-Fa-f]{4})", lambda m: chr(int(m.group(1), 16)), bundle)
     assert "未收到本次提问的结果。输入已保留，请先原样重试以确认记录。" in decoded
     assert "本轮未记录任何问诊" not in decoded
+
+
+def test_teacher_feedback_load_discards_a_superseded_record():
+    # The teacher can load training A, then load training B and start reviewing it. If A's whole-record
+    # response arrives last, it must be dropped instead of replacing the record (and the unsaved draft)
+    # now on screen, and A's failure must not surface as B's error. The page keeps a monotonic load
+    # counter and bails out once a newer load has started. There is no JS test runner in this repo, so
+    # this guards the shipped source the same way the bundle checks above guard web/dist.
+    src = (ROOT / "web/src/pages/teacher/FeedbackReview.tsx").read_text(encoding="utf-8")
+    flat = re.sub(r"\s+", "", src)
+    assert "loadSeq=useRef" in flat
+    assert "++loadSeq.current" in flat
+    assert flat.count("!==loadSeq.current") >= 2  # one after the record resolves, one on its error

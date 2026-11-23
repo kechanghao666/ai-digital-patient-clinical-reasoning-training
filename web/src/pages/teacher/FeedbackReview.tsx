@@ -47,6 +47,9 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
   // Monotonic id for basis searches. Switching case or stage (or starting a newer search) bumps it,
   // so a slow response from a previous scope is discarded instead of overwriting the current panel.
   const searchSeq = useRef(0);
+  // Monotonic id for whole-record loads. Loading another training bumps it, so a slow response for a
+  // previously loaded training is dropped instead of replacing the record (and draft) now on screen.
+  const loadSeq = useRef(0);
 
   const clearBasisResults = () => {
     searchSeq.current += 1;
@@ -57,11 +60,13 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
   const changeStage = (stage: string) => { clearBasisResults(); setBasisStage(stage); };
 
   const load = async (owner: string, session: string) => {
+    const seq = ++loadSeq.current;
     setError(null); setSaved(null); setRecord(null);
     setBasisResults(null); setBasisMsg(null); setBasisNotice(null); setBasisQuery(""); setBasisStage(BASIS_ALL);
     searchSeq.current += 1; setSearching(false);
     try {
       const r = await get<FbRecord>(`/api/teacher/feedback/${enc(session)}?owner_id=${enc(owner)}`);
+      if (seq !== loadSeq.current) return;  // superseded by a newer load; do not replace what is on screen
       const existing = Object.fromEntries((Array.isArray(r.editable_items) ? r.editable_items : []).map((i) => [i.stage, i]));
       const ids = new Set(r.events.map((e) => e.event_id));
       setItems(STAGES.map((stage) => {
@@ -71,7 +76,10 @@ export function FeedbackReview({ params }: { params: URLSearchParams }) {
           evidence_event_ids: (old.evidence_event_ids || []).filter((v: string) => ids.has(v)), basis_ids: (old.basis_ids || []).filter((v: string) => allowed.has(v)) };
       }));
       setRecord(r); setReason("");
-    } catch (e) { setError(e instanceof ApiError ? e.message : "载入失败"); }
+    } catch (e) {
+      if (seq !== loadSeq.current) return;  // a superseded load's failure must not surface on the current training
+      setError(e instanceof ApiError ? e.message : "载入失败");
+    }
   };
   const update = (i: number, patch: Partial<FbItem>) => setItems(items.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const events = (record?.events || []).map((e) => ({ id: e.event_id, label: digestLabel(e) }));
