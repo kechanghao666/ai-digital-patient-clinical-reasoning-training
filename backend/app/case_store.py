@@ -4,7 +4,7 @@ import re
 import tempfile
 from pathlib import Path
 from threading import RLock
-from typing import Iterable
+from typing import Callable, Iterable
 
 from .legacy import apply_legacy_profile
 from .models import CaseDefinition, ReviewStatus
@@ -99,7 +99,8 @@ class CaseStore:
             raise KeyError(identifier)
         return eligible[-1]
 
-    def list_public(self, include_unpublished: bool = True) -> list[dict]:
+    def list_public(self, include_unpublished: bool = True,
+                    available: Callable[[CaseDefinition], bool] | None = None) -> list[dict]:
         allowed = {ReviewStatus.PUBLISHED} | ({ReviewStatus.DRAFT} if include_unpublished else set())
         latest: dict[str, CaseDefinition] = {}
         for case in self._cases.values():
@@ -107,6 +108,8 @@ class CaseStore:
                 case.case_id not in latest or case.version > latest[case.case_id].version
             ):
                 latest[case.case_id] = case
+        # Availability is checked after picking the newest allowed version. Filtering earlier
+        # would silently fall back to an older published version when the newest one is stopped.
         return [
             {
                 "public_id": case.public_id,
@@ -117,6 +120,7 @@ class CaseStore:
                 "review_status": case.review_status.value,
             }
             for case in latest.values()
+            if available is None or available(case)
         ]
 
     def list_all(self) -> list[dict]:

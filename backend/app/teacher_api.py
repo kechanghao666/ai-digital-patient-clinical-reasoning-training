@@ -4,12 +4,14 @@ from datetime import date
 from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from .case_authoring import Issue, check_case, has_errors, schema_errors
 from .case_store import CaseStore, CaseStoreError
+from .integration.case_training import CaseTrainingStore
 from .integration.knowledge import KnowledgeStore
 from .models import CaseDefinition, ReviewStatus
+from .storage import ConcurrentUpdateError
 
 
 class PublishRequest(BaseModel):
@@ -17,6 +19,12 @@ class PublishRequest(BaseModel):
     reviewer: str
     review_date: str
     confirm_medical_review: bool
+
+
+class StopTrainingRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    reason: str = Field(min_length=1, max_length=500)
+    request_id: str = Field(min_length=1, max_length=100)
 
 
 def _parse_case(raw: Any) -> CaseDefinition:
@@ -45,7 +53,8 @@ def _summary(case: CaseDefinition) -> dict[str, Any]:
 
 
 def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[..., str],
-                 get_knowledge: Callable[[], KnowledgeStore]) -> APIRouter:
+                 get_knowledge: Callable[[], KnowledgeStore],
+                 get_training: Callable[[], CaseTrainingStore]) -> APIRouter:
     router = APIRouter(prefix="/api/teacher", tags=["teacher"])
 
     def checked_issues(case: CaseDefinition, for_publish: bool = False) -> list[Issue]:
@@ -66,7 +75,16 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
 
     @router.get("/cases")
     def list_cases(_: str = Depends(current_teacher)) -> list[dict[str, Any]]:
-        return get_store().list_all()
+        stops = get_training().all()
+        result = []
+        for item in get_store().list_all():
+            stop = stops.get((item["case_id"], item["version"]))
+            result.append({**item,
+                           "training_stopped": stop is not None,
+                           "stopped_at": stop["created_at"] if stop else None,
+                           "stopped_by": stop["teacher_id"] if stop else None,
+                           "stop_reason": stop["reason"] if stop else None})
+        return result
 
     @router.get("/cases/{case_id}/versions/{version}")
     def read_case(case_id: str, version: int, _: str = Depends(current_teacher)) -> dict[str, Any]:
@@ -146,5 +164,25 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
         return _transition(
             case_id, version, ReviewStatus.PUBLISHED, reviewer=request.reviewer, review_date=request.review_date
         )
+
+    @router.post("/cases/{case_id}/versions/{version}/stop")
+    def stop_training(case_id: str, version: int, request: StopTrainingRequest,
+                      teacher_id: str = Depends(current_teacher)) -> dict[str, Any]:
+        # Stop new trainings for one published version. Does not delete the case, rewrite the
+        # medical review fields, unseal scores, or change existing trainings.
+        store = get_store()
+        try:
+            case = store.get(case_id, version)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="病例版本不存在") from exc
+        if case.review_status != ReviewStatus.PUBLISHED:
+            raise HTTPException(status_code=409, detail="只有已发布版本可以停止新训练")
+        try:
+            record = get_training().stop(case_id, version, teacher_id, request.reason, request.request_id)
+        except ConcurrentUpdateError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {"case_id": case_id, "case_version": version, "public_id": case.public_id,
+                "stopped_at": record["created_at"], "stopped_by": record["teacher_id"],
+                "reason": record["reason"], "already_stopped": record["already_stopped"]}
 
     return router

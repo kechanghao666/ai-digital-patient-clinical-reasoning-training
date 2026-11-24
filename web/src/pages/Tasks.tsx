@@ -5,7 +5,7 @@ import { Loading, pct, useAction, useLoad } from "../ui";
 
 interface Task {
   id: string; title: string; note: string; due_date: string | null; class_name: string; case_public_id: string;
-  case: { title: string; specialty: string; chief_complaint?: string; available: boolean };
+  case: { title: string; specialty: string; chief_complaint?: string; available: boolean; unavailable_reason?: string | null };
   status: "not_started" | "in_progress" | "completed"; attempts: number; best_ratio: number | null;
   open_session_id: string | null; latest_session_id: string | null; needs_review: boolean;
 }
@@ -57,6 +57,8 @@ export function Tasks() {
                     {t.status === "completed" && t.latest_session_id && <button className="btn" onClick={() => navigate(`/training/${t.latest_session_id}`)}>查看复盘</button>}{" "}
                     <button className={`btn ${t.status === "completed" ? "" : "btn-primary"}`} disabled={!t.case.available || busy !== null} onClick={() => start(t)}>
                       {t.status === "in_progress" ? "继续" : t.status === "completed" ? "再练一次" : "开始"}</button>
+                    {!t.case.available && <div className="faint">{t.case.unavailable_reason === "stopped"
+                      ? "该版本已停止新训练，请联系教师重新选版。" : "该病例当前不可用，请联系教师。"}</div>}
                   </td>
                 </tr>
               );

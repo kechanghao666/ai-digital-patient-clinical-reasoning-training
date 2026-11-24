@@ -101,13 +101,15 @@ def current_teacher(x_owner_id: str | None = Header(default=None), authorization
 
 
 app.include_router(build_auth_router(lambda: ACCOUNTS))
-app.include_router(build_teacher_router(lambda: CASE_STORE, current_teacher, lambda: RUNTIME.knowledge))
+app.include_router(build_teacher_router(lambda: CASE_STORE, current_teacher, lambda: RUNTIME.knowledge,
+                                        lambda: RUNTIME.case_training))
 app.include_router(build_feedback_review_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: RUNTIME, current_teacher))
 app.include_router(build_score_review_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: RUNTIME, current_teacher))
 app.include_router(build_dashboard_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: ACCOUNTS, current_teacher,
                                           lambda: roster_for(ACCOUNTS)))
 app.include_router(build_roster_router(lambda: roster_for(ACCOUNTS), lambda: ACCOUNTS, lambda: REPOSITORY, lambda: CASE_STORE,
-                                       current_teacher, current_owner, _development))
+                                       current_teacher, current_owner, _development,
+                                       lambda case_id, version: RUNTIME.case_training.is_stopped(case_id, version)))
 
 
 def get_state(session_id: str, owner_id: str) -> SessionState:
@@ -327,7 +329,10 @@ def health() -> dict:
 
 @app.get("/api/cases")
 def list_cases(_: str = Depends(current_owner)) -> list[dict]:
-    listed = CASE_STORE.list_public(include_unpublished=_development())
+    listed = CASE_STORE.list_public(
+        include_unpublished=_development(),
+        available=lambda case: not RUNTIME.case_training.is_stopped(case.case_id, case.version),
+    )
     for item in listed:
         try:
             item["patient"] = _patient_profile(CASE_STORE.resolve_for_student(item["public_id"], _development()))
@@ -342,6 +347,10 @@ def create_session(case_id: str, owner_id: str = Depends(current_owner)) -> dict
         case = CASE_STORE.resolve_for_student(case_id, include_unpublished=_development())
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="病例不存在") from exc
+    if RUNTIME.case_training.is_stopped(case.case_id, case.version):
+        # Resolve the newest published version first, then refuse. Do not fall back to an older
+        # published version of the same public id.
+        raise HTTPException(status_code=409, detail="该病例版本已停止接受新训练，请联系教师重新选版")
     state = SessionState(owner_id=owner_id, case_id=case.case_id, case_version=case.version)
     REPOSITORY.create(state)
     return {

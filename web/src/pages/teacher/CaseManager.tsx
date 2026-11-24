@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from "react";
-import { ApiError, enc, get, request } from "../../api";
+import { ApiError, enc, get, mutate, request } from "../../api";
 import { REVIEW_STATUS } from "../../types";
 import { Loading, Msg, Panel, useAction, useLoad } from "../../ui";
 
-interface Version { case_id: string; public_id: string; version: number; title: string; specialty: string; review_status: string; source: string; authored_by: string | null; reviewer: string | null; review_date: string | null; }
+interface Version { case_id: string; public_id: string; version: number; title: string; specialty: string; review_status: string; source: string; authored_by: string | null; reviewer: string | null; review_date: string | null; training_stopped: boolean; stopped_at: number | null; stopped_by: string | null; stop_reason: string | null; }
 interface Issue { level: string; code: string; message: string; }
 type CaseJson = Record<string, any>;
 const ADVANCED = [["facts", "症状与体征"], ["exams", "检查与回报"], ["treatments", "模拟处置"], ["differential_options", "鉴别候选"], ["rules", "病情演进规则"], ["rubric", "评分量表"]] as const;
@@ -17,6 +17,8 @@ function newDraft(source: CaseJson): CaseJson {
   return data;
 }
 
+const fmtTime = (value?: number | null) => (value ? new Date(value * 1000).toLocaleString("zh-CN") : "");
+
 export function CaseManager({ selected }: { selected?: string }) {
   const { data: versions, error, reload } = useLoad(() => get<Version[]>("/api/teacher/cases"), []);
   const [current, setCurrent] = useState<Version | null>(null);
@@ -26,6 +28,9 @@ export function CaseManager({ selected }: { selected?: string }) {
   const [issues, setIssues] = useState<{ valid?: boolean; issues: Issue[] } | null>(null);
   const [coverage, setCoverage] = useState<{ missing_clinical_stages: string[]; notice: string } | null>(null);
   const [publish, setPublish] = useState({ reviewer: "", date: "", confirm: false });
+  const [stopOpen, setStopOpen] = useState(false);
+  const [stopReason, setStopReason] = useState("");
+  const [stopConfirm, setStopConfirm] = useState(false);
   const [filter, setFilter] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const { busy, run } = useAction();
@@ -40,6 +45,7 @@ export function CaseManager({ selected }: { selected?: string }) {
     setDraft(raw); setCurrent(meta); setIssues(null); setAdvanced(false);
     setJsonText(Object.fromEntries(ADVANCED.map(([k]) => [k, JSON.stringify(raw[k] ?? [], null, 2)])));
     setPublish({ reviewer: "", date: "", confirm: false });
+    setStopOpen(false); setStopReason(""); setStopConfirm(false);
   };
   const open = (v: Version) => run("open", async () => {
     const [raw, cov] = await Promise.all([get<CaseJson>(path(v)), get(path(v) + "/teaching-basis")]);
@@ -81,6 +87,14 @@ export function CaseManager({ selected }: { selected?: string }) {
     const list = await get<Version[]>("/api/teacher/cases");
     setCurrent(list.find((v) => v.case_id === current.case_id && v.version === current.version) || null);
   }, "状态已更新");
+  const stopVersion = () => current && run("stop", async () => {
+    await mutate(`stop-case:${current.case_id}:${current.version}`, "POST",
+      `/api/teacher/cases/${enc(current.case_id)}/versions/${current.version}/stop`, { reason: stopReason.trim() });
+    await reload();
+    const list = await get<Version[]>("/api/teacher/cases");
+    setCurrent(list.find((v) => v.case_id === current.case_id && v.version === current.version) || null);
+    setStopOpen(false); setStopReason(""); setStopConfirm(false);
+  }, "已停止该版本接受新训练，已有训练与评分保留");
   const importFile = async (file: File) => {
     try {
       const raw = JSON.parse((await file.text()).replace(/^﻿/, ""));
@@ -117,7 +131,9 @@ export function CaseManager({ selected }: { selected?: string }) {
             {grouped.map((v) => (
               <button key={`${v.case_id}-${v.version}`} className="list-item" aria-current={current?.case_id === v.case_id && current.version === v.version}
                 onClick={() => open(v)}>
-                <div className="spread"><b style={{ fontWeight: 500 }}>{v.public_id}　v{v.version}</b><span className="tag">{REVIEW_STATUS[v.review_status] || v.review_status}</span></div>
+                <div className="spread"><b style={{ fontWeight: 500 }}>{v.public_id}　v{v.version}</b>
+                  <span className="row">{v.training_stopped && <span className="tag">已停止新训练</span>}
+                    <span className="tag">{REVIEW_STATUS[v.review_status] || v.review_status}</span></span></div>
                 <span className="small">{v.title}</span>
                 <span className="faint">{v.specialty}　{v.source === "teacher" ? "教师病例" : "内置病例"}</span>
               </button>
@@ -207,7 +223,27 @@ export function CaseManager({ selected }: { selected?: string }) {
                     <div><button className="btn btn-primary" disabled={!publish.confirm || !publish.reviewer.trim() || !publish.date || busy !== null}
                       onClick={() => transition("publish", { reviewer: publish.reviewer.trim(), review_date: publish.date, confirm_medical_review: true })}>确认审核并发布</button></div>
                   </div>}
-                  {status === "published" && <Msg tone="ok">此版本已发布（审核人 {current.reviewer}，{current.review_date}）。需要修改时请复制为新草稿。</Msg>}
+                  {status === "published" && (current.training_stopped ? (
+                    <Msg tone="warn">此版本已停止接受新训练（{current.public_id} v{current.version}）：操作者 {current.stopped_by}，时间 {fmtTime(current.stopped_at)}，原因：{current.stop_reason}。已有训练与封存评分仍可按原版本回看。</Msg>
+                  ) : (
+                    <div className="stack">
+                      <Msg tone="ok">此版本已发布（审核人 {current.reviewer}，{current.review_date}）。需要修改时请复制为新草稿。</Msg>
+                      {!stopOpen && <div>
+                        <button className="btn" disabled={busy !== null} onClick={() => setStopOpen(true)}>停止新训练</button>
+                      </div>}
+                      {stopOpen && <div className="stack">
+                        <Msg tone="warn">将对 {current.public_id} v{current.version} 停止接受新训练。不会删除病例、不会改写医学审核结论、不会解封已封存评分；已有训练与评分保留。</Msg>
+                        <label className="field"><span>停止原因（教师可见）</span>
+                          <textarea className="textarea" maxLength={500} value={stopReason} onChange={(e) => setStopReason(e.target.value)} /></label>
+                        <label className="check"><input type="checkbox" checked={stopConfirm} onChange={(e) => setStopConfirm(e.target.checked)} />我确认停止该版本接受新训练</label>
+                        <div className="row">
+                          <button className="btn btn-primary" disabled={!stopReason.trim() || !stopConfirm || busy !== null}
+                            onClick={stopVersion}>{busy === "stop" ? "停止中…" : "确认停止新训练"}</button>
+                          <button className="btn" disabled={busy !== null} onClick={() => { setStopOpen(false); setStopReason(""); setStopConfirm(false); }}>取消</button>
+                        </div>
+                      </div>}
+                    </div>
+                  ))}
                 </div>
               )}
             </Panel>}

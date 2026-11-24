@@ -5,6 +5,7 @@ from functools import cached_property
 import httpx
 
 from ..adapters import PatientAdapter, SimulatorPatientAdapter
+from .case_training import CaseTrainingStore
 from .config import IntegrationSettings
 from .embedding import BasisSemanticSearch, EmbeddingClient
 from .ocr import OcrClient
@@ -40,6 +41,12 @@ class IntegrationRuntime:
     @cached_property
     def feedback_store(self) -> FeedbackStore:
         return FeedbackStore(self.settings.integration_db_path)
+
+    @cached_property
+    def case_training(self) -> CaseTrainingStore:
+        # Per-version training windows live beside the other integration records, so a process
+        # restart keeps a stopped version stopped without touching the case file itself.
+        return CaseTrainingStore(self.settings.integration_db_path)
 
     @cached_property
     def score_reviews(self) -> ScoreReviewStore:
