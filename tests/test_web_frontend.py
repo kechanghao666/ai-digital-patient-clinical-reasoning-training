@@ -42,6 +42,24 @@ def test_built_bundle_ships_the_ask_failure_notice():
     assert "本轮未记录任何问诊" not in decoded
 
 
+def test_saved_ask_event_is_merged_before_refresh_and_scoped_to_its_training():
+    # The real-browser behavior regression is web/e2e/ask-saved-answer.mjs. This source/bundle guard
+    # keeps its protocol invariant visible to the Python CI suite: consume only the saved public event,
+    # merge it before reloading, dedupe both event and request ids, and reject late cross-training writes.
+    src = (ROOT / "web/src/pages/Training.tsx").read_text(encoding="utf-8")
+    flat = re.sub(r"\s+", "", src)
+    merge = "onSavedAsk(sessionId,saved.event)"
+    refresh = "constrefreshed=awaitreload();"
+    assert merge in flat and refresh in flat
+    assert flat.index(merge) < flat.index(refresh, flat.index(merge))
+    assert "current.state.session_id!==askedSession" in flat
+    assert "e.event_id===event.event_id||e.request_id===event.request_id" in flat
+    assert "saved.answer" not in src  # never render the unprojected top-level text or an optimistic draft
+    bundle = (ROOT / "web/dist/assets/main.js").read_text(encoding="utf-8")
+    decoded = re.sub(r"\\u([0-9A-Fa-f]{4})", lambda m: chr(int(m.group(1), 16)), bundle)
+    assert "回答已保存并显示，但训练记录重新读取失败。请重新读取。" in decoded
+
+
 def test_teacher_feedback_load_discards_a_superseded_record():
     # The teacher can load training A, then load training B and start reviewing it. If A's whole-record
     # response arrives last, it must be dropped instead of replacing the record (and the unsaved draft)

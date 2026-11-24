@@ -38,6 +38,21 @@ export function Training({ sessionId, identity }: { sessionId: string; identity:
   const [ddx, setDdx] = useState<Record<string, DdxDraft>>({});
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const { busy, run } = useAction();
+  const activeSession = useRef(sessionId);
+  activeSession.current = sessionId;
+  const isActive = (askedSession: string) => activeSession.current === askedSession;
+  const onSavedAsk = (askedSession: string, event: TrainingEvent) => {
+    if (!isActive(askedSession)) return false;
+    setData((current) => {
+      if (!isActive(askedSession) || !current || current.state.session_id !== askedSession) return current;
+      // The POST event is already saved and student-filtered by the server. Merge only that event;
+      // refreshed state remains responsible for scores, clinical state and every other projection.
+      if (current.state.events.some((e) => e.event_id === event.event_id || e.request_id === event.request_id)) return current;
+      const events = [...current.state.events, event].sort((a, b) => a.seq - b.seq);
+      return { ...current, state: { ...current.state, events } };
+    });
+    return true;
+  };
 
   useEffect(() => {
     if (data && loadedFor !== data.state.session_id) {
@@ -86,7 +101,8 @@ export function Training({ sessionId, identity }: { sessionId: string; identity:
         ]} />
       </section>
 
-      {tab === "intake" && <Intake data={data} sealed={sealed} busy={busy} run={run} reload={reload} act={act} sessionId={sessionId} />}
+      {tab === "intake" && <Intake key={sessionId} data={data} sealed={sealed} busy={busy} run={run} reload={reload} act={act} sessionId={sessionId}
+        isActive={isActive} onSavedAsk={onSavedAsk} />}
 
       {tab === "reasoning" && (
         <div className="work half">
@@ -214,13 +230,15 @@ function ExamCatalog({ exams, active, disabled, onOrder }: {
   );
 }
 
-function Intake({ data, sealed, busy, run, reload, act, sessionId }: {
-  data: SessionDetail; sealed: boolean; busy: string | null; run: Run; reload: () => Promise<void>;
+function Intake({ data, sealed, busy, run, reload, act, sessionId, isActive, onSavedAsk }: {
+  data: SessionDetail; sealed: boolean; busy: string | null; run: Run; reload: () => Promise<boolean | null>;
   act: (k: string, action: string, payload: Record<string, unknown>, ok?: string) => Promise<unknown>; sessionId: string;
+  isActive: (askedSession: string) => boolean; onSavedAsk: (askedSession: string, event: TrainingEvent) => boolean;
 }) {
   const { state, options, history_coverage: coverage } = data;
   const [question, setQuestion] = useState("");
   const [askError, setAskError] = useState<{ reason: string; unconfirmed: boolean } | null>(null);
+  const [refreshFailed, setRefreshFailed] = useState(false);
   const [minutes, setMinutes] = useState(5);
   const active = new Set(state.orders.filter((o) => o.state === "pending" || o.state === "ready").map((o) => o.catalog_id || ""));
   const [latency, setLatency] = useState<number | null>(null);
@@ -231,27 +249,39 @@ function Intake({ data, sealed, busy, run, reload, act, sessionId }: {
     const q = question.trim();
     if (!q) return;
     setAskError(null);
+    setLatency(null);
     run("ask", async () => {
       const t = performance.now();
+      let saved: { event: TrainingEvent };
       try {
-        await mutate(`${sessionId}:ask`, "POST", `/api/sessions/${enc(sessionId)}/ask`, { question: q });
+        saved = await mutate<{ event: TrainingEvent }>(`${sessionId}:ask`, "POST", `/api/sessions/${enc(sessionId)}/ask`, { question: q });
       } catch (e) {
         // Keep the draft and the rest of the training state. `mutate` keeps the same request id while the
         // question is unchanged, so retrying the same text can never register a second turn; only an edited
         // question gets a new id. A network-level failure carries no response, so we cannot tell whether the
         // turn reached the server and must not claim it was not recorded. Anything we did parse is the
         // server's own verdict.
+        if (!isActive(sessionId)) return;
         const api = e instanceof ApiError ? e : null;
         setAskError(api && api.status !== 0
           ? { reason: api.message, unconfirmed: false }
           : { reason: "", unconfirmed: true });
         return;
       }
+      // Show only the server's saved, student-visible event, before waiting for the full-record refresh.
+      // A late completion for another training is dropped and must not refresh that training over this one.
+      if (!onSavedAsk(sessionId, saved.event)) return;
       setLatency(performance.now() - t);
-      setQuestion("");
-      await reload();
+      setQuestion((current) => current.trim() === q ? "" : current);
+      setRefreshFailed(false);
+      const refreshed = await reload();
+      if (isActive(sessionId) && refreshed !== null) setRefreshFailed(refreshed === false);
     });
   };
+  const reread = () => run("refresh", async () => {
+    const refreshed = await reload();
+    if (isActive(sessionId) && refreshed !== null) setRefreshFailed(refreshed === false);
+  });
   return (
     <div className="work">
       <section className="panel dialog" aria-label="问诊记录">
@@ -263,11 +293,13 @@ function Intake({ data, sealed, busy, run, reload, act, sessionId }: {
         <div className="dialog-log" ref={log} aria-live="polite">
           {state.events.length === 0 && <div className="empty">尚无记录。从患者的主诉问起。</div>}
           {state.events.map((e) => <Line key={e.event_id} event={e} examName={e.action === "order_exam" ? state.orders[ordered.indexOf(e)]?.exam_name : undefined} />)}
-          {busy === "ask" && <div className="turn patient"><span className="who">患者</span><span className="text faint">…</span></div>}
+          {busy === "ask" && latency === null && <div className="turn patient"><span className="who">患者</span><span className="text faint">…</span></div>}
         </div>
         {askError && <Msg tone="warn">{askError.unconfirmed
           ? "未收到本次提问的结果。输入已保留，请先原样重试以确认记录。"
           : `本次提问未取得有效回答（${askError.reason}）。输入已保留，请先原样重试以确认记录。`}</Msg>}
+        {refreshFailed && <Msg tone="warn">回答已保存并显示，但训练记录重新读取失败。请重新读取。
+          <button type="button" className="btn-link btn" disabled={busy !== null} onClick={reread}>重新读取</button></Msg>}
         <form className="composer" onSubmit={(e) => { e.preventDefault(); ask(); }}>
           <input className="input" placeholder={sealed ? "已提交，只读" : "输入问诊内容，回车发送"} value={question} disabled={sealed}
             onChange={(e) => { setQuestion(e.target.value); setAskError(null); }} aria-label="问诊内容" autoComplete="off" />
@@ -319,7 +351,7 @@ function Line({ event: e, examName }: { event: TrainingEvent; examName?: string 
 }
 
 function Treatment({ data, sealed, busy, run, reload, pending, sessionId, onSealed }: {
-  data: SessionDetail; sealed: boolean; busy: string | null; run: Run; reload: () => Promise<void>; pending: string[];
+  data: SessionDetail; sealed: boolean; busy: string | null; run: Run; reload: () => Promise<boolean | null>; pending: string[];
   sessionId: string; onSealed: (next: SessionDetail) => void;
 }) {
   const { state, options } = data;

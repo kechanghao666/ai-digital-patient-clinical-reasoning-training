@@ -51,13 +51,17 @@ export function useLoad<T>(loader: () => Promise<T>, deps: unknown[]) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const version = useRef(0);
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (): Promise<boolean | null> => {
     const mine = ++version.current;
     try {
       const value = await loader();
-      if (mine === version.current) { setData(value); setError(null); }
+      if (mine !== version.current) return null;
+      setData(value); setError(null);
+      return true;
     } catch (e) {
-      if (mine === version.current) setError(e instanceof ApiError ? e.message : "加载失败");
+      if (mine !== version.current) return null;
+      setError(e instanceof ApiError ? e.message : "加载失败");
+      return false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);

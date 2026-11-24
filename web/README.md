@@ -28,6 +28,8 @@ node e2e/smoke.mjs
 
 脚本默认使用的账号名是 `student` 和 `teacher`。最近一次运行的截图和结果见 `docs/evidence/web-redesign-20261113/`。
 
+学生问诊保存回执回归：使用 Node.js 20+、项目 Python 虚拟环境和本机 Chromium 浏览器。完成 `npm ci`、`npm run build` 后，在 `web/` 下运行 `node e2e/ask-saved-answer.mjs`。脚本自行启动本机合成病例服务，不需要登录或供应商密钥。可用 `CHROME` 指定浏览器；默认在系统临时目录新建报告目录，显式 `OUT` 应指定一个尚不存在的目录。验收按事件先后，不以毫秒阈值判定模型性能。
+
 ## 目录
 
 | 路径 | 内容 |
