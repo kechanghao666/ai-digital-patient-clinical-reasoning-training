@@ -7,7 +7,7 @@ interface Task {
   id: string; title: string; note: string; due_date: string | null; class_name: string; case_public_id: string;
   case: { title: string; specialty: string; chief_complaint?: string; available: boolean; unavailable_reason?: string | null };
   status: "not_started" | "in_progress" | "completed"; attempts: number; best_ratio: number | null;
-  open_session_id: string | null; latest_session_id: string | null; needs_review: boolean;
+  open_session_id: string | null; latest_sealed_session_id: string | null; needs_review: boolean;
 }
 const STATUS = { not_started: ["未开始", ""], in_progress: ["进行中", "info"], completed: ["已完成", "ok"] } as const;
 
@@ -24,7 +24,8 @@ export function Tasks() {
   const [show, setShow] = useState<"open" | "all">("open");
   const { busy, run } = useAction();
   if (!data) return <Loading error={error} onRetry={reload} />;
-  const rows = data.filter((t) => show === "all" || t.status !== "completed");
+  const open = data.filter((t) => t.open_session_id || t.status !== "completed");
+  const rows = show === "all" ? data : open;
   const start = (t: Task) => run(t.id, async () => {
     const r = await request<{ session_id: string }>("POST", `/api/assignments/${enc(t.id)}/start`);
     navigate(`/training/${r.session_id}`);
@@ -34,7 +35,7 @@ export function Tasks() {
       <div className="page-title">
         <h1>我的任务</h1>
         <div className="segmented" role="group" aria-label="筛选">
-          <button aria-pressed={show === "open"} onClick={() => setShow("open")}>待完成 {data.filter((t) => t.status !== "completed").length}</button>
+          <button aria-pressed={show === "open"} onClick={() => setShow("open")}>待完成 {open.length}</button>
           <button aria-pressed={show === "all"} onClick={() => setShow("all")}>全部 {data.length}</button>
         </div>
       </div>
@@ -54,11 +55,12 @@ export function Tasks() {
                   <td><span className={`status ${tone}`}>{label}</span>{t.needs_review && <div className="faint">部分评分待教师复核</div>}</td>
                   <td className="num">{pct(t.best_ratio)}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
-                    {t.status === "completed" && t.latest_session_id && <button className="btn" onClick={() => navigate(`/training/${t.latest_session_id}`)}>查看复盘</button>}{" "}
-                    <button className={`btn ${t.status === "completed" ? "" : "btn-primary"}`} disabled={!t.case.available || busy !== null} onClick={() => start(t)}>
-                      {t.status === "in_progress" ? "继续" : t.status === "completed" ? "再练一次" : "开始"}</button>
+                    {t.latest_sealed_session_id && <button className="btn" onClick={() => navigate(`/training/${t.latest_sealed_session_id}`)}>查看复盘</button>}{" "}
+                    <button className={`btn ${t.status === "completed" ? "" : "btn-primary"}`} disabled={(!t.case.available && !t.open_session_id) || busy !== null} onClick={() => start(t)}>
+                      {t.open_session_id ? "继续" : t.status === "completed" ? "再练一次" : "开始"}</button>
                     {!t.case.available && <div className="faint">{t.case.unavailable_reason === "stopped"
-                      ? "该版本已停止新训练，请联系教师重新选版。" : "该病例当前不可用，请联系教师。"}</div>}
+                      ? t.open_session_id ? "该版本已停止新训练，已有训练可继续。" : "该版本已停止新训练，请联系教师重新选版。"
+                      : "该病例当前不可用，请联系教师。"}</div>}
                   </td>
                 </tr>
               );

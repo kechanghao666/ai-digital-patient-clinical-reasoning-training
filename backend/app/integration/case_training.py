@@ -68,21 +68,19 @@ class CaseTrainingStore:
         with closing(self._connect()) as connection:
             connection.execute("BEGIN IMMEDIATE")
             try:
+                previous = connection.execute(
+                    "SELECT request_hash FROM case_training_stops WHERE teacher_id=? AND request_id=?",
+                    (teacher_id, request_id),
+                ).fetchone()
+                if previous and previous["request_hash"] != request_hash:
+                    raise ConcurrentUpdateError("请求编号已用于不同的停止内容，请刷新后重试")
                 existing = connection.execute(
                     "SELECT * FROM case_training_stops WHERE case_id=? AND case_version=?",
                     (case_id, case_version),
                 ).fetchone()
                 if existing:
-                    if existing["request_id"] == request_id and existing["request_hash"] != request_hash:
-                        raise ConcurrentUpdateError("请求编号已用于不同的停止内容，请刷新后重试")
                     connection.commit()
                     return {**self._record(existing), "already_stopped": True}
-                reused = connection.execute(
-                    "SELECT request_hash FROM case_training_stops WHERE teacher_id=? AND request_id=?",
-                    (teacher_id, request_id),
-                ).fetchone()
-                if reused:
-                    raise ConcurrentUpdateError("请求编号已用于其他停止操作，请刷新后重试")
                 connection.execute(
                     "INSERT INTO case_training_stops VALUES (?,?,?,?,?,?,?)",
                     (case_id, case_version, teacher_id, reason, request_id, request_hash, time.time()),

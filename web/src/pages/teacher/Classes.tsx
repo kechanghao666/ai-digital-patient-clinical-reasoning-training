@@ -6,7 +6,7 @@ import { downloadCsv, Loading, Msg, Panel, pct, useAction, useLoad } from "../..
 
 interface ClassRow { id: string; name: string; students: number; assignments: number; archived: boolean; created_at: number; }
 interface Member { id: string; username: string; display_name: string; disabled: boolean; must_change_password: boolean; trainings: number; sealed: number; average_ratio: number | null; }
-interface Progress { status: string; best_ratio: number | null; attempts: number; latest_session_id: string | null; needs_review: boolean; }
+interface Progress { status: string; best_ratio: number | null; attempts: number; latest_sealed_session_id: string | null; needs_review: boolean; }
 interface Task { id: string; title: string; case_public_id: string; due_date: string | null; note: string; case: { title: string; available: boolean };
   progress: Record<string, Progress>; completed: number; in_progress: number; average_ratio: number | null; }
 interface Detail extends Omit<ClassRow, "assignments" | "students"> { members: Member[]; assignments: Task[]; }
@@ -135,7 +135,7 @@ function ClassDetail({ classId }: { classId: string }) {
                     if (p.status === "in_progress") return <td key={t.id}><span className="status info">进行中</span></td>;
                     return <td key={t.id}><span className={`status ${p.best_ratio != null && p.best_ratio >= 0.6 ? "ok" : "warn"}`}>{pct(p.best_ratio)}</span>
                       {p.needs_review && <span className="faint"> 待复核</span>}
-                      {p.latest_session_id && <div><button className="btn-link btn small" onClick={() => navigate(`/teacher/scores?owner=${enc(m.id)}&session=${enc(p.latest_session_id!)}`)}>评分复核</button></div>}</td>;
+                      {p.latest_sealed_session_id && <div><button className="btn-link btn small" onClick={() => navigate(`/teacher/scores?owner=${enc(m.id)}&session=${enc(p.latest_sealed_session_id!)}`)}>评分复核</button></div>}</td>;
                   })}</tr>))}</tbody>
             </table></div>
           )}

@@ -202,6 +202,7 @@ def _progress(states: list[SessionState]) -> dict:
     latest = states[-1].session_id if states else None
     return {"status": status, "best_ratio": round(best, 4) if best is not None else None, "attempts": len(states),
             "open_session_id": current, "latest_session_id": latest,
+            "latest_sealed_session_id": sealed[-1].session_id if sealed else None,
             "needs_review": any(s.score_snapshot.status == "needs_review" for s in sealed)}
 
 

@@ -191,6 +191,9 @@ def test_stopping_an_old_version_does_not_affect_newer_or_fall_back(tmp_path, mo
 
     # Stopping v2 removes the public id entirely: no silent fallback to the published-but-stopped v1.
     stop(client, teacher, version=2, request_id="stop-v2")
+    conflicting = client.post(f"/api/teacher/cases/{CASE_ID}/versions/2/stop", headers=teacher,
+                              json={"reason": REASON, "request_id": "stop-v1"})
+    assert conflicting.status_code == 409
     assert client.get("/api/cases", headers=student).json() == []
     blocked = client.post(f"/api/sessions?case_id={public_id}", headers=student)
     assert blocked.status_code == 409 and "停止" in blocked.json()["detail"]
@@ -235,8 +238,17 @@ def test_assignment_start_respects_stop_and_resumes_an_open_session(tmp_path, mo
     assert started.status_code == 200, started.text
     session_id = started.json()["session_id"]
 
+    assert client.post(f"/api/sessions/{session_id}/seal", headers=student,
+                       json={"request_id": "seal-first-attempt"}).status_code == 200
+    first_sealed = session_id
+    second = client.post(f"/api/assignments/{assignment_id}/start", headers=student)
+    assert second.status_code == 200
+    session_id = second.json()["session_id"]
+    assert session_id != first_sealed
     stop(client, teacher)
     after = client.get("/api/assignments", headers=student).json()
+    assert after[0]["latest_sealed_session_id"] == first_sealed
+    assert after[0]["open_session_id"] == session_id
     assert after[0]["case"]["available"] is False
     assert after[0]["case"]["unavailable_reason"] == "stopped"
 
