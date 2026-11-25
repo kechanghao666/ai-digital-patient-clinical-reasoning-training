@@ -21,6 +21,10 @@
 
 早期演练驱动的失败与重试记录保存在证据 JSON；问题均在业务/恢复验收前暴露于临时 harness，最终全新 `run-05` 的 39 项驱动断言通过。它们不是产品测试失败。演练覆盖的是同机临时干净副本，不能表述为异机部署；未覆盖生产、在线热备份、Windows ACL、监控告警、备份保留轮转或真实业务恢复。前端类型/构建本轮已运行，不是未重跑。
 
+## 2026-11-25：文档/证据提交 b9960ad 的 GitHub CI
+
+完整 SHA `b9960ad3659c5b0492aa5979efd557a410a4b0f5` 的 Push run [45598856117](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/actions/runs/45598856117) 与 PR run [45598868887](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/actions/runs/45598868887) 均 completed/success；两次的 `tests` 与 `dependency-audit` 均通过。CI 的 `tests` 工作流包含 pytest、工程样本脚本和 Python 编译。该文档提交未改源码；本机专项 6 项、全量 740 项、前端类型/构建和浏览器流程的结果来自 `513073e` 干净克隆，不冒称在 `b9960ad` 工作区重跑。CI 不等于官方验收。
+
 ## 2026-11-25：0b34f461 基线 GitHub CI
 
 通过公开 GitHub Actions API 核验该 SHA 的两次 `Engineering checks` 工作流：Push run [45575084806](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/actions/runs/45575084806) 与 PR run [45575096301](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/actions/runs/45575096301) 均为 completed/success；两次的 `tests`、`dependency-audit` check 均为 success。此处记录的是 CI 对提交 `0b34f461` 的结果，不代表本机重跑，也不构成官方验收。
