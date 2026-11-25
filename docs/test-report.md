@@ -155,3 +155,74 @@
 | 浏览器证据敏感信息检查 | 检查复跑 JSON 结构与口令/令牌/密钥模式 | JSON 有效，匹配数 0 | 不读取任何凭据；原先浏览器摘要保留未覆盖 |
 
 **分层结论：** API/目录/发布门禁由自动化合成测试证明；教师选择和学生筛选由本机浏览器实际页面操作证明；所有模拟审核都是测试夹具。没有真实临床审核、真实院校建制、真实学生试用或真实模型运行。本轮未发现需改写病例原件或迁移既有编码的证据；官方原始附件仍未完整归档，34/143 的明细差异仍待核。
+
+## 2026-11-25：O3 问答路由修复与提交后工程抽检
+
+### 基线、评测冻结与范围
+
+- 开始时分支 `codex/feedback-protocol-fix`，本地 HEAD 与远端均为 `30028a042f7599f4fb94a4ea1cb28288baba362c`，工作区干净；该基线 Push run `45616293272`、PR run `45616301640` 的 `tests`、`dependency-audit` 通过。
+- 产品修复提交 `fd140738023b9a2daac8dac2cd1255bc80e02693`。复现探针 SHA-256 为 `c5383a0bf983b96c785a0cb47348510d4d11f74f90f4f5b72f8ccd4386f845c4`；20 轮固定工程集 SHA-256 为 `827f61361d892e474fd703ad6e7bda09813a1355ad24512a5516942f66719ada`。固定输入未修改，未将开发用例混入 20 轮。
+- 20 轮覆盖 `STEMI-001@3`、`APPY-001@2`、`STROKE-001@2`、`CAP-001@2`、`DKA-001@2`，各自仓库源文件 SHA-256 固定；均为 draft。每例四轮按预登记顺序共享一个会话，不跨病例共享。冻结输入逐轮记录意图、问题、必答/允许事实、禁止披露项、可接受无事实回答与判定规则。评测由同一开发者撰写和预登记，不是盲测；历史 40 条留出集未用于调参或本轮判定。
+- 运行环境：Windows 11 build `10.0.26300`，系统 Python `3.14.5`，本地认证、`NEXENT_MODE=simulator`、临时隔离的 `APP_DATA_DIR` 与 `INTEGRATION_DB_PATH`。运行临时开启草稿病例可见，仅用于这些合成病例的隔离工程检查；测试数据运行后已清理。真实模型/供应商调用 0 次，未读凭据或接触现存数据库/病例原件。
+
+### 修复前复现与提交后学生 API 结果
+
+- 四个对照输入使用相同关键词但不同意图：当前“现在需要做手术吗？”与历史“以前做过手术吗？”；“家里人什么时候发现症状的？”与明确的家族史问题。修前 API 2/4 正确：当前处置问题披露 APPY `f_hx`；亲属发现症状问题披露 STROKE `f_family` 而漏答 `f_care`。家族史查询会额外受到共享词语影响。
+- 修复后同一学生 API 输入为 4/4：处置决策返回固定非事实答复且事实 ID 为空；历史手术问题仍返回 `f_hx`；亲属发现症状仅返回 `f_care`；家族史问题仅返回 `f_family`。四个 API 回答均非空，所有保存事件与响应 event ID 匹配。
+- 冻结 20 轮修前事实 ID 级主结果：9/20 正确，11/20 越权披露；错误分类为可重叠：漏答 1、多答 11、越权披露 11、不当拒答 0、接口失败 0。提交后事实 ID 级主结果 20/20 通过；漏答 0、多答 0、越权披露 0、不当拒答 0、接口失败 0。类别判定保留所有 20 轮作分母，且每轮保存主结果。句内原子事实的潜在多答风险另见下文，不纳入该自动分数。
+- 四探针逐项前后报告：[`pre`](../evaluation/reports/o3_reproduction_pre_20261125.json)、[`post-commit`](../evaluation/reports/o3_reproduction_postcommit_20261125.json)。冻结 20 轮报告：[`修前`](../evaluation/reports/o3_spotcheck_pre_20261125.json)、[`产品提交后`](../evaluation/reports/o3_spotcheck_postcommit_20261125.json)。报告逐轮包含输入、完整回答、事实 ID、禁披露项、HTTP 状态、事件 ID/匹配、规则判定和适配器来源。
+
+| 轮次 | 自动主结果（事实 ID 级） | API 实际披露事实 ID | 错误标记 |
+|---|---|---|---|
+| STEMI-001-R01 | 正确 | — | — |
+| STEMI-001-R02 | 正确 | `f_allergy` | — |
+| STEMI-001-R03 | 正确 | — | — |
+| STEMI-001-R04 | 正确 | `f_family` | — |
+| APPY-001-R01 | 正确 | — | — |
+| APPY-001-R02 | 正确 | `f_hx` | — |
+| APPY-001-R03 | 正确 | — | — |
+| APPY-001-R04 | 正确 | `f_family` | — |
+| STROKE-001-R01 | 正确 | — | — |
+| STROKE-001-R02 | 正确 | `f_anticoag` | — |
+| STROKE-001-R03 | 正确 | `f_care` | — |
+| STROKE-001-R04 | 正确 | `f_family` | — |
+| CAP-001-R01 | 正确 | — | — |
+| CAP-001-R02 | 正确 | `f_surgery` | — |
+| CAP-001-R03 | 正确 | — | — |
+| CAP-001-R04 | 正确 | `f_family` | — |
+| DKA-001-R01 | 正确 | — | — |
+| DKA-001-R02 | 正确 | `f_allergy` | — |
+| DKA-001-R03 | 正确 | — | — |
+| DKA-001-R04 | 正确 | `f_family` | — |
+
+**判定粒度限制：** 上表及 20/20 只表示冻结规则按事实 ID 检查通过，不能推出句内每个原子事实都与问句意图一致。五例的 R02 都返回了整个复合事实，例如 STEMI/DKA 的 `f_allergy` 文本还含“没有药物过敏”，APPY 的 `f_hx` 还含既往健康与过敏，STROKE 的 `f_anticoag` 还含抗凝/出血信息，CAP 的 `f_surgery` 还含外伤信息。预登记输入把这些复合事实 ID 整体列为允许项，没有冻结句内拆分标准，因此自动报告的多答为 0，但这 5 轮存在待复核的语义多答风险，不能把它们按原子事实判为已过。未追改病例或冻结集，也未在本轮给出事后专家判定；下一次应另建原子事实级、事先冻结的评测，再由独立评判确认。
+
+### 复跑命令与结果
+
+为确保运行时记录的工作区干净且 HEAD 精确指向产品提交，调用方先在仓库外创建新的临时报告目录；两次运行结束后将报告归档到 `evaluation/reports/`。下面的 `<临时目录>` 需要替换成该实际目录，不要覆盖已有报告：
+
+```powershell
+py -3 -m pytest -q tests/test_natural_dialogue.py
+py -3 -m compileall -q backend scripts tests
+py -3 scripts/run_o3_spotcheck.py --dataset evaluation\o3_reproduction_probes_20261125.json --report <临时目录>\reproduction.json
+py -3 scripts/run_o3_spotcheck.py --dataset evaluation\o3_engineering_spotcheck_20261125.json --report <临时目录>\spotcheck.json
+```
+
+| 验证 | 实际结果 | 说明 |
+|---|---|---|
+| O3 专项 `tests/test_natural_dialogue.py` | **35 passed** | 在产品提交后重跑；报告中的逻辑和 API 正反例均通过 |
+| Python 编译 | `py -3 -m compileall -q backend scripts tests`：通过 | 运行后无编译错误 |
+| 四探针学生 API | **4/4 正确** | HTTP 200；实际保存事实与 API event ID 对应；报告记录临时数据已清理 |
+| 冻结 20 轮学生 API | **20/20 事实 ID 级规则通过** | 必答/允许事实 ID 匹配，回答精确渲染已保存事实或固定非事实答复；事件逐轮匹配；句内原子信息未评分 |
+| 全量离线回归 | **754 passed / 3 failed，214.72s**（757 项） | 命令 `py -3 -m pytest -q`；失败见下；不能记为全绿 |
+| 前端类型检查/构建 | 未重跑 | 本轮没有修改前端源码或构建产物 |
+| GitHub Push/PR CI（产品 SHA `fd14073…`） | Push `45627535915`、PR `45627546222`：`tests` 与 `dependency-audit` 均通过 | CI 全绿不代表本机 Python 3.14.5 的三个失败已修复，也不代表官方验收 |
+
+全量回归的三项失败均保留原断言，未因本轮 O3 修改处理：
+
+1. `tests/test_dashboard_coverage.py::test_dashboard_page_renders_and_opens_score_review`：系统 Python 3.14.5 下 Altair 5.5.0 导入时 `TypedDict(closed=True)` 报 `TypeError: _TypedDictMeta.__new__() got an unexpected keyword argument 'closed'`；单测复跑 1 failed。
+2. `tests/test_nexent_deadlines.py::test_deadline_cancels_submitted_turn_and_same_request_retries_once[patient]` 与 `[feedback]`：300ms 超时在测试模拟器 session 记录创建前已触发，随后 `records[0]` 抛 `IndexError`；专项复跑为 27 passed、2 failed，日志观测耗时 248–280ms。
+
+### 判定边界与开放状态
+
+修复前后都是本机 FastAPI 学生问诊 API、本地认证、临时合成数据库和确定性规则模拟器结果。20 轮由同一开发者预登记，不是独立盲测；病例均为草稿；没有真实模型运行、医学专家判定、真实学生样本或临床内容审核。自动规则 20/20 仅说明此冻结工程输入在提交代码上未复现已知错误，不替代正式官方 20 轮验收或 95% 判定；O3 仍标为“已实现但未达标”，第一阶段仍未准出。
