@@ -1,0 +1,218 @@
+{
+  "base_commit": "ee0a09a",
+  "model_policy": "zero real model calls; loopback fake Nexent and trusted MCP only",
+  "case_id": "CASE-001 (synthetic teaching case)",
+  "checks": [
+    {
+      "scenario": "refresh-gate",
+      "name": "POST 已保存且响应读取成功",
+      "ok": true,
+      "detail": "f0c32424-786a-44d2-be36-189d1e7afff2"
+    },
+    {
+      "scenario": "refresh-gate",
+      "name": "GET 放行前展示与 POST event 一致的问答",
+      "ok": true,
+      "detail": {
+        "posted_event": {
+          "event_id": "f0c32424-786a-44d2-be36-189d1e7afff2",
+          "request_id": "cf68348b-1ed6-4e6e-94e8-82250c1bab4c",
+          "seq": 1,
+          "action": "ask",
+          "intent": "有高血压吗",
+          "result": {
+            "answer": "有高血压10年。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      }
+    },
+    {
+      "scenario": "refresh-gate",
+      "name": "即时展示不提前改变监护与问诊结构状态",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "refresh-gate",
+      "name": "刷新成功后问答不重复",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "refresh-gate",
+      "name": "服务端仅保存一个本轮事件",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "refresh-failure",
+      "name": "刷新失败前已显示服务端确认的回答",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "refresh-failure",
+      "name": "刷新返回失败",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "refresh-failure",
+      "name": "只提示重新读取且不要求重发",
+      "ok": true,
+      "detail": "回答已保存并显示，但训练记录重新读取失败。请重新读取。\n重新读取"
+    },
+    {
+      "scenario": "refresh-failure",
+      "name": "刷新失败后已确认回答仍保留",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "refresh-failure",
+      "name": "重新读取只发 GET 且刷新后不重复",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "post-failure",
+      "name": "POST 失败保留原输入",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "post-failure",
+      "name": "POST 失败页面无新增问答",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "post-failure",
+      "name": "POST 失败服务端无新增事件",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "request-replay",
+      "name": "响应丢失后保留输入且尚未展示未确认文本",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "request-replay",
+      "name": "首次请求其实已在服务端保存一次",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "request-replay",
+      "name": "重放响应在 GET 放行前显示既有事件",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "request-replay",
+      "name": "重放复用请求编号与事件",
+      "ok": true,
+      "detail": [
+        "03813d39-2a81-401b-807f-67d1995bd511",
+        "03813d39-2a81-401b-807f-67d1995bd511"
+      ]
+    },
+    {
+      "scenario": "request-replay",
+      "name": "重放及刷新后 DOM 不重复",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "request-replay",
+      "name": "重放及刷新后服务端不重复",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "request-replay",
+      "name": "重放未再次调用本机病人替身",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "session-switch",
+      "name": "A 的迟到回答不进入 B 页面",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "session-switch",
+      "name": "A 的迟到完成不清空 B 的草稿",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "session-switch",
+      "name": "A/B 服务端写入归属正确",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "session-switch",
+      "name": "迟到 A 完成不再发起会覆盖 B 的 A 刷新",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "browser",
+      "name": "无未捕获前端脚本错误",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "scenarios": {
+    "refresh-gate": {
+      "sequence": [
+        "POST response body read",
+        "refresh GET held",
+        {
+          "mark": "DOM inspected before GET release",
+          "matches_post_event": true
+        },
+        "refresh GET released",
+        "refresh response body read"
+      ]
+    },
+    "refresh-failure": {
+      "sequence": [
+        "refresh GET released as 500"
+      ]
+    },
+    "post-failure": {
+      "sequence": [
+        "POST returned 504"
+      ]
+    },
+    "request-replay": {
+      "sequence": [
+        "first POST saved on server; browser response aborted"
+      ]
+    },
+    "session-switch": {
+      "sequence": [
+        "training A POST saved; response held"
+      ]
+    }
+  },
+  "page_errors": [],
+  "local_fake_status": {
+    "hang": 0,
+    "take": 1,
+    "calls": 5
+  },
+  "passed": true
+}
