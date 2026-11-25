@@ -3,22 +3,30 @@ import { ApiError, enc, get, mutate, request } from "../../api";
 import { REVIEW_STATUS, type DepartmentCatalog } from "../../types";
 import { Loading, Msg, Panel, useAction, useLoad } from "../../ui";
 
-interface Version { case_id: string; public_id: string; version: number; title: string; specialty: string; department_code: string | null; subspecialty_code: string | null; review_status: string; source: string; authored_by: string | null; reviewer: string | null; review_date: string | null; training_stopped: boolean; stopped_at: number | null; stopped_by: string | null; stop_reason: string | null; }
+interface Version { case_id: string; public_id: string; version: number; title: string; specialty: string; department_code: string | null; subspecialty_code: string | null; review_status: string; source: string; source_case_id: string | null; source_version: number | null; authored_by: string | null; reviewer: string | null; review_date: string | null; training_stopped: boolean; stopped_at: number | null; stopped_by: string | null; stop_reason: string | null; }
+interface AuditEvent { case_id: string; case_version: number; public_id: string; action: string; actor_id: string; occurred_at: string; status_from?: string | null; status_to?: string | null; reviewer_label?: string; review_date?: string; reason?: string; }
 interface Issue { level: string; code: string; message: string; }
 type CaseJson = Record<string, any>;
 const ADVANCED = [["facts", "症状与体征"], ["exams", "检查与回报"], ["treatments", "模拟处置"], ["differential_options", "鉴别候选"], ["rules", "病情演进规则"], ["rubric", "评分量表"]] as const;
 const STATUS_TONE: Record<string, string> = { draft: "", validated: "blue", under_review: "warn", published: "ok" };
+const AUDIT_LABEL: Record<string, string> = {
+  draft_saved: "保存草稿", case_validated: "结构校验通过", case_submitted_for_review: "提交医学审核",
+  case_withdrawn: "撤回为草稿", case_published: "发布版本", training_stopped: "停止新训练",
+};
 
-function newDraft(source: CaseJson): CaseJson {
+function newDraft(source: CaseJson, copiedFromCurrent = false): CaseJson {
   const data = structuredClone(source);
   Object.assign(data, { case_id: `TEACH-${Math.random().toString(16).slice(2, 10)}`, title: `${data.title}（新草稿）`, version: 1,
     review_status: "draft", reviewer: null, review_date: null, authored_by: null,
+    source_case_id: copiedFromCurrent ? source.case_id : (data.source_case_id || null),
+    source_version: copiedFromCurrent ? source.version : (data.source_version || null),
     department_code: data.department_code || null, subspecialty_code: data.subspecialty_code || null });
   delete data.public_id;
   return data;
 }
 
 const fmtTime = (value?: number | null) => (value ? new Date(value * 1000).toLocaleString("zh-CN") : "");
+const fmtAuditTime = (value: string) => new Date(value).toLocaleString("zh-CN");
 
 export function CaseManager({ selected }: { selected?: string }) {
   const { data: versions, error, reload } = useLoad(() => get<Version[]>("/api/teacher/cases"), []);
@@ -29,6 +37,7 @@ export function CaseManager({ selected }: { selected?: string }) {
   const [jsonText, setJsonText] = useState<Record<string, string>>({});
   const [issues, setIssues] = useState<{ valid?: boolean; issues: Issue[] } | null>(null);
   const [coverage, setCoverage] = useState<{ missing_clinical_stages: string[]; notice: string } | null>(null);
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
   const [publish, setPublish] = useState({ reviewer: "", date: "", confirm: false });
   const [stopOpen, setStopOpen] = useState(false);
   const [stopReason, setStopReason] = useState("");
@@ -51,14 +60,16 @@ export function CaseManager({ selected }: { selected?: string }) {
 
   const path = (v: { case_id: string; version: number }) => `/api/teacher/cases/${enc(v.case_id)}/versions/${v.version}`;
   const loadEditor = (raw: CaseJson, meta: Version | null) => {
-    setDraft(raw); setCurrent(meta); setIssues(null); setAdvanced(false);
+    setDraft(raw); setCurrent(meta); setIssues(null); setAdvanced(false); setAuditEvents([]);
     setJsonText(Object.fromEntries(ADVANCED.map(([k]) => [k, JSON.stringify(raw[k] ?? [], null, 2)])));
     setPublish({ reviewer: "", date: "", confirm: false });
     setStopOpen(false); setStopReason(""); setStopConfirm(false);
   };
   const open = (v: Version) => run("open", async () => {
-    const [raw, cov] = await Promise.all([get<CaseJson>(path(v)), get(path(v) + "/teaching-basis")]);
-    setCoverage(cov); loadEditor(raw, v);
+    const [raw, cov, audit] = await Promise.all([
+      get<CaseJson>(path(v)), get(path(v) + "/teaching-basis"), get<AuditEvent[]>(path(v) + "/audit"),
+    ]);
+    setCoverage(cov); loadEditor(raw, v); setAuditEvents(audit);
   });
   const set = (key: string, value: unknown) => setDraft((d) => ({ ...d!, [key]: value }));
   const compose = (): CaseJson => {
@@ -84,6 +95,7 @@ export function CaseManager({ selected }: { selected?: string }) {
       const list = await get<Version[]>("/api/teacher/cases");
       const meta = list.find((v) => v.case_id === result.case_id && v.version === result.version) || null;
       loadEditor(await get<CaseJson>(path(result)), meta);
+      setAuditEvents(await get<AuditEvent[]>(path(result) + "/audit"));
       setIssues({ issues: result.issues });
     } catch (e) {
       if (e instanceof ApiError && (e.detail as any)?.issues) setIssues({ valid: false, issues: (e.detail as any).issues });
@@ -95,6 +107,7 @@ export function CaseManager({ selected }: { selected?: string }) {
     await reload();
     const list = await get<Version[]>("/api/teacher/cases");
     setCurrent(list.find((v) => v.case_id === current.case_id && v.version === current.version) || null);
+    setAuditEvents(await get<AuditEvent[]>(path(current) + "/audit"));
   }, "状态已更新");
   const stopVersion = () => current && run("stop", async () => {
     await mutate(`stop-case:${current.case_id}:${current.version}`, "POST",
@@ -102,6 +115,7 @@ export function CaseManager({ selected }: { selected?: string }) {
     await reload();
     const list = await get<Version[]>("/api/teacher/cases");
     setCurrent(list.find((v) => v.case_id === current.case_id && v.version === current.version) || null);
+    setAuditEvents(await get<AuditEvent[]>(path(current) + "/audit"));
     setStopOpen(false); setStopReason(""); setStopConfirm(false);
   }, "已停止该版本接受新训练，已有训练与评分保留");
   const importFile = async (file: File) => {
@@ -144,7 +158,7 @@ export function CaseManager({ selected }: { selected?: string }) {
                   <span className="row">{v.training_stopped && <span className="tag">已停止新训练</span>}
                     <span className="tag">{REVIEW_STATUS[v.review_status] || v.review_status}</span></span></div>
                 <span className="small">{v.title}</span>
-                <span className="faint">{v.specialty}　{v.source === "teacher" ? "教师病例" : "内置病例"}</span>
+                <span className="faint">{v.specialty}　{v.source === "teacher" ? "教师病例" : "内置病例"}{v.source_case_id && `　来源 ${v.source_case_id} v${v.source_version}`}</span>
               </button>
             ))}
           </div>
@@ -155,9 +169,10 @@ export function CaseManager({ selected }: { selected?: string }) {
             {deptCatalog && !deptCatalog.configured && <Msg tone="warn">部署尚未配置院校启用目录。教师无权修改此设置；请部署管理员运行 scripts/configure_department_catalog.py。</Msg>}
             {coverage?.missing_clinical_stages?.length && current ? <Msg tone="warn">该病例缺少专科临床依据：{coverage.missing_clinical_stages.join("、")}。</Msg> : null}
             <Panel title={current ? `${current.public_id}　v${current.version}　${REVIEW_STATUS[current.review_status]}` : "新草稿（未保存）"} actions={<>
-              {current && <button className="btn " onClick={() => loadEditor(newDraft(draft), null)}>复制为新草稿</button>}
+              {current && <button className="btn " onClick={() => loadEditor(newDraft(draft, true), null)}>复制为新草稿</button>}
               <button className="btn " onClick={download}>下载 JSON</button></>}>
               <div className="stack">
+                {draft.source_case_id && <Msg tone="info">来源病例：{draft.source_case_id} v{draft.source_version}。保存后该来源不可更改。</Msg>}
                 <div className="form-grid">
                   <label className="field"><span>病例编号</span><input className="input mono" value={draft.case_id || ""} onChange={(e) => set("case_id", e.target.value)} />
                     <small>3–40 位字母、数字、短横线或下划线</small></label>
@@ -278,6 +293,18 @@ export function CaseManager({ selected }: { selected?: string }) {
                   ))}
                 </div>
               )}
+            </Panel>}
+            {current?.source === "teacher" && <Panel title="病例操作审计">
+              {auditEvents.length === 0 ? <div className="empty">未发现已记录的操作事件；功能启用前的历史操作可能未留痕</div> : <div className="stack">
+                {auditEvents.map((event, index) => <div className="spread" key={`${event.action}-${event.occurred_at}-${index}`}>
+                  <div><b>{AUDIT_LABEL[event.action] || event.action}</b>
+                    {event.status_from && event.status_to && <span className="faint">　{REVIEW_STATUS[event.status_from] || event.status_from} → {REVIEW_STATUS[event.status_to] || event.status_to}</span>}
+                    {event.reviewer_label && <div className="faint">审核人声明：{event.reviewer_label}（系统未核验资质）</div>}
+                    {event.reason && <div className="faint">原因：{event.reason}</div>}
+                  </div>
+                  <span className="faint">{fmtAuditTime(event.occurred_at)} · {event.actor_id}</span>
+                </div>)}
+              </div>}
             </Panel>}
           </div>
         )}

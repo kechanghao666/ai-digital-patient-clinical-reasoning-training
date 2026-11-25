@@ -192,6 +192,8 @@ class CaseDefinition(BaseModel):
     reviewer: str | None = None
     review_date: str | None = None
     sources: list[str] = Field(default_factory=list)
+    source_case_id: str | None = None
+    source_version: int | None = Field(default=None, ge=1)
     chief_complaint: str
     facts: list[Fact] = Field(min_length=1)
     exams: list[ExamDefinition] = Field(default_factory=list)
@@ -308,6 +310,10 @@ class CaseDefinition(BaseModel):
                     raise ValueError(f"differential rule {rubric.item_id} requires more opposing keys than defined")
             if rubric.evidence_type == "ddx_evidence" and option_ids and rubric.item_id not in option_ids:
                 raise ValueError(f"differential rubric {rubric.item_id} is not in differential_options")
+        if (self.source_case_id is None) != (self.source_version is None):
+            raise ValueError("source_case_id and source_version must be set together")
+        if self.source_case_id == self.case_id:
+            raise ValueError("a case cannot cite itself as its source")
         if self.review_status == ReviewStatus.PUBLISHED and (not self.reviewer or not self.review_date):
             raise ValueError("published case requires reviewer and review_date")
         return self

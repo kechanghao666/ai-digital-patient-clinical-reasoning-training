@@ -37,7 +37,11 @@ def step(api: Api, case_id: str, version: int, name: str, body=None):
     )
 
 
-PUBLISH = {"reviewer": "示例审核者", "review_date": "2026-11-01", "confirm_medical_review": True}
+PUBLISH = {
+    "reviewer": "模拟审核（测试夹具，非真实医学审核）",
+    "review_date": "2026-11-01",
+    "confirm_medical_review": True,
+}
 
 
 def test_only_teachers_may_use_teacher_routes(tmp_path, monkeypatch):
@@ -144,7 +148,7 @@ def test_review_and_publish_workflow_is_enforced(tmp_path, monkeypatch):
     published = step(api, "TEACH-001", 1, "publish", PUBLISH)
     assert published.status_code == 200 and published.json()["review_status"] == "published"
     case = api.client.get("/api/teacher/cases/TEACH-001/versions/1", headers=TEACHER).json()
-    assert case["reviewer"] == "示例审核者" and case["review_date"] == "2026-11-01"
+    assert case["reviewer"] == PUBLISH["reviewer"] and case["review_date"] == "2026-11-01"
     assert step(api, "TEACH-001", 1, "withdraw").status_code == 409  # published content is final
     assert step(api, "TEACH-001", 1, "validate").status_code == 409
 
@@ -243,6 +247,84 @@ def test_saved_file_is_valid_json_and_has_no_temp_leftovers(tmp_path, monkeypatc
     api = Api(tmp_path, monkeypatch)
     put(api, new_case())
     files = sorted(p.name for p in (tmp_path / "teacher_cases").iterdir())
-    assert files == ["TEACH-001__v1.json"]
-    data = json.loads((tmp_path / "teacher_cases" / files[0]).read_text(encoding="utf-8"))
+    assert files == ["TEACH-001__v1.json", "case-audit.jsonl"]
+    data = json.loads((tmp_path / "teacher_cases" / "TEACH-001__v1.json").read_text(encoding="utf-8"))
     assert data["authored_by"] == "teacher-wang" and data["review_status"] == "draft"
+
+
+def test_copy_source_is_validated_immutable_and_visible_in_audit(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    copied = new_case("TEACH-LINEAGE", source_case_id="APPY-001", source_version=1)
+    saved = put(api, copied)
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["source_case_id"] == "APPY-001"
+    assert saved.json()["source_version"] == 1
+
+    stored = api.client.get("/api/teacher/cases/TEACH-LINEAGE/versions/1", headers=TEACHER).json()
+    assert (stored["source_case_id"], stored["source_version"]) == ("APPY-001", 1)
+    for action in ("validate", "submit-review", "withdraw", "validate", "submit-review"):
+        response = step(api, "TEACH-LINEAGE", 1, action)
+        assert response.status_code == 200, response.text
+    assert step(api, "TEACH-LINEAGE", 1, "publish", PUBLISH).status_code == 200
+
+    events = api.client.get("/api/teacher/cases/TEACH-LINEAGE/versions/1/audit", headers=TEACHER)
+    assert events.status_code == 200, events.text
+    assert [event["action"] for event in events.json()] == [
+        "draft_saved", "case_validated", "case_submitted_for_review", "case_withdrawn",
+        "case_validated", "case_submitted_for_review", "case_published",
+    ]
+    assert all(event["actor_id"] == "teacher-wang" for event in events.json())
+    published = events.json()[-1]
+    assert published["reviewer_label"] == PUBLISH["reviewer"]
+    assert published["department_code"] == "04"
+    assert published["source_case_id"] == "APPY-001" and published["source_version"] == 1
+    audit_text = (tmp_path / "teacher_cases" / "case-audit.jsonl").read_text(encoding="utf-8")
+    assert '"facts"' not in audit_text and "患者回答" not in audit_text
+
+    revised = {**stored, "title": "第二版草稿"}
+    second = put(api, revised)
+    assert second.status_code == 200 and second.json()["version"] == 2
+    assert (second.json()["source_case_id"], second.json()["source_version"]) == ("APPY-001", 1)
+    changed_lineage = new_case(
+        "TEACH-LINEAGE", source_case_id="STEMI-001", source_version=3,
+    )
+    assert put(api, changed_lineage).status_code == 409
+
+
+def test_corrupt_audit_log_returns_service_unavailable(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    assert put(api, new_case("TEACH-CORRUPT-AUDIT")).status_code == 200
+    audit_path = tmp_path / "teacher_cases" / "case-audit.jsonl"
+    audit_path.write_bytes(bytes((0xFF, 0xFE)))
+
+    response = api.client.get(
+        "/api/teacher/cases/TEACH-CORRUPT-AUDIT/versions/1/audit", headers=TEACHER
+    )
+    assert response.status_code == 503
+    assert response.json()["detail"] == "病例审计记录不可读取"
+
+
+def test_invalid_copy_source_is_rejected_and_audit_failure_rolls_back_save(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    invalid = new_case("TEACH-MISSING-SOURCE", source_case_id="MISSING-CASE", source_version=1)
+    assert put(api, invalid).status_code == 409
+    partial = new_case("TEACH-PARTIAL-SOURCE", source_case_id="APPY-001", source_version=None)
+    assert put(api, partial).status_code == 422
+    assert api.client.get("/api/teacher/cases/TEACH-MISSING-SOURCE/versions/1", headers=TEACHER).status_code == 404
+
+    assert put(api, new_case("TEACH-AUDIT-BASE")).status_code == 200
+    audit_path = tmp_path / "teacher_cases" / "case-audit.jsonl"
+    audit_before = audit_path.read_bytes()
+
+    def fail_after_partial_audit(case, *args, **kwargs):
+        audit_path = api.store.teacher_dir / "case-audit.jsonl"
+        with audit_path.open("ab") as stream:
+            stream.write(b'{"partial":')
+        raise OSError("synthetic audit write failure after partial append")
+
+    monkeypatch.setattr(api.store, "_append_audit", fail_after_partial_audit)
+    response = put(api, new_case("TEACH-AUDIT-FAIL"))
+    assert response.status_code == 409
+    assert api.client.get("/api/teacher/cases/TEACH-AUDIT-FAIL/versions/1", headers=TEACHER).status_code == 404
+    assert not list((tmp_path / "teacher_cases").glob("TEACH-AUDIT-FAIL__v*.json"))
+    assert audit_path.read_bytes() == audit_before

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -55,6 +55,8 @@ def _summary(case: CaseDefinition) -> dict[str, Any]:
         "public_id": case.public_id,
         "review_status": case.review_status.value,
         "authored_by": case.authored_by,
+        "source_case_id": case.source_case_id,
+        "source_version": case.source_version,
     }
 
 
@@ -167,6 +169,10 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
             store.check_identifiers(case)
         except CaseStoreError as exc:
             issues.append(Issue("error", "identifier_conflict", str(exc)))
+        try:
+            store.check_source(case)
+        except CaseStoreError as exc:
+            issues.append(Issue("error", "source_reference", str(exc)))
         return {"valid": not has_errors(issues), "issues": _issues(issues)}
 
     @router.put("/cases/{case_id}")
@@ -198,7 +204,9 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {**_summary(stored), "issues": _issues(checked_issues(stored))}
 
-    def _transition(case_id: str, version: int, target: ReviewStatus, **extra: Any) -> dict[str, Any]:
+    def _transition(
+        case_id: str, version: int, target: ReviewStatus, actor_id: str, **extra: Any
+    ) -> dict[str, Any]:
         store = get_store()
         try:
             current = store.get(case_id, version)
@@ -215,25 +223,26 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
             if has_errors(issues):
                 raise HTTPException(status_code=422, detail={"issues": _issues(issues)})
         try:
-            updated = store.transition(case_id, version, target, **extra)
+            updated = store.transition(case_id, version, target, actor_id=actor_id, **extra)
         except CaseStoreError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {**_summary(updated), "issues": _issues(issues)}
 
     @router.post("/cases/{case_id}/versions/{version}/validate")
-    def mark_validated(case_id: str, version: int, _: str = Depends(current_teacher)) -> dict[str, Any]:
-        return _transition(case_id, version, ReviewStatus.VALIDATED)
+    def mark_validated(case_id: str, version: int, actor_id: str = Depends(current_teacher)) -> dict[str, Any]:
+        return _transition(case_id, version, ReviewStatus.VALIDATED, actor_id)
 
     @router.post("/cases/{case_id}/versions/{version}/submit-review")
-    def submit_review(case_id: str, version: int, _: str = Depends(current_teacher)) -> dict[str, Any]:
-        return _transition(case_id, version, ReviewStatus.UNDER_REVIEW)
+    def submit_review(case_id: str, version: int, actor_id: str = Depends(current_teacher)) -> dict[str, Any]:
+        return _transition(case_id, version, ReviewStatus.UNDER_REVIEW, actor_id)
 
     @router.post("/cases/{case_id}/versions/{version}/withdraw")
-    def withdraw(case_id: str, version: int, _: str = Depends(current_teacher)) -> dict[str, Any]:
-        return _transition(case_id, version, ReviewStatus.DRAFT)
+    def withdraw(case_id: str, version: int, actor_id: str = Depends(current_teacher)) -> dict[str, Any]:
+        return _transition(case_id, version, ReviewStatus.DRAFT, actor_id)
 
     @router.post("/cases/{case_id}/versions/{version}/publish")
-    def publish(case_id: str, version: int, request: PublishRequest, _: str = Depends(current_teacher)) -> dict[str, Any]:
+    def publish(case_id: str, version: int, request: PublishRequest,
+                actor_id: str = Depends(current_teacher)) -> dict[str, Any]:
         if not request.confirm_medical_review:
             raise HTTPException(status_code=422, detail="发布须由负责人确认已完成真实的医学审核")
         try:
@@ -243,8 +252,35 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
         if reviewed_on > date.today():
             raise HTTPException(status_code=422, detail="审核日期不能晚于今天")
         return _transition(
-            case_id, version, ReviewStatus.PUBLISHED, reviewer=request.reviewer, review_date=request.review_date
+            case_id, version, ReviewStatus.PUBLISHED, actor_id,
+            reviewer=request.reviewer, review_date=request.review_date,
         )
+
+    @router.get("/cases/{case_id}/versions/{version}/audit")
+    def case_audit(case_id: str, version: int, _: str = Depends(current_teacher)) -> list[dict[str, Any]]:
+        store = get_store()
+        try:
+            case = store.get(case_id, version)
+            events = store.audit_events(case_id, version)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="病例版本不存在") from exc
+        except CaseStoreError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        stop = get_training().all().get((case_id, version))
+        if stop is not None:
+            events.append({
+                "case_id": case_id,
+                "case_version": version,
+                "public_id": case.public_id,
+                "action": "training_stopped",
+                "actor_id": stop["teacher_id"],
+                "occurred_at": datetime.fromtimestamp(stop["created_at"], timezone.utc)
+                    .isoformat(timespec="seconds").replace("+00:00", "Z"),
+                "department_code": case.department_code,
+                "subspecialty_code": case.subspecialty_code,
+                "reason": stop["reason"],
+            })
+        return sorted(events, key=lambda event: event["occurred_at"])
 
     @router.post("/cases/{case_id}/versions/{version}/stop")
     def stop_training(case_id: str, version: int, request: StopTrainingRequest,

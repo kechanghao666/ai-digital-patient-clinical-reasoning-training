@@ -65,6 +65,7 @@ def publish_copy(client: TestClient, teacher: dict[str, str], title_suffix: str 
     payload = copy.deepcopy(source.json())
     payload.update({"case_id": CASE_ID, "title": payload["title"] + title_suffix, "version": 1,
                     "review_status": "draft", "reviewer": None, "review_date": None, "authored_by": None,
+                    "source_case_id": source.json()["case_id"], "source_version": source.json()["version"],
                     "department_code": "03", "subspecialty_code": "03.04"})  # 心血管内科专业
     payload.pop("public_id", None)
     saved = client.put(f"/api/teacher/cases/{CASE_ID}", headers=teacher, json=payload)
@@ -209,7 +210,8 @@ def test_stop_requires_a_published_version_and_a_known_target(tmp_path, monkeypa
     source = client.get("/api/teacher/cases/STEMI-001/versions/3", headers=teacher).json()
     payload = copy.deepcopy(source)
     payload.update({"case_id": CASE_ID, "title": payload["title"] + "（草稿）", "version": 1,
-                    "review_status": "draft", "reviewer": None, "review_date": None, "authored_by": None})
+                    "review_status": "draft", "reviewer": None, "review_date": None, "authored_by": None,
+                    "source_case_id": source["case_id"], "source_version": source["version"]})
     payload.pop("public_id", None)
     assert client.put(f"/api/teacher/cases/{CASE_ID}", headers=teacher, json=payload).status_code == 200
 

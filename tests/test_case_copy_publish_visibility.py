@@ -73,6 +73,8 @@ def copy_payload(source: dict) -> dict:
         "reviewer": None,
         "review_date": None,
         "authored_by": None,
+        "source_case_id": source["case_id"],
+        "source_version": source["version"],
         "department_code": "03",  # 内科
         "subspecialty_code": "03.04",  # 心血管内科专业
     })
@@ -98,6 +100,7 @@ def test_copy_then_simulated_publish_controls_student_visibility(tmp_path, monke
     assert saved.status_code == 200, saved.text
     meta = saved.json()
     assert meta["version"] == 1 and meta["review_status"] == "draft"
+    assert (meta["source_case_id"], meta["source_version"]) == ("STEMI-001", 3)
     assert meta["public_id"].startswith("CASE-T")
     copy_public_id = meta["public_id"]
 
@@ -128,6 +131,7 @@ def test_copy_then_simulated_publish_controls_student_visibility(tmp_path, monke
     )
     assert publish.status_code == 200, publish.text
     assert publish.json()["review_status"] == "published"
+    assert publish.json()["source_case_id"] == "STEMI-001" and publish.json()["source_version"] == 3
 
     # Student sees only the published copy, not the still-draft built-in source.
     visible = client.get("/api/cases", headers=student)

@@ -2,6 +2,7 @@ import json
 import os
 import re
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from threading import RLock
 from typing import Callable, Iterable
@@ -153,9 +154,48 @@ class CaseStore:
                 "authored_by": case.authored_by,
                 "reviewer": case.reviewer,
                 "review_date": case.review_date,
+                "source_case_id": case.source_case_id,
+                "source_version": case.source_version,
             }
             for case in sorted(self._cases.values(), key=lambda c: (c.case_id, c.version))
         ]
+
+    def check_source(self, case: CaseDefinition) -> None:
+        """Validate a declared source and prevent lineage from changing across revisions."""
+        with self._lock:
+            existing = self.versions(case.case_id)
+            requested = (case.source_case_id, case.source_version)
+            if existing:
+                recorded = (existing[-1].source_case_id, existing[-1].source_version)
+                if requested != (None, None) and requested != recorded:
+                    raise CaseStoreError("病例来源在创建后不可更改")
+                return
+            if requested == (None, None):
+                return
+            if requested[0] == case.case_id or (requested[0], requested[1]) not in self._cases:
+                raise CaseStoreError("来源病例版本不存在或不能引用自身")
+
+    def audit_events(self, case_id: str, version: int) -> list[dict]:
+        if self.teacher_dir is None:
+            return []
+        path = self.teacher_dir / "case-audit.jsonl"
+        with self._lock:
+            if not path.exists():
+                return []
+            events = []
+            try:
+                with path.open("r", encoding="utf-8") as stream:
+                    for line in stream:
+                        if not line.strip():
+                            continue
+                        event = json.loads(line)
+                        if not isinstance(event, dict):
+                            raise CaseStoreError("病例审计记录格式无效")
+                        if event.get("case_id") == case_id and event.get("case_version") == version:
+                            events.append(event)
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+                raise CaseStoreError("病例审计记录不可读取") from exc
+            return events
 
     # --------------------------------------------------------------- teacher writes
     def check_identifiers(self, case: CaseDefinition) -> None:
@@ -184,6 +224,89 @@ class CaseStore:
         self._cases[(case.case_id, case.version)] = case
         self._teacher_keys.add((case.case_id, case.version))
 
+    def _append_audit(
+        self,
+        case: CaseDefinition,
+        action: str,
+        actor_id: str,
+        status_from: ReviewStatus | None = None,
+        reviewer: str | None = None,
+        review_date: str | None = None,
+    ) -> None:
+        if self.teacher_dir is None:
+            raise CaseStoreError("teacher case storage is not configured")
+        event = {
+            "case_id": case.case_id,
+            "case_version": case.version,
+            "public_id": case.public_id,
+            "action": action,
+            "actor_id": actor_id,
+            "occurred_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+            "status_from": status_from.value if status_from else None,
+            "status_to": case.review_status.value,
+            "department_code": case.department_code,
+            "subspecialty_code": case.subspecialty_code,
+            "source_case_id": case.source_case_id,
+            "source_version": case.source_version,
+        }
+        if reviewer is not None:
+            event["reviewer_label"] = reviewer
+        if review_date is not None:
+            event["review_date"] = review_date
+        path = self.teacher_dir / "case-audit.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+
+    def _write_with_audit(
+        self,
+        case: CaseDefinition,
+        action: str,
+        actor_id: str,
+        status_from: ReviewStatus | None = None,
+        reviewer: str | None = None,
+        review_date: str | None = None,
+    ) -> None:
+        key = (case.case_id, case.version)
+        previous = self._cases.get(key)
+        if self.teacher_dir is None:
+            raise CaseStoreError("teacher case storage is not configured")
+        audit_path = self.teacher_dir / "case-audit.jsonl"
+        try:
+            audit_existed = audit_path.exists()
+            audit_size = audit_path.stat().st_size if audit_existed else 0
+        except OSError as exc:
+            raise CaseStoreError("无法读取病例审计记录状态，未保存病例变更") from exc
+        self._write(case)
+        try:
+            self._append_audit(case, action, actor_id, status_from, reviewer, review_date)
+        except (OSError, UnicodeError) as exc:
+            rollback_errors = []
+            try:
+                if audit_existed:
+                    with audit_path.open("r+b") as stream:
+                        stream.truncate(audit_size)
+                        stream.flush()
+                        os.fsync(stream.fileno())
+                else:
+                    audit_path.unlink(missing_ok=True)
+            except OSError as rollback_error:
+                rollback_errors.append(rollback_error)
+            try:
+                if previous is None:
+                    self._teacher_path(*key).unlink(missing_ok=True)
+                    self._cases.pop(key, None)
+                    self._teacher_keys.discard(key)
+                else:
+                    self._write(previous)
+            except (OSError, UnicodeError) as rollback_error:
+                rollback_errors.append(rollback_error)
+            if rollback_errors:
+                raise CaseStoreError("病例审计写入失败，且病例或审计记录回滚失败；请停止操作并恢复备份") from rollback_errors[0]
+            raise CaseStoreError("病例审计写入失败，病例变更已回滚") from exc
+
     def next_public_id(self) -> str:
         used = {identifier for c in self._cases.values() for identifier in (c.case_id, c.public_id)}
         number = 100
@@ -200,8 +323,11 @@ class CaseStore:
             if existing and not any((case.case_id, c.version) in self._teacher_keys for c in existing):
                 raise CaseStoreError("this case_id belongs to a built-in fixture case; use a new case_id")
             self.check_identifiers(case)
+            self.check_source(case)
             latest = existing[-1] if existing else None
             version = (latest.version + 1) if latest else 1
+            source_case_id = latest.source_case_id if latest else case.source_case_id
+            source_version = latest.source_version if latest else case.source_version
             stored = case.model_copy(
                 update={
                     "version": version,
@@ -209,10 +335,12 @@ class CaseStore:
                     "reviewer": None,
                     "review_date": None,
                     "authored_by": teacher_id,
+                    "source_case_id": source_case_id,
+                    "source_version": source_version,
                 }
             )
             CaseDefinition.model_validate(stored.model_dump())
-            self._write(stored)
+            self._write_with_audit(stored, "draft_saved", teacher_id)
             return stored
 
     def transition(
@@ -220,6 +348,7 @@ class CaseStore:
         case_id: str,
         version: int,
         to_status: ReviewStatus,
+        actor_id: str,
         reviewer: str | None = None,
         review_date: str | None = None,
     ) -> CaseDefinition:
@@ -243,5 +372,15 @@ class CaseStore:
             if to_status == ReviewStatus.DRAFT:
                 update.update(reviewer=None, review_date=None)
             updated = CaseDefinition.model_validate(case.model_copy(update=update).model_dump())
-            self._write(updated)
+            action = {
+                ReviewStatus.VALIDATED: "case_validated",
+                ReviewStatus.UNDER_REVIEW: "case_submitted_for_review",
+                ReviewStatus.PUBLISHED: "case_published",
+                ReviewStatus.DRAFT: "case_withdrawn",
+            }[to_status]
+            self._write_with_audit(
+                updated, action, actor_id, case.review_status,
+                reviewer if to_status == ReviewStatus.PUBLISHED else None,
+                review_date if to_status == ReviewStatus.PUBLISHED else None,
+            )
             return updated
