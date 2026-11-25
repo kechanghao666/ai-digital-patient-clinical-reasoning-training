@@ -26,6 +26,7 @@ from .department_config import (
 )
 from .disclosure import classify_turn, non_fact_reply
 from .history_coverage import history_coverage
+from .patient_answers import FactFragment, fact_fragments
 from .integration.feedback import FeedbackUnavailable
 from .integration.config import data_directory
 from .integration.nexent_client import NexentError
@@ -480,14 +481,32 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
             raise HTTPException(status_code=502, detail="患者适配器暂不可用") from exc
     else:
         selection = PatientSelection(fact_ids=[], source="local_no_candidates")
-    selected, rendered = render_selected_answer(visible, selection.fact_ids)
+    selected, rendered = render_selected_answer(visible, selection.fact_ids, request.question)
     if not visible:
-        # Fixed, fact-free reply (greeting, diagnosis request, unconfigured history item).
+        # Fixed, fact-free reply (greeting, diagnosis request, or an unrecorded detail).
         rendered = non_fact_reply(request.question, turn_kind) or rendered
-    answer, final_fact_ids, was_fallback = authorized_answer_or_fallback(rendered, selected, case)
+    answer, selected_fact_ids, was_fallback = authorized_answer_or_fallback(rendered, selected, case)
     answer_validated_ms = int((time.monotonic() - started) * 1000)
     selection.trace["answer_validated_ms"] = answer_validated_ms
     was_fallback = was_fallback or (bool(visible) and not selected)
+    answer_atom_ids = [
+        fragment.atom_id for fragment in selected if isinstance(fragment, FactFragment)
+    ] if not was_fallback else []
+    prior_answer_atoms = {
+        atom_id
+        for previous_event in state.events
+        if previous_event.action == ActionKind.ASK
+        for atom_id in previous_event.result.get("answer_atom_ids", [])
+    }
+    learned_atoms = prior_answer_atoms | set(answer_atom_ids)
+    atoms_by_fact = {
+        fact.fact_id: {fragment.atom_id for fragment in fact_fragments(fact)}
+        for fact in case.facts
+    }
+    final_fact_ids = [
+        fact_id for fact_id in selected_fact_ids
+        if atoms_by_fact.get(fact_id) and atoms_by_fact[fact_id].issubset(learned_atoms)
+    ]
     state.disclosed_fact_ids.extend(
         fact_id for fact_id in final_fact_ids if fact_id not in state.disclosed_fact_ids
     )
@@ -499,8 +518,9 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
         {
             "answer": answer,
             "fact_ids": final_fact_ids,
+            "answer_atom_ids": answer_atom_ids,
             "fallback": was_fallback,
-            "turn_kind": turn_kind if final_fact_ids or not visible else "fallback",
+            "turn_kind": turn_kind if answer_atom_ids or not visible else "fallback",
             "adapter": {"source": selection.source, "trace": selection.trace},
         },
         intent=request.question,

@@ -139,12 +139,22 @@ def run(dataset_path: Path, report_path: Path) -> dict[str, Any]:
                     "http_status": None,
                     "answer": None,
                     "turn_kind": None,
-                    "required_fact_ids": item["required_fact_ids"],
-                    "allowed_fact_ids": item["allowed_fact_ids"],
-                    "prohibited_fact_ids": item["prohibited_fact_ids"],
+                    "required_fact_ids": item.get("required_fact_ids", []),
+                    "allowed_fact_ids": item.get("allowed_fact_ids", []),
+                    "prohibited_fact_ids": item.get("prohibited_fact_ids", []),
+                    "required_answer": item.get("required_answer"),
+                    "required_answer_fragments": item.get("required_answer_fragments", []),
+                    "prohibited_answer_fragments": item.get("prohibited_answer_fragments", []),
+                    "actual_answer_atom_ids": [],
                     "actual_fact_ids": [],
+                    "persisted_answer": None,
+                    "persisted_answer_matches_api": False,
                     "persisted_event_id": None,
                     "persisted_event_matches_api": False,
+                    "replay_http_status": None,
+                    "replay_answer_matches_api": False,
+                    "replay_event_matches_api": False,
+                    "single_saved_event_after_replay": False,
                     "adapter_source": None,
                     "flags": [],
                     "primary_result": None,
@@ -212,16 +222,47 @@ def run(dataset_path: Path, report_path: Path) -> dict[str, Any]:
                 if saved_event is not None:
                     row["persisted_event_id"] = saved_event.event_id
                     row["persisted_event_matches_api"] = saved_event.event_id == api_event_id
+                    row["persisted_answer"] = saved_event.result.get("answer")
+                    row["persisted_answer_matches_api"] = row["persisted_answer"] == row["answer"]
                     row["actual_fact_ids"] = list(saved_event.fact_ids_revealed or saved_event.result.get("fact_ids", []))
+                    row["actual_answer_atom_ids"] = list(saved_event.result.get("answer_atom_ids", []))
                     row["turn_kind"] = saved_event.result.get("turn_kind")
                     row["adapter_source"] = (saved_event.result.get("adapter") or {}).get("source")
                 else:
                     row["flags"].append("interface_failure")
 
+                replay_response = client.post(
+                    f"/api/sessions/{session_id}/ask",
+                    headers=headers,
+                    json={"request_id": request_id, "question": item["question"]},
+                )
+                row["replay_http_status"] = replay_response.status_code
+                if replay_response.status_code == 200:
+                    try:
+                        replay_body = replay_response.json()
+                        replay_event = replay_body.get("event") or {}
+                        row["replay_answer_matches_api"] = replay_body.get("answer") == row["answer"]
+                        row["replay_event_matches_api"] = replay_event.get("event_id") == api_event_id
+                    except ValueError:
+                        pass
+                state_after_replay = main.REPOSITORY.get(session_id, owner_id)
+                row["single_saved_event_after_replay"] = sum(
+                    event.request_id == request_id for event in state_after_replay.events
+                ) == 1
+                if not all((
+                    row["persisted_answer_matches_api"],
+                    row["persisted_event_matches_api"],
+                    row["replay_http_status"] == 200,
+                    row["replay_answer_matches_api"],
+                    row["replay_event_matches_api"],
+                    row["single_saved_event_after_replay"],
+                )):
+                    row["flags"].append("interface_failure")
+
                 actual = set(row["actual_fact_ids"])
                 required = set(item["required_fact_ids"])
                 allowed = set(item["allowed_fact_ids"])
-                prohibited = set(item["prohibited_fact_ids"])
+                prohibited = set(item.get("prohibited_fact_ids", []))
                 missing = required - actual
                 unexpected = actual - allowed
                 if actual.intersection(prohibited):
@@ -233,12 +274,28 @@ def run(dataset_path: Path, report_path: Path) -> dict[str, Any]:
                 answer = row["answer"]
                 if not isinstance(answer, str) or not answer.strip():
                     row["flags"].append("interface_failure")
-                elif missing and not actual and answer in item["acceptable_no_fact_answers"]:
+                elif missing and not actual and answer in item.get("acceptable_no_fact_answers", []):
                     row["flags"].append("inappropriate_refusal")
-                elif not required and not actual and answer not in item["acceptable_no_fact_answers"]:
+                elif (not required and not actual and not row["actual_answer_atom_ids"]
+                      and answer not in item.get("acceptable_no_fact_answers", [])):
                     row["flags"].append("nonfact_response_not_accepted")
 
-                if actual and saved_event is not None:
+                semantic_expected = item.get("required_answer")
+                if isinstance(answer, str) and semantic_expected is not None:
+                    missing_answer = [fragment for fragment in item.get("required_answer_fragments", [])
+                                      if fragment not in answer]
+                    prohibited_answer = [fragment for fragment in item.get("prohibited_answer_fragments", [])
+                                         if fragment and fragment in answer]
+                    row["exact_answer_matches"] = answer == semantic_expected
+                    row["missing_answer_fragments"] = missing_answer
+                    row["prohibited_answer_matches"] = prohibited_answer
+                    if missing_answer:
+                        row["flags"].append("omission")
+                    if prohibited_answer:
+                        row["flags"].append("over_answer")
+                    if answer != semantic_expected and not missing_answer and not prohibited_answer:
+                        row["flags"].append("over_answer")
+                elif actual and saved_event is not None:
                     expected_text = join_fact_contents(
                         [fact.content for fact in case.facts if fact.fact_id in row["actual_fact_ids"]]
                     )

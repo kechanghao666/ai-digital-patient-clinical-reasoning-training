@@ -70,7 +70,7 @@ CLINICAL_INTENTS: tuple[tuple[str, re.Pattern[str], str], ...] = tuple(
          "无力 麻木 手脚 嘴歪 症状"),
         ("thirst", r"口渴|口干|喝水|多饮|嘴(巴|里)?干|渴不渴", "口渴 喝水 多饮"),
         ("general", r"睡(觉|眠|得)|精神|体重|瘦|胖|乏力|累", "一般情况 睡眠 体重 精神 乏力"),
-        ("past_history", r"(既往|以前|之前|过去|从前|平时|原来|一直)\S{0,6}(病|毛病|疾病)|基础病|慢性病|老毛病|病史|身体(一直|平时|平常)?(怎么样|咋样|好吗|好不好|如何)|住过院|住院",
+        ("past_history", r"(既往|以前|之前|过去|从前|平时|原来|一直)\S{0,6}(病|毛病|疾病)|基础病|慢性病|老毛病|病史|身体(?:情况)?(一直|平时|平常)?(怎么样|咋样|好吗|好不好|如何)|住过院|住院",
          "既往 既往史 病史 基础病"),
         # Routed through DISEASE_ALIASES and only as a fallback (see classify_turn).
         ("named_disease", r"高血压|血压|糖尿病|血糖|房颤|心脏病|心脏|支气管炎|肺病|冠心病|中风|脑梗", "既往"),
@@ -154,6 +154,11 @@ RELATIVE_DISCOVERY_QUERY = re.compile(
     r"(?:发现|注意到|察觉|看到)\S{0,8}(?:家里人|家人|家属|父母|父亲|母亲|爸|妈|兄弟|姐妹|亲戚)"
 )
 DISCOVERY_IN_CASE = re.compile(r"发现|注意到|察觉|看到")
+DISCOVERY_TIME_QUERY = re.compile(r"什么时候|啥时候|何时|几点|几时|哪天|哪一日|具体时间|时间")
+EXPLICIT_TIME_IN_TEXT = re.compile(
+    r"凌晨|清晨|早上|上午|中午|下午|傍晚|晚上|夜里|昨晚|昨天|今天|前天|"
+    r"\d{1,2}点(?:\d{1,2}分)?|\d+(?:分钟|小时|天)前|半小时前|一小时前"
+)
 
 CLARIFY_REPLY = "您想先说说哪里不舒服？"
 CLARIFY_TOPIC_REPLY = "您想了解哪方面的情况？"
@@ -217,6 +222,12 @@ def detect_intents(question: str) -> tuple[bool, list[str], dict[str, list[str]]
         if pattern.search(query):
             names.append(name)
             canonicals[name] = canonical.split()
+    # Mentioning medication as the object of an allergy question is not itself a medication-history query.
+    if "allergy" in canonicals and "medication" in canonicals and not re.search(
+        r"(?:吃|服|用|打)(?:过|了|着|什么|啥|药)", query
+    ):
+        names.remove("medication")
+        del canonicals["medication"]
     # "爸妈身体怎么样" asks about relatives, not the patient's own past history.
     if "family" in canonicals and "past_history" in canonicals and not re.search(r"您|你|自己", query):
         names.remove("past_history")
@@ -333,6 +344,10 @@ def classify_turn(state: SessionState, question: str, facts: list[Fact]) -> tupl
             fact for fact in visible
             if fact.field == "就诊经过" and DISCOVERY_IN_CASE.search(fact.content)
         ]
+        if DISCOVERY_TIME_QUERY.search(query) and matches and not any(
+            EXPLICIT_TIME_IN_TEXT.search(fact.content) for fact in matches
+        ):
+            return [], "time_not_recorded"
         return (matches, "fact") if matches else ([], "unconfigured")
     if "family" in by_intent and not re.search(r"您|你|自己", query):
         # A family-history question must not pull unrelated household/exposure facts by shared wording.
@@ -366,6 +381,8 @@ def non_fact_reply(question: str, kind: str) -> str | None:
         return SOCIAL_REPLIES.get(social_intent(question) or "")
     if kind == "unconfigured":
         return UNCONFIGURED_REPLY
+    if kind == "time_not_recorded":
+        return "具体是什么时候发现的我说不准。"
     if kind == "clarify":
         return CLARIFY_REPLY
     if kind == "clarify_topic":

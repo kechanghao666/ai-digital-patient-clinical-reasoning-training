@@ -5,11 +5,13 @@ from typing import Any, Protocol
 
 from .disclosure import CLARIFY_REPLY, CLARIFY_TOPIC_REPLY, DONE_REPLY, TREATMENT_DECISION_REPLY
 from .models import CaseDefinition, Fact
+from .patient_answers import FactFragment, render_fragments, select_answer_fragments
 
 FALLBACK_ANSWER = "我不太确定您的问题，能否换一种方式询问？"
 # Fixed, fact-free replies the backend may use when no fact is disclosed (see disclosure.py).
 NON_FACT_REPLIES = frozenset({
     "医生您好。", "好的，谢谢医生。", "这个我也不清楚，得请医生帮我看看。", "这个我没太注意，说不好。", "检查结果我不清楚，您看看报告吧。",
+    "具体是什么时候发现的我说不准。",
     CLARIFY_REPLY, CLARIFY_TOPIC_REPLY, DONE_REPLY, TREATMENT_DECISION_REPLY,
 })
 _SENTENCE_END = ("。", "！", "？", "!", "?", "…")
@@ -73,12 +75,17 @@ class SimulatorPatientAdapter:
         )
 
 
-def render_selected_answer(candidates: list[Fact], selected_ids: list[str]) -> tuple[list[Fact], str]:
-    """Render the student-visible utterance from selected facts in authorized order."""
+def render_selected_answer(
+    candidates: list[Fact], selected_ids: list[str], question: str | None = None
+) -> tuple[list[Fact] | list[FactFragment], str]:
+    """Project selected case facts to question-relevant source atoms before rendering."""
     wanted = set(selected_ids)
     selected = [fact for fact in candidates if fact.fact_id in wanted]
     if not selected:
         return [], FALLBACK_ANSWER
+    if question is not None:
+        fragments = select_answer_fragments(question, selected)
+        return (fragments, render_fragments(fragments)) if fragments else ([], FALLBACK_ANSWER)
     return selected, join_fact_contents([fact.content for fact in selected])
 
 
@@ -98,7 +105,7 @@ def diagnosis_leak_terms(case: CaseDefinition) -> set[str]:
 
 def authorized_answer_or_fallback(
     answer: str,
-    authorized_facts: list[Fact],
+    authorized_facts: list[Fact] | list[FactFragment],
     case: CaseDefinition,
 ) -> tuple[str, list[str], bool]:
     """Gate adapter output before persistence and before returning it to a student."""
@@ -118,12 +125,17 @@ def authorized_answer_or_fallback(
         if normalized == _normalize(fallback) or candidate in NON_FACT_REPLIES:
             return candidate, [], False
         return fallback, [], True
-    expected = _normalize(join_fact_contents([fact.content for fact in authorized_facts]))
+    expected_text = (
+        render_fragments(authorized_facts)
+        if isinstance(authorized_facts[0], FactFragment)
+        else join_fact_contents([fact.content for fact in authorized_facts])
+    )
+    expected = _normalize(expected_text)
     if normalized != expected:
         return fallback, [], True
-    fact_ids = [
+    fact_ids = list(dict.fromkeys(
         fact.fact_id
         for fact in authorized_facts
         if _normalize(fact.content) in normalized
-    ]
+    ))
     return candidate, fact_ids, False
