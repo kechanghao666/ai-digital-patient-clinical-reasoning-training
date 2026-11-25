@@ -214,7 +214,7 @@ py -3 scripts/run_o3_spotcheck.py --dataset evaluation\o3_engineering_spotcheck_
 | Python 编译 | `py -3 -m compileall -q backend scripts tests`：通过 | 运行后无编译错误 |
 | 四探针学生 API | **4/4 正确** | HTTP 200；实际保存事实与 API event ID 对应；报告记录临时数据已清理 |
 | 冻结 20 轮学生 API | **20/20 事实 ID 级规则通过** | 必答/允许事实 ID 匹配，回答精确渲染已保存事实或固定非事实答复；事件逐轮匹配；句内原子信息未评分 |
-| 全量离线回归 | **754 passed / 3 failed，214.72s**（757 项） | 命令 `py -3 -m pytest -q`；失败见下；不能记为全绿 |
+| 全量离线回归 | **754 passed / 3 failed，214.72s**（757 项） | 命令 `py -3 -m pytest -q`，在产品提交前的本机工作树运行；运行时 HEAD 为基线 `30028a0`，工作树产品源码与后续 `fd14073` 的源码内容一致，但不是在 `fd14073` SHA 上执行；失败见下，不能记为全绿 |
 | 前端类型检查/构建 | 未重跑 | 本轮没有修改前端源码或构建产物 |
 | GitHub Push/PR CI（产品 SHA `fd14073…`） | Push `45627535915`、PR `45627546222`：`tests` 与 `dependency-audit` 均通过 | CI 全绿不代表本机 Python 3.14.5 的三个失败已修复，也不代表官方验收 |
 
