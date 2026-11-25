@@ -56,3 +56,14 @@
 py -3 scripts/run_o3_spotcheck.py --dataset evaluation\o3_reproduction_probes_20261125.json --report <临时目录>\reproduction.json
 py -3 scripts/run_o3_spotcheck.py --dataset evaluation\o3_engineering_spotcheck_20261125.json --report <临时目录>\spotcheck.json
 ```
+
+## 2026-11-25：O3 复合事实原子问答
+
+产品代码在 `d4f6669` 起实现原子级回答与评分，在 `b61fdb9` 修复原子候选投影、续问上下文和父事实计分回归。固定的开发者预登记集 `o3_atomic_semantic_spotcheck_20261125.json` 在改产品代码前冻结，SHA-256 为 `425a0303bcfc9b7d9aaf341bb6ad0fb330aad0d033e8463b18878420fff59e01`；覆盖五病例各 4 轮、每病例一个共享会话，病例版本和来源哈希、必答/禁答内容及可接受澄清均写在题集内。历史 40 条留出集没有用于调参。
+
+- 修前 API 复现：`reports/o3_atomic_reproduction_pre_51901bd.json`。例如 APPY 手术史被回答为“既往体健，没有做过手术，没有药物过敏。”，过敏问题同样带出其他病史；STROKE 询问家人发现时间时回答家族史，没给出病例未记录的具体时间。
+- 初版 `d4f6669` 的四探针后报告按旧父事实 ID 口径误计为 0/4；这是分类口径不兼容（修复已按原子片段记录），不是产品语义 0/4。保留原报告 `reports/o3_atomic_reproduction_post_d4f6669.json`，不得覆盖或引用为语义结论。
+- `b61fdb9` 的实际学生 API 20 轮：正确 20，漏答 0，多答 0，越权披露 0，不当拒答 0，接口失败 0。完整逐轮问答、返回/持久答案、原子 ID、事件与重放匹配见 `reports/o3_atomic_semantic_spotcheck_post_b61fdb9.json`；完整旧 20 轮人工工程复核见 `reports/o3_atomic_old20_semantic_review_20261125.md`。新 20 轮不是把旧 20 轮重新包装。
+- 同一开发者撰写和预登记，Windows 11 build `10.0.26300`、Python 3.11.18、本地认证、模拟器和临时隔离数据库；病例均为草稿，仅在隔离开发运行开放可见性。临时数据已清理，真实供应商调用 0。非独立盲测、临床审核、学生评测或官方验收。O3 仍未达标。
+- `d4f6669` 初版全量回归的历史结果为 744 passed / 18 failed；原始控制台输出和 18 个失败节点列表未归档。共同根因和证据限制见 `reports/o3_atomic_full_regression_iteration_d4f6669.md`。后续 `b61fdb9` 专项 40 passed、全量 762 passed，未改超时断言。
+- `reports/o3_atomic_spotcheck_iteration1.json`、`iteration2.json`、`iteration3.json`、`final_candidate.json`、`o3_atomic_semantic_spotcheck_post_d4f6669.json` 和 `o3_atomic_spotcheck_replay_validation.json` 均作为迭代/口径/重放证据保留；不可替代或覆盖冻结最终报告 `o3_atomic_semantic_spotcheck_post_b61fdb9.json`。

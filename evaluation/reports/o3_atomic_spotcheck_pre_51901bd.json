@@ -1,0 +1,891 @@
+{
+  "schema_version": 1,
+  "title": "O3 开发者预登记原子事实语义工程抽检",
+  "run_at": "2026-11-25T14:43:18+00:00",
+  "authorship": "同一开发者在产品代码修改前撰写并预登记；非独立盲测、医学专家评判、真实学生评测或官方验收",
+  "git_head_sha": "51901bd644519df4d57042eff4a684abaf2ee628",
+  "git_branch": "codex/feedback-protocol-fix",
+  "worktree_status": "M scripts/run_o3_spotcheck.py\n?? evaluation/o3_atomic_reproduction_probes_20261125.json\n?? evaluation/o3_atomic_semantic_spotcheck_20261125.json\n?? evaluation/reports/o3_atomic_reproduction_pre_51901bd.json",
+  "environment": {
+    "os": "Windows-10-10.0.26300-SP0",
+    "python": "3.11.18",
+    "python_executable": "python.exe",
+    "auth_mode": "local",
+    "app_environment": "development (draft visibility enabled only for this isolated synthetic run)",
+    "patient_adapter": "simulator",
+    "database_scope": "temporary APP_DATA_DIR and INTEGRATION_DB_PATH; removed after run",
+    "real_provider_calls": 0
+  },
+  "dataset_file": "evaluation/o3_atomic_semantic_spotcheck_20261125.json",
+  "dataset_sha256": "425a0303bcfc9b7d9aaf341bb6ad0fb330aad0d033e8463b18878420fff59e01",
+  "baseline_sha": "51901bd644519df4d57042eff4a684abaf2ee628",
+  "round_count": 20,
+  "student_case_entry": {
+    "source": "GET /api/cases and POST /api/sessions via local synthetic student bearer session",
+    "visible_case_count": 5,
+    "http_status": 200,
+    "health_http_status": 200
+  },
+  "counts": {
+    "round_count": 20,
+    "correct": 3,
+    "omission": 2,
+    "over_answer": 16,
+    "unauthorized_disclosure": 0,
+    "inappropriate_refusal": 0,
+    "interface_failure": 0,
+    "primary_results": {
+      "correct": 3,
+      "omission": 1,
+      "over_answer": 16,
+      "unauthorized_disclosure": 0,
+      "inappropriate_refusal": 0,
+      "interface_failure": 0,
+      "nonfact_response_not_accepted": 0
+    }
+  },
+  "category_counts_are_overlapping": true,
+  "category_rule": "错误标记可重叠；primary_results 按每轮一个主结果汇总。所有轮次保留在分母中。",
+  "temporary_data_removed": true,
+  "rounds": [
+    {
+      "index": 1,
+      "round_id": "STEMI-001-R01",
+      "case_id": "STEMI-001",
+      "case_version": 3,
+      "review_status": "draft",
+      "session_group": "STEMI-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "以前做过手术吗？",
+      "http_status": 200,
+      "answer": "没有药物过敏，也没做过手术。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [],
+      "required_answer": "没做过手术。",
+      "required_answer_fragments": [
+        "没做过手术"
+      ],
+      "prohibited_answer_fragments": [
+        "药物过敏",
+        "冠心病",
+        "常年吃药"
+      ],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_allergy"
+      ],
+      "persisted_event_id": "aac0493a-a85a-43f1-bd76-4aa6d0302b75",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "over_answer"
+      ],
+      "primary_result": "over_answer",
+      "student_case_entry_visible": true,
+      "exact_answer_matches": false,
+      "missing_answer_fragments": [],
+      "prohibited_answer_matches": [
+        "药物过敏"
+      ]
+    },
+    {
+      "index": 2,
+      "round_id": "STEMI-001-R02",
+      "case_id": "STEMI-001",
+      "case_version": 3,
+      "review_status": "draft",
+      "session_group": "STEMI-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "对药物有过敏反应吗？",
+      "http_status": 200,
+      "answer": "今天早上自行服过一片阿司匹林，规格待医学审核确认。没有药物过敏，也没做过手术。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_allergy"
+      ],
+      "allowed_fact_ids": [
+        "f_allergy"
+      ],
+      "prohibited_fact_ids": [],
+      "required_answer": "没有药物过敏。",
+      "required_answer_fragments": [
+        "没有药物过敏"
+      ],
+      "prohibited_answer_fragments": [
+        "手术",
+        "冠心病",
+        "常年吃药"
+      ],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_med_asa",
+        "f_allergy"
+      ],
+      "persisted_event_id": "50dcf617-1083-4603-90ff-15d2b1cc8a54",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "over_answer"
+      ],
+      "primary_result": "over_answer",
+      "exact_answer_matches": false,
+      "missing_answer_fragments": [],
+      "prohibited_answer_matches": [
+        "手术"
+      ]
+    },
+    {
+      "index": 3,
+      "round_id": "STEMI-001-R03",
+      "case_id": "STEMI-001",
+      "case_version": 3,
+      "review_status": "draft",
+      "session_group": "STEMI-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "我想一起了解您的手术史和过敏史。",
+      "http_status": 200,
+      "answer": "没有药物过敏，也没做过手术。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_allergy"
+      ],
+      "allowed_fact_ids": [
+        "f_allergy"
+      ],
+      "prohibited_fact_ids": [],
+      "required_answer": "没有药物过敏，没做过手术。",
+      "required_answer_fragments": [
+        "没有药物过敏",
+        "没做过手术"
+      ],
+      "prohibited_answer_fragments": [
+        "常年吃药"
+      ],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_allergy"
+      ],
+      "persisted_event_id": "9d254111-61e7-4abc-b608-35c1041c9a7c",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "over_answer"
+      ],
+      "primary_result": "over_answer",
+      "exact_answer_matches": false,
+      "missing_answer_fragments": [],
+      "prohibited_answer_matches": []
+    },
+    {
+      "index": 4,
+      "round_id": "STEMI-001-R04",
+      "case_id": "STEMI-001",
+      "case_version": 3,
+      "review_status": "draft",
+      "session_group": "STEMI-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "您父亲有没有冠心病？",
+      "http_status": 200,
+      "answer": "我父亲有冠心病，常年吃药。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [],
+      "required_answer": "我父亲有冠心病。",
+      "required_answer_fragments": [
+        "父亲",
+        "冠心病"
+      ],
+      "prohibited_answer_fragments": [
+        "常年吃药"
+      ],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_family"
+      ],
+      "persisted_event_id": "62c2b878-e47b-49ac-8fa6-af3860a08875",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "over_answer"
+      ],
+      "primary_result": "over_answer",
+      "exact_answer_matches": false,
+      "missing_answer_fragments": [],
+      "prohibited_answer_matches": [
+        "常年吃药"
+      ]
+    },
+    {
+      "index": 5,
+      "round_id": "APPY-001-R01",
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "APPY-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "您以前开过刀没有？",
+      "http_status": 200,
+      "answer": "既往体健，没有做过手术，没有药物过敏。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [],
+      "required_answer": "没有做过手术。",
+      "required_answer_fragments": [
+        "没有做过手术"
+      ],
+      "prohibited_answer_fragments": [
+        "既往体健",
+        "药物过敏"
+      ],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_hx"
+      ],
+      "persisted_event_id": "1f12e451-fd33-4f18-8b2e-b53dbcb8caba",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "over_answer"
+      ],
+      "primary_result": "over_answer",
+      "student_case_entry_visible": true,
+      "exact_answer_matches": false,
+      "missing_answer_fragments": [],
+      "prohibited_answer_matches": [
+        "既往体健",
+        "药物过敏"
+      ]
+    },
+    {
+      "index": 6,
+      "round_id": "APPY-001-R02",
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "APPY-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "药物会让您过敏吗？",
+      "http_status": 200,
+      "answer": "既往体健，没有做过手术，没有药物过敏。来之前没去过别的医院，也没自己吃止痛药。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [],
+      "required_answer": "没有药物过敏。",
+      "required_answer_fragments": [
+        "没有药物过敏"
+      ],
+      "prohibited_answer_fragments": [
+        "既往体健",
+        "做过手术"
+      ],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_hx",
+        "f_care"
+      ],
+      "persisted_event_id": "308ef230-66e2-4a13-a2a3-0f6b7b3bbab8",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "over_answer"
+      ],
+      "primary_result": "over_answer",
+      "exact_answer_matches": false,
+      "missing_answer_fragments": [],
+      "prohibited_answer_matches": [
+        "既往体健",
+        "做过手术"
+      ]
+    },
+    {
+      "index": 7,
+      "round_id": "APPY-001-R03",
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "APPY-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "手术情况和药物过敏都问一下。",
+      "http_status": 200,
+      "answer": "既往体健，没有做过手术，没有药物过敏。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [],
+      "required_answer": "没有做过手术，没有药物过敏。",
+      "required_answer_fragments": [
+        "没有做过手术",
+        "没有药物过敏"
+      ],
+      "prohibited_answer_fragments": [
+        "既往体健"
+      ],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_hx"
+      ],
+      "persisted_event_id": "b2bd630b-196c-4602-b604-63c9f5a9a64e",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "over_answer"
+      ],
+      "primary_result": "over_answer",
+      "exact_answer_matches": false,
+      "missing_answer_fragments": [],
+      "prohibited_answer_matches": [
+        "既往体健"
+      ]
+    },
+    {
+      "index": 8,
+      "round_id": "APPY-001-R04",
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "APPY-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "既往身体情况怎么样？",
+      "http_status": 200,
+      "answer": "既往体健，没有做过手术，没有药物过敏。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_hx"
+      ],
+      "allowed_fact_ids": [
+        "f_hx"
+      ],
+      "prohibited_fact_ids": [],
+      "required_answer": "既往体健。",
+      "required_answer_fragments": [
+        "既往体健"
+      ],
+      "prohibited_answer_fragments": [
+        "做过手术",
+        "药物过敏"
+      ],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_hx"
+      ],
+      "persisted_event_id": "b9e2fc56-372a-4884-9c25-5bb68bbf1cbf",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "over_answer"
+      ],
+      "primary_result": "over_answer",
+      "exact_answer_matches": false,
+      "missing_answer_fragments": [],
+      "prohibited_answer_matches": [
+        "做过手术",
+        "药物过敏"
+      ]
+    },
+    {
+      "index": 9,
+      "round_id": "STROKE-001-R01",
+      "case_id": "STROKE-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "STROKE-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "您最近做过手术吗？",
+      "http_status": 200,
+      "answer": "没有吃抗凝药，最近也没有手术或外伤，没有出血病史。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [],
+      "required_answer": "最近没有手术。",
+      "required_answer_fragments": [
+        "最近",
+        "没有手术"
+      ],
+      "prohibited_answer_fragments": [
+        "抗凝药",
+        "外伤",
+        "出血病史"
+      ],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_anticoag"
+      ],
+      "persisted_event_id": "db570532-d688-40ba-996b-1877c55ea328",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "over_answer"
+      ],
+      "primary_result": "over_answer",
+      "student_case_entry_visible": true,
+      "exact_answer_matches": false,
+      "missing_answer_fragments": [],
+      "prohibited_answer_matches": [
+        "抗凝药",
+        "外伤",
+        "出血病史"
+      ]
+    },
+    {
+      "index": 10,
+      "round_id": "STROKE-001-R02",
+      "case_id": "STROKE-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "STROKE-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "有没有药物过敏？",
+      "http_status": 200,
+      "answer": "没有药物过敏。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_allergy"
+      ],
+      "allowed_fact_ids": [
+        "f_allergy"
+      ],
+      "prohibited_fact_ids": [],
+      "required_answer": "没有药物过敏。",
+      "required_answer_fragments": [
+        "没有药物过敏"
+      ],
+      "prohibited_answer_fragments": [
+        "抗凝药",
+        "手术",
+        "出血病史"
+      ],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_allergy"
+      ],
+      "persisted_event_id": "e4f46458-8cb7-430f-9c23-459106c9f933",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [],
+      "primary_result": "correct",
+      "exact_answer_matches": true,
+      "missing_answer_fragments": [],
+      "prohibited_answer_matches": []
+    },
+    {
+      "index": 11,
+      "round_id": "STROKE-001-R03",
+      "case_id": "STROKE-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "STROKE-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "抗凝药、近期手术外伤和出血情况分别如何？",
+      "http_status": 200,
+      "answer": "没有吃抗凝药，最近也没有手术或外伤，没有出血病史。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_anticoag"
+      ],
+      "allowed_fact_ids": [
+        "f_anticoag"
+      ],
+      "prohibited_fact_ids": [],
+      "required_answer": "没有吃抗凝药，最近没有手术，最近没有外伤，没有出血病史。",
+      "required_answer_fragments": [
+        "没有吃抗凝药",
+        "最近没有手术",
+        "最近没有外伤",
+        "没有出血病史"
+      ],
+      "prohibited_answer_fragments": [
+        "从来没有做过手术"
+      ],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_anticoag"
+      ],
+      "persisted_event_id": "03662e10-67dd-46b0-9f33-363c3bec4b51",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "omission"
+      ],
+      "primary_result": "omission",
+      "exact_answer_matches": false,
+      "missing_answer_fragments": [
+        "最近没有手术",
+        "最近没有外伤"
+      ],
+      "prohibited_answer_matches": []
+    },
+    {
+      "index": 12,
+      "round_id": "STROKE-001-R04",
+      "case_id": "STROKE-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "STROKE-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "家人是什么时候发现您出现症状的？",
+      "http_status": 200,
+      "answer": "家里人发现后马上打了120，路上没吃过任何药。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [],
+      "required_answer": "具体是什么时候发现的我说不准。",
+      "required_answer_fragments": [
+        "什么时候发现",
+        "说不准"
+      ],
+      "prohibited_answer_fragments": [
+        "打了120",
+        "路上没吃过任何药"
+      ],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_care"
+      ],
+      "persisted_event_id": "b218afdf-cd56-41b0-9d80-c9c3413f792e",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "over_answer",
+        "omission"
+      ],
+      "primary_result": "over_answer",
+      "exact_answer_matches": false,
+      "missing_answer_fragments": [
+        "什么时候发现",
+        "说不准"
+      ],
+      "prohibited_answer_matches": [
+        "打了120",
+        "路上没吃过任何药"
+      ]
+    },
+    {
+      "index": 13,
+      "round_id": "CAP-001-R01",
+      "case_id": "CAP-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "CAP-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "做过什么手术吗？",
+      "http_status": 200,
+      "answer": "没做过手术，最近也没受过伤。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [],
+      "required_answer": "没做过手术。",
+      "required_answer_fragments": [
+        "没做过手术"
+      ],
+      "prohibited_answer_fragments": [
+        "受过伤",
+        "受伤"
+      ],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_surgery"
+      ],
+      "persisted_event_id": "12d1b95a-b763-43a8-849a-bbec9d0bc90f",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "over_answer"
+      ],
+      "primary_result": "over_answer",
+      "student_case_entry_visible": true,
+      "exact_answer_matches": false,
+      "missing_answer_fragments": [],
+      "prohibited_answer_matches": [
+        "受过伤"
+      ]
+    },
+    {
+      "index": 14,
+      "round_id": "CAP-001-R02",
+      "case_id": "CAP-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "CAP-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "您有没有药物过敏？",
+      "http_status": 200,
+      "answer": "吸烟30年，有慢性支气管炎，没有药物过敏。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [],
+      "required_answer": "没有药物过敏。",
+      "required_answer_fragments": [
+        "没有药物过敏"
+      ],
+      "prohibited_answer_fragments": [
+        "吸烟30年",
+        "慢性支气管炎"
+      ],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_hx"
+      ],
+      "persisted_event_id": "7c09648e-d5cb-4ee0-884d-b4492ebc8651",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "over_answer"
+      ],
+      "primary_result": "over_answer",
+      "exact_answer_matches": false,
+      "missing_answer_fragments": [],
+      "prohibited_answer_matches": [
+        "吸烟30年",
+        "慢性支气管炎"
+      ]
+    },
+    {
+      "index": 15,
+      "round_id": "CAP-001-R03",
+      "case_id": "CAP-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "CAP-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "手术和近期外伤情况都说一下。",
+      "http_status": 200,
+      "answer": "没做过手术，最近也没受过伤。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_surgery"
+      ],
+      "allowed_fact_ids": [
+        "f_surgery"
+      ],
+      "prohibited_fact_ids": [],
+      "required_answer": "没做过手术，最近也没受过伤。",
+      "required_answer_fragments": [
+        "没做过手术",
+        "最近也没受过伤"
+      ],
+      "prohibited_answer_fragments": [],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_surgery"
+      ],
+      "persisted_event_id": "fe94e4cd-3b67-4c9d-8b50-b2a856be9660",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [],
+      "primary_result": "correct",
+      "exact_answer_matches": true,
+      "missing_answer_fragments": [],
+      "prohibited_answer_matches": []
+    },
+    {
+      "index": 16,
+      "round_id": "CAP-001-R04",
+      "case_id": "CAP-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "CAP-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "家族中有无类似的病？",
+      "http_status": 200,
+      "answer": "家里人没有类似的病，也没有得过结核的。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [],
+      "required_answer": "家里人没有类似的病。",
+      "required_answer_fragments": [
+        "家里人",
+        "没有类似的病"
+      ],
+      "prohibited_answer_fragments": [
+        "结核"
+      ],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_family"
+      ],
+      "persisted_event_id": "3ba4b914-1d3b-4d65-822b-9c83e80478ae",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "over_answer"
+      ],
+      "primary_result": "over_answer",
+      "exact_answer_matches": false,
+      "missing_answer_fragments": [],
+      "prohibited_answer_matches": [
+        "结核"
+      ]
+    },
+    {
+      "index": 17,
+      "round_id": "DKA-001-R01",
+      "case_id": "DKA-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "DKA-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "以前开过刀吗？",
+      "http_status": 200,
+      "answer": "没有药物过敏，也没做过手术。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [],
+      "required_answer": "没做过手术。",
+      "required_answer_fragments": [
+        "没做过手术"
+      ],
+      "prohibited_answer_fragments": [
+        "药物过敏"
+      ],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_allergy"
+      ],
+      "persisted_event_id": "f2a337c7-0a8a-4a0b-8d9f-95441c808bab",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "over_answer"
+      ],
+      "primary_result": "over_answer",
+      "student_case_entry_visible": true,
+      "exact_answer_matches": false,
+      "missing_answer_fragments": [],
+      "prohibited_answer_matches": [
+        "药物过敏"
+      ]
+    },
+    {
+      "index": 18,
+      "round_id": "DKA-001-R02",
+      "case_id": "DKA-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "DKA-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "药物过敏史如何？",
+      "http_status": 200,
+      "answer": "没有药物过敏，也没做过手术。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_allergy"
+      ],
+      "allowed_fact_ids": [
+        "f_allergy"
+      ],
+      "prohibited_fact_ids": [],
+      "required_answer": "没有药物过敏。",
+      "required_answer_fragments": [
+        "没有药物过敏"
+      ],
+      "prohibited_answer_fragments": [
+        "做过手术"
+      ],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_allergy"
+      ],
+      "persisted_event_id": "802b287f-a62b-4f64-9b53-ddbcb0c0e148",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "over_answer"
+      ],
+      "primary_result": "over_answer",
+      "exact_answer_matches": false,
+      "missing_answer_fragments": [],
+      "prohibited_answer_matches": [
+        "做过手术"
+      ]
+    },
+    {
+      "index": 19,
+      "round_id": "DKA-001-R03",
+      "case_id": "DKA-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "DKA-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "手术史和药物过敏两项都请说一下。",
+      "http_status": 200,
+      "answer": "没有药物过敏，也没做过手术。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_allergy"
+      ],
+      "allowed_fact_ids": [
+        "f_allergy"
+      ],
+      "prohibited_fact_ids": [],
+      "required_answer": "没有药物过敏，没做过手术。",
+      "required_answer_fragments": [
+        "没有药物过敏",
+        "没做过手术"
+      ],
+      "prohibited_answer_fragments": [],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_allergy"
+      ],
+      "persisted_event_id": "8b711b45-5e66-463c-a45a-0e6bf0806ffd",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "over_answer"
+      ],
+      "primary_result": "over_answer",
+      "exact_answer_matches": false,
+      "missing_answer_fragments": [],
+      "prohibited_answer_matches": []
+    },
+    {
+      "index": 20,
+      "round_id": "DKA-001-R04",
+      "case_id": "DKA-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "DKA-001",
+      "session_policy": "每个病例四轮按序共享一个新训练会话；不同病例不共享会话",
+      "question": "家族中有人患糖尿病吗？",
+      "http_status": 200,
+      "answer": "家里人没有糖尿病。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_family"
+      ],
+      "allowed_fact_ids": [
+        "f_family"
+      ],
+      "prohibited_fact_ids": [],
+      "required_answer": "家里人没有糖尿病。",
+      "required_answer_fragments": [
+        "没有糖尿病"
+      ],
+      "prohibited_answer_fragments": [],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [
+        "f_family"
+      ],
+      "persisted_event_id": "79b5d19b-d8de-42b8-9330-4ef005e8347f",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [],
+      "primary_result": "correct",
+      "exact_answer_matches": true,
+      "missing_answer_fragments": [],
+      "prohibited_answer_matches": []
+    }
+  ],
+  "evidence_boundary": "本报告只证明该提交代码在本机 FastAPI 学生 API、本地认证、隔离合成数据库及确定性模拟器上的工程行为；不证明真实模型、临床正确性、专家/学生评价或官方 20 轮验收。"
+}
