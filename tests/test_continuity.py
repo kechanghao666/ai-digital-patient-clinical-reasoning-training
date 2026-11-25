@@ -136,10 +136,15 @@ def test_three_consecutive_laters_do_not_unlock_unrelated_symptoms(tmp_path, mon
     assert any("持续" in r for r in replies)
 
 
-def test_later_after_a_single_background_item_confirms_done(tmp_path, monkeypatch):
+def test_later_after_partial_compound_history_answers_remaining_atom(tmp_path, monkeypatch):
     api = Api(tmp_path, monkeypatch)
     sid = api.start("CASE-001")
-    _ask(api, sid, "有药物过敏吗？")  # 过敏史 has a single fact
+    _ask(api, sid, "有药物过敏吗？")
+    later = _ask(api, sid, "后来呢？")
+    assert later["answer"] == "没做过手术。"
+    state = api.repository.get(sid, "demo-cfg")
+    assert "f_allergy" in state.disclosed_fact_ids
+    assert state.events[-1].result["answer_atom_ids"] == ["f_allergy#a2"]
     assert _ask(api, sid, "后来呢？")["answer"] == "暂时就这些了。"
 
 

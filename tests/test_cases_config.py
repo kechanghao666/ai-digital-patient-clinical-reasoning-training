@@ -139,9 +139,9 @@ def test_configuration_errors_are_rejected(mutator):
 def run_appendicitis(api: Api, *, consult: bool) -> dict:
     sid = api.start("CASE-002")
     migration = api.ask(sid, "疼痛在哪里痛，有没有转移")
-    api.ask(sid, "什么时候开始的")
+    api.ask(sid, "什么时候开始的，有没有受伤或明显诱因")
     api.ask(sid, "有没有发热")
-    gi_event = api.ask(sid, "有没有恶心呕吐")
+    gi_event = api.ask(sid, "有没有恶心呕吐，食欲怎么样")
     api.act(sid, "order_exam", {"exam_id": "ex_us"})
     api.act(sid, "order_exam", {"exam_id": "ex_urine"})
     wait_event = api.wait(sid, 45)
@@ -274,7 +274,7 @@ def test_diagnosis_matching_uses_case_names_not_stemi_constants(tmp_path, monkey
 # ------------------------------------------------------------ differential auto scoring
 def stemi_events(api: Api):
     sid = api.start("CASE-001")
-    onset = api.ask(sid, "当时在干什么")
+    onset = api.ask(sid, "当时在干什么，持续多久，是否缓解")
     character = api.ask(sid, "疼痛是什么性质")
     api.act(sid, "order_exam", {"exam_id": "ex_ecg"})
     ecg = api.wait(sid, 5)

@@ -76,7 +76,10 @@ class SimulatorPatientAdapter:
 
 
 def render_selected_answer(
-    candidates: list[Fact], selected_ids: list[str], question: str | None = None
+    candidates: list[Fact],
+    selected_ids: list[str],
+    question: str | None = None,
+    already_answered_atom_ids: set[str] | None = None,
 ) -> tuple[list[Fact] | list[FactFragment], str]:
     """Project selected case facts to question-relevant source atoms before rendering."""
     wanted = set(selected_ids)
@@ -84,7 +87,7 @@ def render_selected_answer(
     if not selected:
         return [], FALLBACK_ANSWER
     if question is not None:
-        fragments = select_answer_fragments(question, selected)
+        fragments = select_answer_fragments(question, selected, already_answered_atom_ids)
         return (fragments, render_fragments(fragments)) if fragments else ([], FALLBACK_ANSWER)
     return selected, join_fact_contents([fact.content for fact in selected])
 

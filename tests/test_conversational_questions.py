@@ -55,9 +55,14 @@ def test_screenshot_questions_work_through_api_without_changing_scores_or_replay
         # "哪里不舒服" follows the chief complaint, so it asks the site and discloses the
         # pain-location fact instead of repeating the complaint.
         expected_id = ["f_cc", "f_pain_migration", "f_pain_migration", "f_onset"][index]
-        assert response.json()["answer"] == next(f.content for f in CASES.get("APPY-001").facts if f.fact_id == expected_id)
+        expected_answer = (
+            next(f.content for f in CASES.get("APPY-001").facts if f.fact_id == expected_id)
+            if index < 3 else "大约24小时前开始的。"
+        )
+        assert response.json()["answer"] == expected_answer
         replay = api.client.post(f"/api/sessions/{sid}/ask", headers=api.headers, json=body)
         assert replay.json()["event"] == response.json()["event"]
     state = api.repository.get(sid, "demo-cfg")
     assert len(state.events) == 4
-    assert state.disclosed_fact_ids == ["f_cc", "f_pain_migration", "f_onset"]
+    assert state.disclosed_fact_ids == ["f_cc", "f_pain_migration"]
+    assert state.events[-1].result["answer_atom_ids"] == ["f_onset#a1"]

@@ -16,7 +16,7 @@ from test_cases_config import ROOT, Api, item  # noqa: F401  (item re-exported f
 
 SPECIALTY_RUNS = {
     "CASE-001": dict(
-        asks={"character": "疼痛是什么性质", "radiation": "放射到哪里", "onset": "当时在干什么"},
+        asks={"character": "疼痛是什么性质", "radiation": "放射到哪里", "onset": "当时在干什么，持续多久，是否缓解"},
         orders=["ex_ecg", "ex_troponin"],
         wait=30,
         ddx=[
@@ -28,7 +28,7 @@ SPECIALTY_RUNS = {
         delay=("ex_ecg", 5, 60, "reperfusion_pathway"),
     ),
     "CASE-002": dict(
-        asks={"mig": "哪里痛，有没有转移", "onset": "什么时候开始的", "fever": "有没有发热", "gi": "有没有恶心呕吐", "hx": "既往史和过敏史"},
+        asks={"mig": "哪里痛，有没有转移", "onset": "什么时候开始的，有没有受伤或明显诱因", "fever": "发热多少度", "gi": "有没有恶心呕吐，食欲怎么样", "hx": "既往身体怎么样，有没有做过手术或药物过敏"},
         orders=["ex_us", "ex_cbc", "ex_urine"],
         wait=45,
         ddx=[
@@ -40,7 +40,7 @@ SPECIALTY_RUNS = {
         delay=("ex_us", 45, 90, "surgical_consult"),
     ),
     "CASE-003": dict(
-        asks={"onset": "起病是什么时候", "sym": "有哪些症状，手脚无力吗", "anti": "有没有吃抗凝药，有没有出血", "af": "有房颤吗", "htn": "有高血压吗", "head": "头痛呕吐吗"},
+        asks={"onset": "起病是什么时候，当时在做什么，您记得清楚吗", "sym": "右手、右腿和嘴角分别有什么症状", "anti": "有没有吃抗凝药，最近有没有手术或外伤，有没有出血", "af": "有房颤吗，平时有没有规律吃药", "htn": "有高血压吗", "head": "头痛呕吐吗"},
         orders=["ex_ct_head", "ex_glucose", "ex_ecg"],
         wait=15,
         ddx=[
@@ -52,7 +52,7 @@ SPECIALTY_RUNS = {
         delay=("ex_ct_head", 15, 60, "stroke_pathway"),
     ),
     "CASE-004": dict(
-        asks={"fever": "发热多少度，有没有寒战", "cough": "咳嗽咳痰吗", "dys": "有没有气短", "hx": "吸烟吗，过敏吗"},
+        asks={"fever": "发热多少度，有没有寒战", "cough": "咳嗽咳痰吗", "dys": "活动后有没有气短，休息后会不会好一点", "hx": "吸烟多少年，有没有慢性支气管炎和药物过敏"},
         orders=["ex_cxr", "ex_cbc", "ex_spo2"],
         wait=30,
         ddx=[
@@ -64,7 +64,7 @@ SPECIALTY_RUNS = {
         delay=("ex_cxr", 30, 120, "antibiotics"),
     ),
     "CASE-005": dict(
-        asks={"poly": "口渴多饮吗", "gi": "恶心呕吐腹痛吗", "hx": "既往有糖尿病吗", "ins": "胰岛素用得怎么样，有什么诱因"},
+        asks={"poly": "口渴、多饮和小便次数有变化吗", "gi": "有没有恶心呕吐、肚子痛、吃不下东西", "hx": "确诊糖尿病几年了，一直怎么用药", "ins": "最近有什么诱因，胰岛素有没有按时使用"},
         orders=["ex_glucose", "ex_ketone", "ex_abg"],
         wait=20,
         ddx=[

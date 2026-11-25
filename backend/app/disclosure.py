@@ -37,7 +37,7 @@ LOCATION_CANONICALS = "哪里疼 哪里痛 部位 位置 哪个地方".split()
 CLINICAL_INTENTS: tuple[tuple[str, re.Pattern[str], str], ...] = tuple(
     (name, re.compile(pattern), canonical)
     for name, pattern, canonical in (
-        ("onset", r"什么时候|啥时候|几点|多久|多长时间|有?几天(了|前)|几个小时|几小时|多少天|起病|开始的|从什么|何时|哪天",
+        ("onset", r"什么时候|啥时候|几点|多久|多长时间|有?几天(了|前)|几个小时|几小时|多少天|起病|开始的|从什么|何时|哪天|记得(?:很)?清楚|记不清|时间.*(?:确定|记得)",
          "什么时候 多久 开始 时间 起病 几点"),
         ("trigger", r"诱因|怎么引起|因为什么|什么原因|当时(在)?(干|做)|什么情况下|之前(在)?(干|做)|发病(前|之前|时|的时候)|(在|正在)(干|做)什么|怎么(发生|出现|得)的",
          "诱因"),
@@ -267,6 +267,10 @@ def _last_ask_fields(state: SessionState, facts: list[Fact]) -> set[str] | None:
         return None
     ids = list(last.fact_ids_revealed) or list(last.payload.get("matched_fact_ids", []))
     if not ids:
+        ids = list(dict.fromkeys(
+            atom_id.split("#a", 1)[0] for atom_id in last.result.get("answer_atom_ids", [])
+        ))
+    if not ids:
         return set()
     by_id = {fact.fact_id: fact for fact in facts}
     return {by_id[fact_id].field for fact_id in ids if fact_id in by_id}
@@ -282,7 +286,11 @@ def _continue_turn(state: SessionState, visible: list[Fact], facts: list[Fact]) 
     for clarification instead of guessing.
     """
     disclosed = set(state.disclosed_fact_ids)
-    if not disclosed:
+    has_answered_atoms = any(
+        event.action == ActionKind.ASK and event.result.get("answer_atom_ids")
+        for event in state.events
+    )
+    if not disclosed and not has_answered_atoms:
         return [], "clarify"
     topic = _last_ask_fields(state, facts)
     if topic is None or not topic:

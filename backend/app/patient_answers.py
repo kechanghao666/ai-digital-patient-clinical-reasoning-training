@@ -23,6 +23,13 @@ _DISCOVERY_AFTER = re.compile(r"^(.*?发现)后(?=(?:马上|立即|随即|很快
 _PUNCTUATION = "，,。；;、 "
 _OPERATION_QUERY = re.compile(r"手术|开刀|开过刀")
 _TRAUMA_QUERY = re.compile(r"外伤|受(?:过)?伤|摔|撞")
+_LOCATION_CONTENT = re.compile(
+    r"胸口|胸部|左胸|右胸|腹部|肚脐|上腹|下腹|右下腹|左下腹|腰|后背|肩|上肢|手臂|头部|头痛|腿|心前区"
+)
+_TRIGGER_CONTENT = re.compile(r"休息|活动|运动|走路|进食|受凉|着凉|感冒|发烧|感染|发作|诱因|当时")
+_TIME_CONTENT = re.compile(r"\d+(?:\.\d+)?\s*(?:点|分钟|小时|天)|凌晨|清晨|上午|下午|昨晚|昨天|今天|前天|半小时前|一小时前")
+_TEMPERATURE_VALUE = re.compile(r"\d+(?:\.\d+)?\s*(?:℃|度)")
+_THIRST_CONTENT = re.compile(r"口渴|喝.{0,2}水|多饮|饮水")
 _FAMILY_SUBJECT = re.compile(r"我(?:父母|父亲|母亲|爸爸|妈妈|爸|妈|哥哥|姐姐|弟弟|妹妹|兄弟|姐妹)|家里人|家人|家族|父母|父亲|母亲|爸爸|妈妈|爸|妈|哥哥|姐姐|弟弟|妹妹|兄弟|姐妹|亲戚")
 _FAMILY_DETAIL = re.compile(r"病|身体|健康|患|得过|疾病|冠心病|糖尿病|中风")
 _FAMILY_BROAD_QUERY = re.compile(r"家族史|(?:家族|家里人|家人).{0,8}(?:什么|哪些|啥)?(?:病|疾病|身体|健康)|(?:什么|哪些|啥).{0,4}(?:家族|家里人|家人).{0,8}(?:病|疾病)")
@@ -61,12 +68,15 @@ def _split_alternatives(clause: str, triggers: list[str]) -> list[str]:
     return [clause]
 
 
-def _split_clause(clause: str, triggers: list[str]) -> list[str]:
+def _split_clause(clause: str, triggers: list[str], field: str) -> list[str]:
     discovery = _DISCOVERY_AFTER.match(clause)
     pieces = [discovery.group(1), discovery.group(2)] if discovery else [clause]
     expanded: list[str] = []
     for piece in pieces:
-        expanded.extend(_split_alternatives(piece, triggers))
+        if "放射" in field:
+            expanded.append(piece)
+        else:
+            expanded.extend(_split_alternatives(piece, triggers))
     return expanded
 
 
@@ -81,7 +91,7 @@ def fact_fragments(fact: Fact) -> list[FactFragment]:
         explicit_subject = _FAMILY_SUBJECT.search(clause)
         if explicit_subject:
             subject_scope = explicit_subject.group(0)
-        for piece in _split_clause(clause, fact.disclosure_triggers):
+        for piece in _split_clause(clause, fact.disclosure_triggers, fact.field):
             piece_subject = _FAMILY_SUBJECT.search(piece)
             if piece_subject:
                 subject_scope = piece_subject.group(0)
@@ -128,6 +138,16 @@ def _matches_requested_intent(question: str, fragment: FactFragment, fact: Fact)
                 if asks_surgery and atom_surgery or asks_trauma and atom_trauma:
                     return True
                 continue
+        if intent == "location" and _LOCATION_CONTENT.search(fragment.content):
+            return True
+        if intent == "trigger" and _TRIGGER_CONTENT.search(fragment.content):
+            return True
+        if intent == "onset" and _TIME_CONTENT.search(fragment.content):
+            return True
+        if intent == "thirst" and _THIRST_CONTENT.search(fragment.content):
+            return True
+        if intent == "fever" and re.search(r"多少度|几度|体温多少|温度", question) and _TEMPERATURE_VALUE.search(fragment.content):
+            return True
         if intent in fragment_intents:
             return True
         if intent == "family" and _family_topic_matches(question, fragment, fact):
@@ -142,14 +162,22 @@ def _matches_requested_intent(question: str, fragment: FactFragment, fact: Fact)
     return False
 
 
-def select_answer_fragments(question: str, candidates: list[Fact]) -> list[FactFragment]:
-    """Project adapter-selected facts to only the source clauses asked about this turn."""
+def select_answer_fragments(
+    question: str,
+    candidates: list[Fact],
+    already_answered_atom_ids: set[str] | None = None,
+) -> list[FactFragment]:
+    """Project adapter-selected facts to source atoms asked on this turn."""
     opening, intents, _ = detect_intents(question)
+    answered = already_answered_atom_ids or set()
     result: list[FactFragment] = []
     for fact in candidates:
         fragments = fact_fragments(fact)
         if opening:
             result.extend(fragments)
+            continue
+        if not intents:
+            result.extend(fragment for fragment in fragments if fragment.atom_id not in answered)
             continue
         matched = [fragment for fragment in fragments if _matches_requested_intent(question, fragment, fact)]
         if matched:

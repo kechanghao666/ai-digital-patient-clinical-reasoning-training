@@ -481,7 +481,15 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
             raise HTTPException(status_code=502, detail="患者适配器暂不可用") from exc
     else:
         selection = PatientSelection(fact_ids=[], source="local_no_candidates")
-    selected, rendered = render_selected_answer(visible, selection.fact_ids, request.question)
+    prior_answer_atoms = {
+        atom_id
+        for previous_event in state.events
+        if previous_event.action == ActionKind.ASK
+        for atom_id in previous_event.result.get("answer_atom_ids", [])
+    }
+    selected, rendered = render_selected_answer(
+        visible, selection.fact_ids, request.question, prior_answer_atoms
+    )
     if not visible:
         # Fixed, fact-free reply (greeting, diagnosis request, or an unrecorded detail).
         rendered = non_fact_reply(request.question, turn_kind) or rendered
@@ -492,12 +500,6 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
     answer_atom_ids = [
         fragment.atom_id for fragment in selected if isinstance(fragment, FactFragment)
     ] if not was_fallback else []
-    prior_answer_atoms = {
-        atom_id
-        for previous_event in state.events
-        if previous_event.action == ActionKind.ASK
-        for atom_id in previous_event.result.get("answer_atom_ids", [])
-    }
     learned_atoms = prior_answer_atoms | set(answer_atom_ids)
     atoms_by_fact = {
         fact.fact_id: {fragment.atom_id for fragment in fact_fragments(fact)}
