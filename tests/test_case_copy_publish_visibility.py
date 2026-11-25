@@ -29,6 +29,7 @@ from app.integration.runtime import IntegrationRuntime
 from app.state_machine import StateMachine
 from app.storage import SessionRepository
 from test_integration import ROOT, settings_for
+from test_cases_config import configure_department_catalog
 
 TEACHER = ("copy_teacher", "Teacher-Copy-2026")
 STUDENT = ("copy_student", "Student-Copy-2026")
@@ -48,6 +49,7 @@ def install(tmp_path: Path, monkeypatch) -> tuple[TestClient, dict[str, str], di
     monkeypatch.setenv("APP_AUTH_MODE", "local")
     repository = SessionRepository(tmp_path / "app.db")
     store = CaseStore(ROOT / "cases", tmp_path / "teacher_cases")
+    configure_department_catalog(tmp_path)
     accounts = AccountStore(tmp_path / "accounts.db")
     accounts.create(*TEACHER, "teacher", "合成教师（测试夹具）", must_change=False)
     accounts.create(*STUDENT, "student", "合成学生（测试夹具）", must_change=False)
@@ -71,6 +73,8 @@ def copy_payload(source: dict) -> dict:
         "reviewer": None,
         "review_date": None,
         "authored_by": None,
+        "department_code": "03",  # 内科
+        "subspecialty_code": "03.04",  # 心血管内科专业
     })
     payload.pop("public_id", None)
     return payload

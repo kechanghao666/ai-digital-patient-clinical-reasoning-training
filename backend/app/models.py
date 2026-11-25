@@ -180,7 +180,11 @@ class CaseDefinition(BaseModel):
     case_id: str
     version: int = Field(ge=1)
     public_id: str
-    specialty: str
+    specialty: str  # 保留原有自由文本字段用于展示兼容
+    # 科室与亚专科编码（受控字典）
+    # 来源：《医疗机构诊疗科目名录》
+    department_code: str | None = None   # L1 科室编码，如 "03" 表示内科
+    subspecialty_code: str | None = None  # L2 亚专科编码，如 "03.04" 表示心血管内科专业
     title: str
     learning_goals: list[str] = Field(min_length=1)
     target_population: str

@@ -13,6 +13,7 @@ from app.integration.runtime import IntegrationRuntime
 from test_feedback_contract import sealed
 from test_feedback_reviews import payload, read, save
 from test_integration import Env, ROOT, feedback_agent, select, _play_and_seal
+from test_cases_config import configure_department_catalog
 
 
 def library_copy(tmp_path):
@@ -229,9 +230,11 @@ def test_new_case_version_does_not_inherit_previous_clinical_coverage(tmp_path, 
     env = Env(tmp_path, monkeypatch, mode="simulator")
     from app.case_store import CaseStore
     cases = CaseStore(ROOT / "cases", tmp_path / "teacher_cases")
+    configure_department_catalog(tmp_path)
     monkeypatch.setattr(main, "CASE_STORE", cases)
     case = cases.get("STEMI-001", 2).model_dump(mode="json")
-    case.update(case_id="TEACH-PIN", public_id="CASE-T-PIN", version=1)
+    case.update(case_id="TEACH-PIN", public_id="CASE-T-PIN", version=1,
+                department_code="03", subspecialty_code="03.04")
     directory = library_copy(tmp_path)
     def bind(data):
         for entry in data["entries"]:

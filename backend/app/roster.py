@@ -239,7 +239,8 @@ class AssignmentBody(BaseModel):
 def build_router(get_roster: Callable[[], RosterStore], get_accounts: Callable[[], AccountStore],
                  get_repository: Callable, get_cases: Callable, current_teacher: Callable, current_owner: Callable,
                  development: Callable[[], bool],
-                 is_training_stopped: Callable[[str, int], bool] | None = None) -> APIRouter:
+                 is_training_stopped: Callable[[str, int], bool] | None = None,
+                 is_department_enabled: Callable[[Any], bool] | None = None) -> APIRouter:
     router = APIRouter(prefix="/api")
 
     def roster() -> RosterStore:
@@ -269,8 +270,10 @@ def build_router(get_roster: Callable[[], RosterStore], get_accounts: Callable[[
             return {"title": "病例不可用", "specialty": "", "available": False,
                     "unavailable_reason": "missing"}
         stopped = is_training_stopped is not None and is_training_stopped(case.case_id, case.version)
+        department_enabled = is_department_enabled is None or is_department_enabled(case)
         return {"title": case.title, "specialty": case.specialty, "chief_complaint": case.chief_complaint,
-                "available": not stopped, "unavailable_reason": "stopped" if stopped else None}
+                "available": not stopped and department_enabled,
+                "unavailable_reason": "stopped" if stopped else "department_disabled" if not department_enabled else None}
 
     # ---------------------------------------------------------------- teacher
     @router.get("/teacher/classes")
@@ -402,6 +405,8 @@ def build_router(get_roster: Callable[[], RosterStore], get_accounts: Callable[[
             # The assignment follows the newest published version; never fall back to an older
             # published version when that newest one has been stopped.
             raise HTTPException(409, "该病例版本已停止接受新训练，请联系教师重新选版")
+        if is_department_enabled is not None and not is_department_enabled(case):
+            raise HTTPException(409, "该病例所属科室或亚专科未启用，暂不可开始新训练")
         state = SessionState(owner_id=owner_id, case_id=case.case_id, case_version=case.version)
         get_repository().create(state)
         store.link(assignment_id, owner_id, state.session_id)

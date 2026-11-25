@@ -33,9 +33,13 @@ sys.path.insert(0, str(ROOT / "backend"))
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app import main  # noqa: E402
+from app.department_config import save_department_config  # noqa: E402
 from app.adapters import diagnosis_leak_terms  # noqa: E402
 
 HEADERS = {"X-Owner-Id": "demo-dialogue-eval"}
+save_department_config(Path(_data.name) / "department-catalog.json", {"03", "04"},
+                       {"03.01", "03.02", "03.03", "03.04", "03.05", "03.07", "04.01"},
+                       "synthetic-dialogue-eval")
 
 
 def judge(item, fact_ids, answer, case):

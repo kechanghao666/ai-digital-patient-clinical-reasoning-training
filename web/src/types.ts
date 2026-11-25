@@ -1,7 +1,9 @@
 // Shapes returned by the student-facing API (see backend/app/main.py safe_* projections).
 
 export interface CaseSummary {
-  public_id: string; version: number; title: string; specialty: string; chief_complaint: string; review_status: string;
+  public_id: string; version: number; title: string; specialty: string;
+  department_code: string | null; subspecialty_code: string | null;
+  chief_complaint: string; review_status: string;
   patient?: { age: number | null; sex: string | null };
 }
 export interface SessionSummary {
@@ -67,3 +69,14 @@ export const ORDER_STATE: Record<string, string> = {
 export const REVIEW_STATUS: Record<string, string> = {
   draft: "草稿", validated: "结构校验通过", under_review: "待医学审核", published: "已发布",
 };
+
+// 科室目录类型
+export interface DepartmentCatalog {
+  configured?: boolean;
+  catalog_version?: string;
+  scope?: string;
+  departments: {
+    code: string; name: string; enabled?: boolean;
+    subspecialties: { code: string; name: string; enabled?: boolean }[];
+  }[];
+}

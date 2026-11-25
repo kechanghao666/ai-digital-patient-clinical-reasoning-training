@@ -18,6 +18,12 @@ from .adapters import (
 )
 from . import exam_catalog
 from .case_store import CaseStore
+from .department_catalog import map_legacy_specialty
+from .department_config import (
+    DepartmentConfigError,
+    config_path_for_case_store,
+    load_department_config,
+)
 from .disclosure import classify_turn, non_fact_reply
 from .history_coverage import history_coverage
 from .integration.feedback import FeedbackUnavailable
@@ -87,6 +93,23 @@ def _development() -> bool:
     return os.getenv("APP_ENV", "production").lower() == "development"
 
 
+def _department_config():
+    try:
+        return load_department_config(config_path_for_case_store(CASE_STORE))
+    except DepartmentConfigError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+def _department_enabled(case: CaseDefinition, config) -> bool:
+    department_code = case.department_code
+    subspecialty_code = case.subspecialty_code
+    if not department_code and not subspecialty_code:
+        department_code, subspecialty_code = map_legacy_specialty(case.specialty)
+    if not department_code or department_code not in config.enabled_departments:
+        return False
+    return not subspecialty_code or subspecialty_code in config.enabled_subspecialties
+
+
 def current_teacher(x_owner_id: str | None = Header(default=None), authorization: str | None = Header(default=None)) -> str:
     if authorization is not None or auth_mode() == "local":
         user = _account(authorization)
@@ -109,7 +132,8 @@ app.include_router(build_dashboard_router(lambda: REPOSITORY, lambda: CASE_STORE
                                           lambda: roster_for(ACCOUNTS)))
 app.include_router(build_roster_router(lambda: roster_for(ACCOUNTS), lambda: ACCOUNTS, lambda: REPOSITORY, lambda: CASE_STORE,
                                        current_teacher, current_owner, _development,
-                                       lambda case_id, version: RUNTIME.case_training.is_stopped(case_id, version)))
+                                       lambda case_id, version: RUNTIME.case_training.is_stopped(case_id, version),
+                                       lambda case: _department_enabled(case, _department_config())))
 
 
 def get_state(session_id: str, owner_id: str) -> SessionState:
@@ -329,9 +353,13 @@ def health() -> dict:
 
 @app.get("/api/cases")
 def list_cases(_: str = Depends(current_owner)) -> list[dict]:
+    config = _department_config()
     listed = CASE_STORE.list_public(
         include_unpublished=_development(),
-        available=lambda case: not RUNTIME.case_training.is_stopped(case.case_id, case.version),
+        available=lambda case: (
+            not RUNTIME.case_training.is_stopped(case.case_id, case.version)
+            and _department_enabled(case, config)
+        ),
     )
     for item in listed:
         try:
@@ -339,6 +367,31 @@ def list_cases(_: str = Depends(current_owner)) -> list[dict]:
         except KeyError:
             item["patient"] = {"age": None, "sex": None}
     return listed
+
+
+@app.get("/api/department-catalog")
+def student_department_catalog(_: str = Depends(current_owner)) -> dict:
+    """仅返回已启用且有当前可训练病例的科室/亚专科。"""
+    from .department_catalog import catalog_for_student
+
+    config = _department_config()
+    listed = CASE_STORE.list_public(
+        include_unpublished=_development(),
+        available=lambda case: (
+            not RUNTIME.case_training.is_stopped(case.case_id, case.version)
+            and _department_enabled(case, config)
+        ),
+    )
+
+    has_cases: set[tuple[str | None, str | None]] = set()
+    for item in listed:
+        dept = item.get("department_code")
+        subsp = item.get("subspecialty_code")
+        if dept or subsp:
+            has_cases.add((dept, subsp))
+
+    catalog = catalog_for_student(has_cases)
+    return {**catalog, "configured": config.configured}
 
 
 @app.post("/api/sessions")
@@ -351,6 +404,8 @@ def create_session(case_id: str, owner_id: str = Depends(current_owner)) -> dict
         # Resolve the newest published version first, then refuse. Do not fall back to an older
         # published version of the same public id.
         raise HTTPException(status_code=409, detail="该病例版本已停止接受新训练，请联系教师重新选版")
+    if not _department_enabled(case, _department_config()):
+        raise HTTPException(status_code=409, detail="该病例所属科室或亚专科未启用，暂不可开始新训练")
     state = SessionState(owner_id=owner_id, case_id=case.case_id, case_version=case.version)
     REPOSITORY.create(state)
     return {

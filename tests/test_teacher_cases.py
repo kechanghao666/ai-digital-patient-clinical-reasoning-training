@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from app.case_store import CaseStore
+from app.department_config import save_department_config
 
 from test_cases_config import ROOT, Api, item, load
 
@@ -19,6 +20,9 @@ def new_case(case_id="TEACH-001", **changes) -> dict:
     raw["case_id"] = case_id
     raw.pop("public_id")
     raw["title"] = "教师新增的腹痛模拟病例"
+    # 设置科室/亚专科编码以通过发布验证
+    raw.setdefault("department_code", "04")  # 外科
+    raw.setdefault("subspecialty_code", "04.01")  # 普通外科专业
     raw.update(changes)
     return raw
 
@@ -156,6 +160,43 @@ def test_incomplete_case_cannot_be_validated_or_published(tmp_path, monkeypatch)
     assert res.status_code == 422
     codes = {i["code"] for i in res.json()["detail"]["issues"]}
     assert {"missing_stage", "no_treatments"} <= codes
+
+
+def test_teacher_case_requires_a_valid_department_pair_before_save_and_review(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    raw = new_case()
+    raw["subspecialty_code"] = None
+    result = put(api, raw)
+    assert result.status_code == 422
+    assert "missing_subspecialty" in {item["code"] for item in result.json()["detail"]["issues"]}
+    checked_payload = {**raw, "public_id": "CASE-T-DRAFT"}
+    checked = api.client.post("/api/teacher/cases/validate", headers=TEACHER, json=checked_payload)
+    assert checked.status_code == 200, checked.text
+    assert not checked.json()["valid"]
+    assert "missing_subspecialty" in {item["code"] for item in checked.json()["issues"]}
+    assert not (tmp_path / "teacher_cases").exists()
+
+    raw = new_case(case_id="TEACH-002")
+    raw["department_code"] = "03"
+    result = put(api, raw)
+    assert result.status_code == 422
+    assert "department_mismatch" in {item["code"] for item in result.json()["detail"]["issues"]}
+
+
+def test_disabling_a_department_before_publication_blocks_publish(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    assert put(api, new_case()).status_code == 200
+    assert step(api, "TEACH-001", 1, "validate").status_code == 200
+    assert step(api, "TEACH-001", 1, "submit-review").status_code == 200
+
+    save_department_config(
+        tmp_path / "department-catalog.json", {"03"}, {"03.04"}, "synthetic-test-operator"
+    )
+    published = step(api, "TEACH-001", 1, "publish", PUBLISH)
+    assert published.status_code == 422
+    assert "department_not_enabled" in {item["code"] for item in published.json()["detail"]["issues"]}
+    stored = api.store.get("TEACH-001", 1)
+    assert stored.review_status.value == "under_review"
 
 
 def test_editing_after_publication_creates_a_new_version_and_pins_sessions(tmp_path, monkeypatch):

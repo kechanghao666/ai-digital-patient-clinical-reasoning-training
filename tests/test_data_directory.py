@@ -19,7 +19,11 @@ from fastapi.testclient import TestClient
 from app import main
 from app.integration.config import IntegrationSettings
 from app.mcp_server import build_service
+from app.department_config import save_department_config
 target = Path(sys.argv[1]).resolve()
+save_department_config(target / "department-catalog.json", {"03", "04"},
+                       {"03.01", "03.02", "03.03", "03.04", "03.07", "04.01"},
+                       "synthetic-isolated-test")
 assert Path(main.REPOSITORY.database_path) == target / "app.db"
 assert main.CASE_STORE.teacher_dir == target / "teacher_cases"
 settings = IntegrationSettings.from_env()

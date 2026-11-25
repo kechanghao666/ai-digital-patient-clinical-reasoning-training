@@ -25,6 +25,7 @@ from app.integration.runtime import IntegrationRuntime
 from app.state_machine import StateMachine
 from app.storage import SessionRepository
 from test_integration import ROOT, settings_for
+from test_cases_config import configure_department_catalog
 
 TEACHER = ("stop_teacher", "Teacher-Stop-2026")
 STUDENT = ("stop_student", "Student-Stop-2026")
@@ -44,6 +45,7 @@ def install(tmp_path, monkeypatch):
     monkeypatch.setenv("APP_AUTH_MODE", "local")
     repository = SessionRepository(tmp_path / "app.db")
     store = CaseStore(ROOT / "cases", tmp_path / "teacher_cases")
+    configure_department_catalog(tmp_path)
     accounts = AccountStore(tmp_path / "accounts.db")
     accounts.create(*TEACHER, "teacher", "合成教师（测试夹具）", must_change=False)
     accounts.create(*STUDENT, "student", "合成学生（测试夹具）", must_change=False)
@@ -62,7 +64,8 @@ def publish_copy(client: TestClient, teacher: dict[str, str], title_suffix: str 
     assert source.status_code == 200, source.text
     payload = copy.deepcopy(source.json())
     payload.update({"case_id": CASE_ID, "title": payload["title"] + title_suffix, "version": 1,
-                    "review_status": "draft", "reviewer": None, "review_date": None, "authored_by": None})
+                    "review_status": "draft", "reviewer": None, "review_date": None, "authored_by": None,
+                    "department_code": "03", "subspecialty_code": "03.04"})  # 心血管内科专业
     payload.pop("public_id", None)
     saved = client.put(f"/api/teacher/cases/{CASE_ID}", headers=teacher, json=payload)
     assert saved.status_code == 200, saved.text
@@ -123,6 +126,8 @@ def test_stop_blocks_new_training_and_preserves_in_progress_and_sealed(tmp_path,
     # behind an older published version.
     listed = client.get("/api/cases", headers=student)
     assert listed.status_code == 200 and listed.json() == []
+    student_catalog = client.get("/api/department-catalog", headers=student)
+    assert student_catalog.status_code == 200 and student_catalog.json()["departments"] == []
     blocked = client.post(f"/api/sessions?case_id={public_id}", headers=student)
     assert blocked.status_code == 409 and "停止" in blocked.json()["detail"]
 
@@ -266,3 +271,35 @@ def test_assignment_start_respects_stop_and_resumes_an_open_session(tmp_path, mo
     rejected = client.post(f"/api/teacher/classes/{class_id}/assignments", headers=teacher,
                            json={"case_public_id": public_id, "title": "新任务"})
     assert rejected.status_code == 422
+
+
+def test_disabled_department_blocks_assignment_creation_and_new_session_but_keeps_open_session(tmp_path, monkeypatch):
+    from app.department_config import save_department_config
+
+    client, teacher, student, _, _ = install(tmp_path, monkeypatch)
+    meta = publish_copy(client, teacher)
+    public_id = meta["public_id"]
+    created = client.post("/api/teacher/classes", headers=teacher, json={"name": "科室停用测试班"})
+    class_id = created.json()["id"]
+    assert client.post(f"/api/teacher/classes/{class_id}/students", headers=teacher,
+                       json={"students": [{"username": STUDENT[0], "display_name": "合成学生"}]}).status_code == 200
+    assignment = client.post(f"/api/teacher/classes/{class_id}/assignments", headers=teacher,
+                             json={"case_public_id": public_id, "title": "科室停用已有任务"})
+    assert assignment.status_code == 200, assignment.text
+    assignment_id = assignment.json()["id"]
+    started = client.post(f"/api/assignments/{assignment_id}/start", headers=student)
+    assert started.status_code == 200
+    open_session = started.json()["session_id"]
+
+    save_department_config(tmp_path / "department-catalog.json", {"04"}, {"04.01"}, "synthetic-test-operator")
+    task = client.get("/api/assignments", headers=student).json()[0]
+    assert task["case"]["available"] is False
+    assert task["case"]["unavailable_reason"] == "department_disabled"
+    resumed = client.post(f"/api/assignments/{assignment_id}/start", headers=student)
+    assert resumed.status_code == 200 and resumed.json() == {"session_id": open_session, "resumed": True}
+    assert client.post(f"/api/teacher/classes/{class_id}/assignments", headers=teacher,
+                       json={"case_public_id": public_id, "title": "停用后新任务"}).status_code == 422
+    assert client.post(f"/api/sessions/{open_session}/seal", headers=student,
+                       json={"request_id": "seal-open-after-department-disable"}).status_code == 200
+    blocked = client.post(f"/api/assignments/{assignment_id}/start", headers=student)
+    assert blocked.status_code == 409

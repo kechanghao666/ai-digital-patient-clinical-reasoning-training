@@ -106,6 +106,10 @@ def main():
     os.environ["INTEGRATION_DB_PATH"] = str(Path(data) / "integration.db")
 
     from app import main as app_main
+    from app.department_config import save_department_config
+    save_department_config(Path(data) / "department-catalog.json", {"03", "04"},
+                           {"03.01", "03.02", "03.03", "03.04", "03.05", "03.07", "04.01"},
+                           "synthetic-browser-e2e")
     from app.case_store import CaseStore
     from app.integration.config import IntegrationSettings
     from app.integration.knowledge import KnowledgeStore

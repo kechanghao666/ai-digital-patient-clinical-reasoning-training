@@ -12,7 +12,7 @@ try {
   const tasks = ['not_started', 'completed', 'in_progress', 'completed'].map((status, i) => ({
     id: `t${i}`, title: `Task ${i}`, status, open_session_id: i >= 2 ? `open${i}` : null,
     latest_sealed_session_id: status === 'completed' ? `sealed${i}` : null,
-    case_public_id: 'CASE-T100', case: { available: false, unavailable_reason: 'stopped' },
+    case_public_id: 'CASE-T100', case: { available: false, unavailable_reason: i === 0 ? 'department_disabled' : 'stopped' },
   }));
   await page.route('**/*', route => {
     const { pathname } = new URL(route.request().url());
@@ -32,6 +32,7 @@ try {
   await page.getByRole('button', { name: /^全部/ }).click();
   const button = i => page.getByRole('row').filter({ hasText: `Task ${i}` }).getByRole('button', { name: /^(开始|继续|再练一次)$/ });
   assert.ok(await button(0).isDisabled() && await button(1).isDisabled(), 'new and repeat starts stay blocked');
+  assert.match(await page.getByRole('row').filter({ hasText: 'Task 0' }).innerText(), /所属科室或亚专科当前未启用/);
   for (const i of [2, 3]) {
     assert.equal(await button(i).innerText(), '继续');
     assert.ok(await button(i).isEnabled(), `resume existing session for Task ${i}`);

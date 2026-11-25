@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from app import main
 from app.case_authoring import check_case, has_errors
 from app.case_store import CaseStore
+from app.department_config import save_department_config
 from app.models import CaseDefinition
 from app.state_machine import StateMachine
 from app.storage import SessionRepository
@@ -22,10 +23,21 @@ def load(name: str) -> dict:
     return json.loads((ROOT / "cases" / name).read_text(encoding="utf-8"))
 
 
+def configure_department_catalog(data_dir: Path) -> None:
+    """Write an isolated synthetic enablement file, never a school configuration."""
+    save_department_config(
+        data_dir / "department-catalog.json",
+        {"03", "04"},
+        {"03.01", "03.02", "03.03", "03.04", "03.05", "03.07", "04.01"},
+        "synthetic-test-operator",
+    )
+
+
 class Api:
     def __init__(self, tmp_path, monkeypatch, owner="demo-cfg", env="development"):
         self.repository = SessionRepository(tmp_path / "s.db")
         self.store = CaseStore(ROOT / "cases", tmp_path / "teacher_cases")
+        configure_department_catalog(tmp_path)
         monkeypatch.setenv("APP_ENV", env)
         monkeypatch.setattr(main, "REPOSITORY", self.repository)
         monkeypatch.setattr(main, "CASE_STORE", self.store)

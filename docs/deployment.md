@@ -45,6 +45,25 @@ $env:APP_DATA_DIR = Join-Path (Get-Location) 'local-only\demo-data'
 
 测试启动时自动选择临时存储，样本复跑每组也使用独立数据库。真实平台演练仍应显式配置专用`APP_DATA_DIR`，不以测试隔离代替部署隔离。
 
+## 科室参考目录启用（部署管理员）
+
+病例的科室编码使用仓库内受控的参考目录子集，不代表完整国家目录或院校实际建制。生产数据目录缺少 `department-catalog.json` 时默认不启用目录项，因此学生病例列表为空、不能新建训练；先由部署管理员核对本校实际开设范围，再配置启用项。教师账号不能修改这份部署配置。
+
+```powershell
+# 查看当前状态；只读配置文件，不读取业务数据库
+& .\.venv\Scripts\python.exe scripts\configure_department_catalog.py --show
+
+# 示例：按本校确认结果完整替换启用项（不是推荐的通用医院建制）
+& .\.venv\Scripts\python.exe scripts\configure_department_catalog.py `
+  --enabled-departments 03,04 `
+  --enabled-subspecialties 03.01,03.03,03.04,03.07,04.01
+
+# 恢复上一份有效配置
+& .\.venv\Scripts\python.exe scripts\configure_department_catalog.py --restore-previous
+```
+
+配置写入 `APP_DATA_DIR/department-catalog.json`，每次替换前保留 `.previous`；部署前应备份数据目录并由管理员核对操作者与启用范围。验证：运行 `--show`，检查教师病例表单选项与学生病例筛选；停用项应阻止新布置和新开训，但不得删除既有训练、事件或封存评分，已开始训练仍可继续。科室启用不等于病例医学审核或发布。
+
 ## 真实Nexent配置
 
 1. 在目标Nexent实例配置可用模型，实际调用验证，不能只凭模型列表显示available。目标实例模型/工具资源ID须重新绑定。

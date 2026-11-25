@@ -200,3 +200,8 @@ def test_five_distinct_specialties_are_available():
     specialties = {c["specialty"].split("/")[0] for c in listed}
     assert len(specialties) >= 5, specialties
     assert len({c["public_id"] for c in listed}) == len(listed)
+    assert {c["public_id"]: (c["department_code"], c["subspecialty_code"]) for c in listed} == {
+        "CASE-001": ("03", "03.04"), "CASE-002": ("04", "04.01"),
+        "CASE-003": ("03", "03.03"), "CASE-004": ("03", "03.01"),
+        "CASE-005": ("03", "03.07"),
+    }

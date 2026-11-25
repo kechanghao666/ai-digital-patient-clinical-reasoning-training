@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 import { ApiError, enc, get, mutate, request } from "../../api";
-import { REVIEW_STATUS } from "../../types";
+import { REVIEW_STATUS, type DepartmentCatalog } from "../../types";
 import { Loading, Msg, Panel, useAction, useLoad } from "../../ui";
 
-interface Version { case_id: string; public_id: string; version: number; title: string; specialty: string; review_status: string; source: string; authored_by: string | null; reviewer: string | null; review_date: string | null; training_stopped: boolean; stopped_at: number | null; stopped_by: string | null; stop_reason: string | null; }
+interface Version { case_id: string; public_id: string; version: number; title: string; specialty: string; department_code: string | null; subspecialty_code: string | null; review_status: string; source: string; authored_by: string | null; reviewer: string | null; review_date: string | null; training_stopped: boolean; stopped_at: number | null; stopped_by: string | null; stop_reason: string | null; }
 interface Issue { level: string; code: string; message: string; }
 type CaseJson = Record<string, any>;
 const ADVANCED = [["facts", "症状与体征"], ["exams", "检查与回报"], ["treatments", "模拟处置"], ["differential_options", "鉴别候选"], ["rules", "病情演进规则"], ["rubric", "评分量表"]] as const;
@@ -12,7 +12,8 @@ const STATUS_TONE: Record<string, string> = { draft: "", validated: "blue", unde
 function newDraft(source: CaseJson): CaseJson {
   const data = structuredClone(source);
   Object.assign(data, { case_id: `TEACH-${Math.random().toString(16).slice(2, 10)}`, title: `${data.title}（新草稿）`, version: 1,
-    review_status: "draft", reviewer: null, review_date: null, authored_by: null });
+    review_status: "draft", reviewer: null, review_date: null, authored_by: null,
+    department_code: data.department_code || null, subspecialty_code: data.subspecialty_code || null });
   delete data.public_id;
   return data;
 }
@@ -21,6 +22,7 @@ const fmtTime = (value?: number | null) => (value ? new Date(value * 1000).toLoc
 
 export function CaseManager({ selected }: { selected?: string }) {
   const { data: versions, error, reload } = useLoad(() => get<Version[]>("/api/teacher/cases"), []);
+  const { data: deptCatalog, error: deptCatalogError } = useLoad(() => get<DepartmentCatalog>("/api/teacher/department-catalog"), []);
   const [current, setCurrent] = useState<Version | null>(null);
   const [draft, setDraft] = useState<CaseJson | null>(null);
   const [advanced, setAdvanced] = useState(false);
@@ -35,6 +37,13 @@ export function CaseManager({ selected }: { selected?: string }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const { busy, run } = useAction();
   void selected;
+
+  // 获取当前选中科室的亚专科列表
+  const currentDept = useMemo(() =>
+    deptCatalog?.departments.find(d => d.code === draft?.department_code),
+    [deptCatalog, draft?.department_code]);
+  const departmentListed = Boolean(deptCatalog?.departments.some(d => d.code === draft?.department_code));
+  const subspecialtyListed = Boolean(currentDept?.subspecialties.some(s => s.code === draft?.subspecialty_code));
 
   const grouped = useMemo(() => (versions || []).filter((v) => `${v.title} ${v.case_id} ${v.public_id} ${v.specialty}`.toLowerCase().includes(filter.toLowerCase()))
     .sort((a, b) => a.public_id.localeCompare(b.public_id) || b.version - a.version), [versions, filter]);
@@ -142,6 +151,8 @@ export function CaseManager({ selected }: { selected?: string }) {
         </section>
         {!draft ? <Panel><div className="empty">选择左侧病例版本</div></Panel> : (
           <div className="stack">
+            {deptCatalogError && <Msg tone="bad">科室目录读取失败：{String(deptCatalogError)}</Msg>}
+            {deptCatalog && !deptCatalog.configured && <Msg tone="warn">部署尚未配置院校启用目录。教师无权修改此设置；请部署管理员运行 scripts/configure_department_catalog.py。</Msg>}
             {coverage?.missing_clinical_stages?.length && current ? <Msg tone="warn">该病例缺少专科临床依据：{coverage.missing_clinical_stages.join("、")}。</Msg> : null}
             <Panel title={current ? `${current.public_id}　v${current.version}　${REVIEW_STATUS[current.review_status]}` : "新草稿（未保存）"} actions={<>
               {current && <button className="btn " onClick={() => loadEditor(newDraft(draft), null)}>复制为新草稿</button>}
@@ -151,7 +162,28 @@ export function CaseManager({ selected }: { selected?: string }) {
                   <label className="field"><span>病例编号</span><input className="input mono" value={draft.case_id || ""} onChange={(e) => set("case_id", e.target.value)} />
                     <small>3–40 位字母、数字、短横线或下划线</small></label>
                   <label className="field"><span>病例标题</span><input className="input" value={draft.title || ""} onChange={(e) => set("title", e.target.value)} /></label>
-                  <label className="field"><span>专科</span><input className="input" value={draft.specialty || ""} onChange={(e) => set("specialty", e.target.value)} /></label>
+                  <label className="field"><span>科室</span>
+                    <select className="select" value={draft.department_code || ""} onChange={(e) => {
+                      const dept = e.target.value || null;
+                      setDraft((d) => ({ ...d!, department_code: dept, subspecialty_code: null }));
+                    }}>
+                      <option value="">未选择</option>
+                      {draft.department_code && !departmentListed && <option value={draft.department_code} disabled>历史分类 {draft.department_code}（当前未启用）</option>}
+                      {(deptCatalog?.departments || []).map((d) => <option key={d.code} value={d.code}>{d.name}</option>)}
+                    </select>
+                    <small>发布前须选择科室</small>
+                  </label>
+                  <label className="field"><span>亚专科</span>
+                    <select className="select" value={draft.subspecialty_code || ""} onChange={(e) => set("subspecialty_code", e.target.value || null)}
+                      disabled={!currentDept || currentDept.subspecialties.length === 0}>
+                      <option value="">未选择</option>
+                      {draft.subspecialty_code && !subspecialtyListed && <option value={draft.subspecialty_code} disabled>历史分类 {draft.subspecialty_code}（当前未启用）</option>}
+                      {(currentDept?.subspecialties || []).map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
+                    </select>
+                    <small>{currentDept && currentDept.subspecialties.length > 0 ? "发布前必须选择" : "该科室无已配置亚专科，可按科室级分类"}</small>
+                  </label>
+                  <label className="field"><span>专科（原字段）</span><input className="input" value={draft.specialty || ""} onChange={(e) => set("specialty", e.target.value)} />
+                    <small>保留展示兼容，优先使用科室/亚专科</small></label>
                   <label className="field"><span>适用人群</span><input className="input" value={draft.target_population || ""} onChange={(e) => set("target_population", e.target.value)} /></label>
                   <label className="field"><span>主诉</span><input className="input" value={draft.chief_complaint || ""} onChange={(e) => set("chief_complaint", e.target.value)} /></label>
                   <label className="field"><span>隐藏参考诊断（仅教师可见）</span><input className="input" value={draft.hidden_diagnosis || ""} onChange={(e) => set("hidden_diagnosis", e.target.value)} /></label>

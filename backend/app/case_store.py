@@ -9,6 +9,19 @@ from typing import Callable, Iterable
 from .legacy import apply_legacy_profile
 from .models import CaseDefinition, ReviewStatus
 
+
+def _legacy_classification(specialty: str) -> tuple[str | None, str | None]:
+    from .department_catalog import map_legacy_specialty
+
+    return map_legacy_specialty(specialty)
+
+
+def _classification(case: CaseDefinition) -> tuple[str | None, str | None]:
+    if case.department_code or case.subspecialty_code:
+        return case.department_code, case.subspecialty_code
+    return _legacy_classification(case.specialty)
+
+
 CASE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{2,39}$")
 
 
@@ -116,6 +129,8 @@ class CaseStore:
                 "version": case.version,
                 "title": case.title,
                 "specialty": case.specialty,
+                "department_code": _classification(case)[0],
+                "subspecialty_code": _classification(case)[1],
                 "chief_complaint": case.chief_complaint,
                 "review_status": case.review_status.value,
             }
@@ -131,6 +146,8 @@ class CaseStore:
                 "version": case.version,
                 "title": case.title,
                 "specialty": case.specialty,
+                "department_code": _classification(case)[0],
+                "subspecialty_code": _classification(case)[1],
                 "review_status": case.review_status.value,
                 "source": "teacher" if (case.case_id, case.version) in self._teacher_keys else "fixture",
                 "authored_by": case.authored_by,

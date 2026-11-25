@@ -60,7 +60,9 @@ export function Tasks() {
                       {t.open_session_id ? "继续" : t.status === "completed" ? "再练一次" : "开始"}</button>
                     {!t.case.available && <div className="faint">{t.case.unavailable_reason === "stopped"
                       ? t.open_session_id ? "该版本已停止新训练，已有训练可继续。" : "该版本已停止新训练，请联系教师重新选版。"
-                      : "该病例当前不可用，请联系教师。"}</div>}
+                      : t.case.unavailable_reason === "department_disabled"
+                        ? "该病例所属科室或亚专科当前未启用，请联系管理员。"
+                        : "该病例当前不可用，请联系教师。"}</div>}
                   </td>
                 </tr>
               );
