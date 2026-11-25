@@ -1,8 +1,27 @@
 # 测试报告
 
-对应官方交付物“逐项测试报告”。报告只汇总**可复跑的工程测试**结果，正式验收所需的医学审核、真实学生评测和官方现场演示不在此列，也不能由本报告代替。下方 2026-11-25 补充为当前工作树复验；其后保留的 2026-11-13 及更早内容均为历史，不改写为本轮结果。
+对应官方交付物“逐项测试报告”。报告只汇总**可复跑的工程测试**结果，正式验收所需的医学审核、真实学生评测和官方现场演示不在此列，也不能由本报告代替。当前接手基线为 `0b34f461131c2f5054032b828ed5889f4227cc55`。本报告分开记录该基线的 GitHub CI 与此前 `35ab4c6` 的本机代码复验；旧日期和结果保留原口径，不把较早结果冒充为在 `0b34f461` 上重跑。
 
-## 2026-11-25 当前代码复验（代码提交 35ab4c6，基于 ee0a09a）
+## 2026-11-25：0b34f461 基线 GitHub CI
+
+通过公开 GitHub Actions API 核验该 SHA 的两次 `Engineering checks` 工作流：Push run [45575084806](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/actions/runs/45575084806) 与 PR run [45575096301](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/actions/runs/45575096301) 均为 completed/success；两次的 `tests`、`dependency-audit` check 均为 success。此处记录的是 CI 对提交 `0b34f461` 的结果，不代表本机重跑，也不构成官方验收。
+
+## 2026-11-25：当前工作树隔离备份/恢复复验（起点 0b34f461）
+
+本轮新增的 Python 工程改动在 Windows 本机、Python 3.11.18（仓库 `.venv`）的临时目录上验证，未读取 `APP_DATA_DIR` 实际业务路径、默认 `backend/data`、密钥或 `local-only/`。测试样本与可复跑入口为 [`tests/test_data_backup_restore.py`](../tests/test_data_backup_restore.py)：自动创建合成 app/accounts/integration 数据库、封存训练与评分、教师病例副本/来源/操作审计、科室当前及 `.previous` 配置，并从外置 `INTEGRATION_DB_PATH` 恢复到新的临时目录；仓库病例文件仅只读作为合成草稿模板。临时数据在 pytest 临时目录中，不生成仓库快照证据或使用业务数据。
+
+| 验证 | 实际命令/范围 | 结果 | 边界 |
+|---|---|---|---|
+| 备份恢复专项（最终） | `./.venv/Scripts/python.exe -m pytest -q tests/test_data_backup_restore.py` | **6 passed / 0 failed，3.23s** | 含文档 CLI 的 subprocess 往返、恢复暂存故障注入；全部使用自动临时目录与合成数据 |
+| 全量测试 | `./.venv/Scripts/python.exe -m pytest -q` | **740 passed / 0 failed，153.08s** | 本机回归，不是新提交 CI、生产/异机部署或真实数据恢复 |
+| Python 编译 | `./.venv/Scripts/python.exe -m compileall -q backend/app frontend tests scripts` | 通过 | Python 语法编译 |
+| 前端检查 | 未运行 `npm run typecheck` / `npm run build` | 未重跑 | 本轮无前端源码或构建产物改动；此前的前端结果属于 `35ab4c6` |
+
+异常过程保留：最初专项运行 4 项时 2 项失败，原因是 WAL 模式数据库备份副本在恢复前校验时生成 `integration.db-shm`，使严格 payload 清单拒绝该文件；已仅将快照副本改为独立 DELETE journal mode（不改源库），随后专项 4 项通过。新增 CLI 端到端探针与恢复暂存阶段故障注入后，最终专项 6/6、全量 740/740 通过。损坏快照校验、非空目标保护、暂存失败不发布且清理 staging、未确认停机和源数据目录出现上传图片目录均有受控错误回归。
+
+本段本机测试结果记录时，工作树尚待提交/推送；`0b34f461` 的上游 CI 不能代替本次改动后的 CI。依赖审计的本机 `pip_audit` 仍不可用；新提交后的 GitHub `dependency-audit` 结果须在推送后另行核验。真实模型调用 0 次；无外部服务请求、部署或医学内容修改。
+
+## 2026-11-25：此前本机代码复验（代码提交 35ab4c6，基于 ee0a09a）
 
 ### 环境与样本
 
@@ -21,10 +40,10 @@
 | Python 编译 | `./.venv/Scripts/python.exe -m compileall -q backend/app frontend tests scripts` | 通过 | 语法编译检查 |
 | 学生问诊浏览器探针 | `BASE_COMMIT=ee0a09a OUT=../docs/evidence/2026-11-25-case-lifecycle node e2e/ask-saved-answer.mjs`（工作目录 `web/`） | **25 项通过**，无未捕获脚本错误；报告 [`docs/evidence/2026-11-25-case-lifecycle/run.json`](evidence/2026-11-25-case-lifecycle/run.json) | 合成病例、临时数据库、loopback fake Nexent/MCP；检查失败、重放、迟到响应和页面展示，不测供应商时延 |
 | 停用任务浏览器探针 | `node e2e/stopped-task.mjs`（工作目录 `web/`） | 通过 | 固定 API 回包；确认阻止新开训并保留在途续训/封存复盘，不是完整真实师生账号流程 |
-| Python 依赖审计 | `./.venv/Scripts/python.exe -m pip_audit --strict --require-hashes -r requirements.lock` | **未运行**：本机错误为 `No module named pip_audit` | 不是零漏洞结论；CI 对当前未提交工作树的依赖审计未运行 |
+| Python 本机依赖审计 | `./.venv/Scripts/python.exe -m pip_audit --strict --require-hashes -r requirements.lock` | **未运行**：本机错误为 `No module named pip_audit` | 不是本机零漏洞结论；`0b34f461` 的 GitHub `dependency-audit` CI 另见上节 |
 | 差异格式 | `git --no-pager diff --check` | 通过 | Git 提示部分工作树 LF 将转换为 CRLF；无空白错误 |
 
-没有运行 `node e2e/smoke.mjs`：该完整流程需要教师/学生登录配置，本轮未读取或使用任何本机凭据。没有重跑 `scripts/run_engineering_samples.py`、正式 20 轮问答、模型性能、真实 Nexent、异机部署、备份恢复或专家评测。连续两次前端构建产物哈希一致，已确认当前 `web/dist/assets/main.js` 与本轮源码构建输出一致。
+在 `35ab4c6` 的上述本机复验中，没有运行 `node e2e/smoke.mjs`：该完整流程需要教师/学生登录配置，本轮未读取或使用任何本机凭据；也没有运行 `scripts/run_engineering_samples.py`、正式 20 轮问答、模型性能、真实 Nexent、异机部署、备份恢复或专家评测。**在接手基线 `0b34f461` 上未重跑上述本机复验项目**；该 SHA 的 CI 结果仅为上节列明的两次 GitHub workflow。连续两次前端构建哈希一致的记录属于 `35ab4c6`，不应解读为在 `0b34f461` 重新构建。
 
 ## 历史报告：2026-11-13
 

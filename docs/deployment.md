@@ -41,7 +41,7 @@ $env:APP_DATA_DIR = Join-Path (Get-Location) 'local-only\demo-data'
 
 `APP_DATA_DIR`包含`app.db`和`teacher_cases/`，默认集成记录在同目录`integration.db`。不设置时兼容原目录`backend/data`。相对路径始终从仓库根目录解析。显式`INTEGRATION_DB_PATH`优先于默认路径，API与MCP必须指向同一业务目录和同一集成库；知识目录亦须一致。
 
-环境变量在进程启动时生效，修改后须重启对应服务。示例`.env`不会自动加载。更换`APP_DATA_DIR`只是使用另一个目录，不会迁移、清空或覆盖旧训练。保留旧目录及原封存记录；备份运行中的SQLite使用其backup接口，停机备份则同时保留业务库、集成库和教师病例目录。不要直接把旧格式数据库改名覆盖当前库。
+环境变量在进程启动时生效，修改后须重启对应服务。示例`.env`不会自动加载。更换`APP_DATA_DIR`只是使用另一个目录，不会迁移、清空或覆盖旧训练。保留旧目录及原封存记录。当前备份工具只支持所有写入者停止后的离线备份；虽逐库使用 SQLite backup API，但**不提供或声称在线热备份**，也不能用简单文件复制代替。操作步骤和边界见下文。不要直接把旧格式数据库改名覆盖当前库。
 
 测试启动时自动选择临时存储，样本复跑每组也使用独立数据库。真实平台演练仍应显式配置专用`APP_DATA_DIR`，不以测试隔离代替部署隔离。
 
@@ -79,8 +79,41 @@ $env:APP_DATA_DIR = Join-Path (Get-Location) 'local-only\demo-data'
 
 病例教师资产目录现在还包含 `case-audit.jsonl`：记录草稿保存、结构校验、送审、撤回、发布等病例生命周期动作的操作者 ID、时间、状态、科室及来源编号；停止新训练记录来自集成数据库并在教师时间线合并显示。审计不写入病例事实正文或患者问答。复制来源保存在病例版本字段中，修订时来源保持不变。
 
-- 备份教师病例时必须将 `teacher_cases/` 内的病例 JSON 与 `case-audit.jsonl` 作为同一批次保留；同时备份 `department-catalog.json` 及其 `.previous`。SQLite 业务库与集成库按上文的在线 backup/停机备份方式处理，记录同一备份批次标识。
+- 备份教师病例时必须将 `teacher_cases/` 内的病例 JSON 与 `case-audit.jsonl` 作为同一批次保留；同时备份 `department-catalog.json` 及其 `.previous`。当前可复现方式见下文离线白名单工具；旧说明中的“在线 backup”不代表已实现或验证热备份。
 - 当前审计不是防篡改日志，也不覆盖账号创建/重置/停用、一般敏感数据访问；功能启用前的历史操作不会回填。审核人字段仍是教师填写的声明，没有资质核验。不得只凭此日志声称全站审计或已完成医学审核。
 - 审计追加失败时应用会尝试回滚本次病例文件及 JSONL 尾部；若回滚本身失败会返回需停止操作并从备份恢复的错误。上线前仍需在隔离副本验证故障恢复，不可在现有业务目录注入故障或执行覆盖式恢复。
-- **恢复演练步骤（尚未执行，不是验收证据）**：停掉隔离 API → 复制一份一致性备份到全新临时目录 → 将 `APP_DATA_DIR`/`INTEGRATION_DB_PATH` 指向临时副本 → 启动后核对教师病例版本、来源和审计时间线、科室配置、训练事件、封存评分及数量/哈希 → 记录差异并销毁临时副本前确认无唯一证据。禁止将备份直接覆盖现有目录；有差异时保留两份并先调查。
-- 当前生产部署、异机冷部署、数据库迁移/恢复演练、管理员权限和反向代理/HTTPS 均未由本轮验证。完整开放项及本轮实际测试见[第一阶段覆盖表](第一阶段覆盖表.md)、[官方要求核对](官方要求核对.md)和[测试报告](test-report.md)。
+- **早期演练计划（编写时尚未执行）**：停掉隔离 API → 在新目录恢复 → 核对教师病例、来源、审计、科室配置、训练事件和封存评分。其后实际合成数据演练见下文；它不等于生产恢复演练。禁止将备份直接覆盖现有目录；有差异时保留两份并先调查。
+- 当前生产部署、异机冷部署、数据库迁移/生产恢复演练、管理员权限和反向代理/HTTPS 均未由本轮验证。完整开放项及本轮实际测试见[第一阶段覆盖表](第一阶段覆盖表.md)、[官方要求核对](官方要求核对.md)和[测试报告](test-report.md)。
+
+## 离线白名单备份与隔离恢复（2026-11-25）
+
+`backend/app/backup_restore.py` 与 `scripts/backup_restore.py` 提供标准库实现的离线快照和新目录恢复。CLI 只读取命令行传入的目录路径，不加载 `.env`、进程模型密钥或其他应用设置。必须明确指定当前实际的 `APP_DATA_DIR`；若运行实例设置了自定义 `INTEGRATION_DB_PATH`，备份时也必须显式传入，否则工具会在缺少默认 `integration.db` 时拒绝，而不会猜路径。
+
+```powershell
+# 示例路径须替换为经核对的服务路径；所有 API、MCP 和其他写入者必须先停止。
+$DataDir = 'D:\clinic-app\data'
+$BackupDir = 'E:\restricted-backups\snapshot-2026-11-25'
+& .\.venv\Scripts\python.exe scripts\backup_restore.py backup `
+  --data-dir $DataDir `
+  --destination $BackupDir `
+  --confirm-services-stopped
+
+# 如果服务使用自定义集成库，在备份命令中加：--integration-db 'D:\clinic-runtime\integration.db'
+
+# 恢复只接受从未存在过的新目录；即使目标为空也拒绝覆盖。
+$RestoreDir = 'D:\clinic-app\restore-2026-11-25'
+& .\.venv\Scripts\python.exe scripts\backup_restore.py restore `
+  --source $BackupDir `
+  --target-data-dir $RestoreDir `
+  --confirm-services-stopped
+
+# 恢复后的集成库被集中放在 $RestoreDir\integration.db，启动服务时两项都须指向新目录。
+$env:APP_DATA_DIR = $RestoreDir
+$env:INTEGRATION_DB_PATH = Join-Path $RestoreDir 'integration.db'
+```
+
+备份包含 `app.db`、存在时的 `accounts.db`、配置的集成 SQLite 库、`teacher_cases/` 下格式有效的病例版本 JSON 与 `case-audit.jsonl`，以及存在且有效的 `department-catalog.json` 和 `.previous`。外置 `INTEGRATION_DB_PATH` 在备份中记为 `integration.db`，恢复时统一落到新数据目录下。未知数据目录项（包括上传目录、临时文件、任意密钥/配置文件）不进入快照，工具会**拒绝整个备份并报告未允许项目**；不要为通过备份而删掉未知源文件，先人工鉴别和另行保护。
+
+SQLite backup API 对每个库分别产生可校验快照，完成 `PRAGMA integrity_check`；一致的跨库/病例文件时点依赖于备份前停止 API、MCP 和所有写入者。此实现不支持在线并发写入时点的一致性，也未验证热备份。恢复先校验清单 SHA-256、SQLite 完整性、病例 JSON/审计 JSONL/科室配置，再在目标父目录建立临时 staging 并发布为新目录；损坏、失败或已存在目标时不会合并或覆盖现存数据。专项还通过暂存复制故障注入验证受控报错、清理 staging 且不发布目标。恢复会清空副本 `accounts.db` 中的 `login_sessions`，避免在其他位置签发的有效 bearer 会话因还原而复活；账号、密码哈希和其他业务记录保留。
+
+备份未加密、未签名；SHA-256 仅检测与清单不符的损坏，不证明来源真实性。文件白名单不包含模型密钥文件或上传图片，但备份含训练记录、病例草稿/审计，以及账号密码哈希和令牌哈希，按敏感数据保护。POSIX 文件模式会收紧到目录 `0700`/文件 `0600`；Windows 依赖备份父目录继承的 NTFS ACL，本轮未审计该 ACL。须将备份放在受控目录并由运维另行设置访问控制/静态加密。该工具不自动制定保留期限或轮转/删除备份；部署方须按院校的数据保留与隐私政策确定保留代数、保管位置和到期处置，不应在新备份及恢复校验完成前删除唯一可用副本。恢复前后仅在本机自动临时目录用合成训练、评分、病例来源、审计和科室当前/上一版配置复验（见[专项测试](../tests/test_data_backup_restore.py)）；未用现有业务目录、`backend/data`、真实数据库或病例原件，也未验证异机/生产恢复。
