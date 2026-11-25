@@ -1,6 +1,25 @@
 # 测试报告
 
-对应官方交付物“逐项测试报告”。报告只汇总**可复跑的工程测试**结果，正式验收所需的医学审核、真实学生评测和官方现场演示不在此列，也不能由本报告代替。当前接手基线为 `0b34f461131c2f5054032b828ed5889f4227cc55`。本报告分开记录该基线的 GitHub CI 与此前 `35ab4c6` 的本机代码复验；旧日期和结果保留原口径，不把较早结果冒充为在 `0b34f461` 上重跑。
+对应官方交付物“逐项测试报告”。报告只汇总**可复跑的工程测试**结果，正式验收所需的医学审核、真实学生评测和官方现场演示不在此列，也不能由本报告代替。当前干净克隆演练的代码基线为 `513073e125e4ef1f5f0acc979c043827a6dd2f8e`。本报告区分提交对应的 GitHub CI、干净克隆中的本轮实测和此前提交的本机结果；历史日期与数字保留原口径，不把旧结果冒充本轮复验。官方需求包原文仍未取得，工程测试与 CI 均不代表官方验收。
+
+## 2026-11-25：513073e 干净克隆部署与恢复演练
+
+演练在 Windows 11（10.0.26300 x86_64）自动创建的临时目录和从远端分支克隆的干净副本完成；代码基线 `513073e125e4ef1f5f0acc979c043827a6dd2f8e`，Python 3.11.18、Node v24.18.0、npm 11.16.0。Python 运行时与虚拟环境位于临时根目录。只使用合成账号、病例草稿、训练、评分、审计和科室配置；使用 `APP_AUTH_MODE=local`、`NEXENT_MODE=simulator`，真实模型调用 0 次，未读取凭据或现存数据。完整记录及边界：[演练证据 JSON](evidence/2026-11-25-clean-copy-deployment.json)。
+
+| 验证 | 实际命令/操作 | 结果 | 边界 |
+|---|---|---|---|
+| Python 锁定安装 | `python -m pip install --require-hashes -r requirements.lock`；`python -m pip check` | 安装成功；无依赖冲突 | 新克隆、新 venv；Python 3.11.18 |
+| 前端安装与构建 | 在 `web/`：`npm ci --no-audit --no-fund`、`npm run typecheck`、`npm run build` | 均通过；`web/dist` 与提交内容一致，`main.js` SHA-256 为 `591cb95c0bc9c01d114072435dd2bd0b00da2356b817a527b7450f2eaea9740f` | 仅同机干净克隆的前端重建，不是部署到独立机器 |
+| 服务与浏览器流程 | loopback 启动 FastAPI 同源服务；`GET /health`、`/`、`/api/auth/config`；在 `web/` 执行 `node e2e/smoke.mjs` 并使用本轮临时合成账号 | 健康/主页/local 认证通过；师生浏览器流程 **13/13** | 模拟器，不请求供应商；合成教师只复核合成评分，未做专家评价 |
+| 病例复制 | 合成教师 API 复制 `STEMI-001@3` 为 `SYNTH-DEPLOYMENT-CASE` 草稿 | 来源保持，审计只有 `draft_saved` | 未医学送审、未发布；病例事实未修改 |
+| 专项测试 | `python -m pytest -q tests/test_data_backup_restore.py` | **6 passed in 2.84s** | 干净克隆；自动临时合成数据库 |
+| 全量测试 | `python -m pytest -q` | **740 passed in 190.94s** | 干净克隆代码回归；不是生产或真人评测 |
+| Python 编译 | `python -m compileall -q backend/app frontend tests scripts` | 通过 | Python 语法检查 |
+| 离线备份/恢复 | 停止 API、MCP 和所有写入者；按 `docs/deployment.md` 的 CLI 命令将合成 `APP_DATA_DIR` 与外置 `INTEGRATION_DB_PATH` 备份，再恢复到从未存在的新目录 | 清单 7 项；封存训练事件/评分、集成数据、教师病例版本/来源/审计、科室当前/上一版配置一致；恢复后旧会话为 0、旧 bearer 401、新登录 200 | 同机临时目录、合成数据；离线停止写入 |
+| 拒绝/保护场景 | 缺少 `--confirm-services-stopped`、篡改 `app.db` payload、恢复至已有目录 | 均返回受控错误；未创建/覆盖目标，已有 sentinel 保持；专项另覆盖 staging 故障清理和未知上传目录拒绝 | 不对任何既有业务目录做故障注入 |
+| 证据清理 | 临时根目录 `/tmp/clinical-deploy-ythoe4vr`（当前运行环境 `TEMP`） | 已核对真实路径、子目录和无运行进程后清理；原始日志/截图未保留，仓库仅留 JSON 汇总 | 只清理本轮自动创建的临时根，未触碰其他临时数据 |
+
+早期演练驱动的失败与重试记录保存在证据 JSON；问题均在业务/恢复验收前暴露于临时 harness，最终全新 `run-05` 的 39 项驱动断言通过。它们不是产品测试失败。演练覆盖的是同机临时干净副本，不能表述为异机部署；未覆盖生产、在线热备份、Windows ACL、监控告警、备份保留轮转或真实业务恢复。前端类型/构建本轮已运行，不是未重跑。
 
 ## 2026-11-25：0b34f461 基线 GitHub CI
 

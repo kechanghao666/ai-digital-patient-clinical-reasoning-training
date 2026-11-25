@@ -1,43 +1,54 @@
 # 从零启动与隔离复现
 
-本指南针对单API进程、本机教学演练。项目已提供[独立账号与角色权限](local-accounts.md)，服务只监听本机；不将development自填账号用于公开部署。真实Nexent联调与本地模拟分别验收。
+本指南面向单 API 进程、本机教学演练。主界面是 React，FastAPI 同源托管 `web/dist/`；`frontend/` 是兼容的旧 Streamlit 前端，不是当前主界面的启动入口。项目提供[独立账号与角色权限](local-accounts.md)。真实 Nexent 联调与本地模拟分别验收。
 
 ## 安装
 
-取得完整源码后在仓库根目录使用Python 3.11。Windows PowerShell：
+使用 Python 3.11，并在仓库根目录通过锁文件安装后端依赖。Windows PowerShell：
 
 ```powershell
 py -3.11 -m venv .venv
 & .\.venv\Scripts\python.exe -m pip install --require-hashes -r requirements.lock
 & .\.venv\Scripts\python.exe -m pytest -q
-& .\.venv\Scripts\python.exe scripts/run_engineering_samples.py
 ```
 
-Linux/macOS使用`python3.11 -m venv .venv`，后续解释器路径为`.venv/bin/python`。十二组演练输出到`local-only/engineering-samples/时间戳/`，含逐次输入输出、代码/病例/依据哈希和实际判定。也可在脚本后传一个尚不存在的输出目录；不会覆盖已有报告。脚本复用仓库测试夹具，必须保留tests目录；病例、评分和反馈均为未经医学审核的本地工程模拟。
+Linux/macOS 使用 `python3.11 -m venv .venv`，后续解释器路径为 `.venv/bin/python`。部署时若 `web/dist/` 已随仓库提供，运行 API 不需要 Node.js 或单独启动前端服务器。仅在验证/重建前端产物时，需 Node.js 18+ 并在 `web/` 执行：
 
-## 本地演练
+```powershell
+Push-Location web
+npm ci --no-audit --no-fund
+npm run typecheck
+npm run build
+Pop-Location
+```
 
-在仓库根目录打开一个终端设置环境后启动API：
+重新构建后检查 `web/dist/` 与源码一致；不要提交 `node_modules/`。可选的十二组工程样本脚本会写入 `local-only/engineering-samples/时间戳/`，必须在隔离克隆中运行并先确认输出目录不存在；其病例、评分和反馈是未经医学审核的工程模拟，不能作为临床或正式验收证据。
+
+## 本机合成演练
+
+下例是**开发环境的隔离演练**，不是生产部署命令。先确认两个临时目录不存在；不要改用现存工作目录、`backend/data` 或用户数据库。`APP_ENV=development` 会让未发布草稿可用于开发测试；本机账号认证仍由 `APP_AUTH_MODE=local` 强制执行，不使用 demo 自填身份。示例仅启用与随仓库合成 STEMI 草稿对应的参考目录项，不代表任何学校的实际科室清单：
 
 ```powershell
 $env:APP_ENV = 'development'
-$env:APP_AUTH_MODE = 'demo'
+$env:APP_AUTH_MODE = 'local'
 $env:NEXENT_MODE = 'simulator'
-$env:APP_DATA_DIR = Join-Path (Get-Location) 'local-only\demo-data'
+$env:APP_DATA_DIR = Join-Path $env:TEMP 'ai-digital-patient-local\data'
+$env:INTEGRATION_DB_PATH = Join-Path $env:TEMP 'ai-digital-patient-runtime\integration.db'
+
+# 仅为本地合成演练启用；真实部署须以院校确认清单为准
+& .\.venv\Scripts\python.exe scripts\configure_department_catalog.py `
+  --enabled-departments 03 --enabled-subspecialties 03.04
+& .\.venv\Scripts\python.exe scripts\manage_accounts.py create student01 --role student --name '合成学生一'
+& .\.venv\Scripts\python.exe scripts\manage_accounts.py create teacher01 --role teacher --name '合成教师一'
+
 & .\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
 ```
 
-另开终端，在仓库根目录启动界面：
-
-```powershell
-& .\.venv\Scripts\python.exe -m streamlit run frontend/app.py --server.address 127.0.0.1 --server.port 8501
-```
-
-浏览器访问`http://127.0.0.1:8501`，连接设置填`http://127.0.0.1:8000`。学生演示账号须以`demo-`或`student-`开头；教师演示账号以`teacher-`开头。API健康地址为`http://127.0.0.1:8000/health`；`status=ok`只证明服务存活，`patient_adapter=simulator`明确表示未调用真实模型。
+`manage_accounts.py` 会交互式提示输入密码，不把密码放在命令行。浏览器打开 `http://127.0.0.1:8000/` 使用 React 主界面；健康地址为 `/health`，并可检查 `/api/auth/config` 为 `local`。`/health` 的 `status=ok` 只证明进程存活；`patient_adapter=simulator` 表示问诊使用本地模拟器、没有请求真实模型。不要为方便改成 demo 模式或把开发模式暴露到公网。
 
 ## 数据目录与备份
 
-界面默认连接`http://127.0.0.1:8000`。使用其他API端口时，可在启动界面的终端先设置`$env:FRONTEND_API_URL = 'http://127.0.0.1:8005'`，避免首次打开页面时连接错误服务；页面“连接设置”仍可修改当前连接。不要把模型密钥放入此地址。
+当前 React 主界面与 FastAPI 同源，不需要 `FRONTEND_API_URL`。仅兼容的旧 Streamlit 前端 `frontend/app.py` 使用此变量预设 API 地址；运行旧前端且 API 端口不是 8000 时，可在启动 Streamlit 的终端设置 `$env:FRONTEND_API_URL = 'http://127.0.0.1:8005'`，也可在页面“连接设置”修改。不要把模型密钥放入此地址。
 
 `APP_DATA_DIR`包含`app.db`和`teacher_cases/`，默认集成记录在同目录`integration.db`。不设置时兼容原目录`backend/data`。相对路径始终从仓库根目录解析。显式`INTEGRATION_DB_PATH`优先于默认路径，API与MCP必须指向同一业务目录和同一集成库；知识目录亦须一致。
 
@@ -81,8 +92,8 @@ $env:APP_DATA_DIR = Join-Path (Get-Location) 'local-only\demo-data'
 
 - 备份教师病例时必须将 `teacher_cases/` 内的病例 JSON 与 `case-audit.jsonl` 作为同一批次保留；同时备份 `department-catalog.json` 及其 `.previous`。当前可复现方式见下文离线白名单工具；旧说明中的“在线 backup”不代表已实现或验证热备份。
 - 当前审计不是防篡改日志，也不覆盖账号创建/重置/停用、一般敏感数据访问；功能启用前的历史操作不会回填。审核人字段仍是教师填写的声明，没有资质核验。不得只凭此日志声称全站审计或已完成医学审核。
-- 审计追加失败时应用会尝试回滚本次病例文件及 JSONL 尾部；若回滚本身失败会返回需停止操作并从备份恢复的错误。上线前仍需在隔离副本验证故障恢复，不可在现有业务目录注入故障或执行覆盖式恢复。
-- **早期演练计划（编写时尚未执行）**：停掉隔离 API → 在新目录恢复 → 核对教师病例、来源、审计、科室配置、训练事件和封存评分。其后实际合成数据演练见下文；它不等于生产恢复演练。禁止将备份直接覆盖现有目录；有差异时保留两份并先调查。
+- 审计追加失败时应用会尝试回滚本次病例文件及 JSONL 尾部；若回滚本身失败会返回需停止操作并从备份恢复的错误。本轮已在同机临时干净克隆中按下文验证合成数据恢复；这不证明真实业务或生产数据可恢复。不可在现有业务目录注入故障或执行覆盖式恢复。
+- **历史计划（编写时尚未执行）**：停掉隔离 API → 在新目录恢复 → 核对教师病例、来源、审计、科室配置、训练事件和封存评分。后续实际合成数据演练已完成，记录见下文及证据 JSON；它不等于生产恢复演练。禁止将备份直接覆盖现有目录；有差异时保留两份并先调查。
 - 当前生产部署、异机冷部署、数据库迁移/生产恢复演练、管理员权限和反向代理/HTTPS 均未由本轮验证。完整开放项及本轮实际测试见[第一阶段覆盖表](第一阶段覆盖表.md)、[官方要求核对](官方要求核对.md)和[测试报告](test-report.md)。
 
 ## 离线白名单备份与隔离恢复（2026-11-25）
@@ -117,3 +128,11 @@ $env:INTEGRATION_DB_PATH = Join-Path $RestoreDir 'integration.db'
 SQLite backup API 对每个库分别产生可校验快照，完成 `PRAGMA integrity_check`；一致的跨库/病例文件时点依赖于备份前停止 API、MCP 和所有写入者。此实现不支持在线并发写入时点的一致性，也未验证热备份。恢复先校验清单 SHA-256、SQLite 完整性、病例 JSON/审计 JSONL/科室配置，再在目标父目录建立临时 staging 并发布为新目录；损坏、失败或已存在目标时不会合并或覆盖现存数据。专项还通过暂存复制故障注入验证受控报错、清理 staging 且不发布目标。恢复会清空副本 `accounts.db` 中的 `login_sessions`，避免在其他位置签发的有效 bearer 会话因还原而复活；账号、密码哈希和其他业务记录保留。
 
 备份未加密、未签名；SHA-256 仅检测与清单不符的损坏，不证明来源真实性。文件白名单不包含模型密钥文件或上传图片，但备份含训练记录、病例草稿/审计，以及账号密码哈希和令牌哈希，按敏感数据保护。POSIX 文件模式会收紧到目录 `0700`/文件 `0600`；Windows 依赖备份父目录继承的 NTFS ACL，本轮未审计该 ACL。须将备份放在受控目录并由运维另行设置访问控制/静态加密。该工具不自动制定保留期限或轮转/删除备份；部署方须按院校的数据保留与隐私政策确定保留代数、保管位置和到期处置，不应在新备份及恢复校验完成前删除唯一可用副本。恢复前后仅在本机自动临时目录用合成训练、评分、病例来源、审计和科室当前/上一版配置复验（见[专项测试](../tests/test_data_backup_restore.py)）；未用现有业务目录、`backend/data`、真实数据库或病例原件，也未验证异机/生产恢复。
+
+## 2026-11-25：干净克隆部署与隔离恢复演练
+
+在 Windows 11（10.0.26300 x86_64）新建临时干净克隆，基线提交 `513073e125e4ef1f5f0acc979c043827a6dd2f8e`；Python 3.11.18、Node v24.18.0、npm 11.16.0。Python 使用锁文件 `pip install --require-hashes -r requirements.lock` 并通过 `pip check`；前端在 `web/` 执行 `npm ci --no-audit --no-fund`、`npm run typecheck`、`npm run build`，均成功，构建产物与提交内容一致。Node 仅用于本次前端重建验证；服务以本地模拟器和 `local` 认证在 loopback 启动，健康检查、React 页面和认证配置检查通过。
+
+浏览器合成师生流程 13/13；包含学生登录、病例入口、问诊、检查、封存评分和教师复核。合成教师另从 `STEMI-001@3` 复制合成草稿，保留来源并只产生 `draft_saved` 审计；未送医学审核或发布。停止 API、MCP 与所有写入者后，按上文 CLI 备份至新目录并恢复至另一个从未存在的目录。清单 7 项；恢复前后训练事件、封存评分、集成库、教师病例版本/来源/审计、科室当前/上一版配置一致；旧登录会话清零，旧 bearer 得到 401，新合成教师登录得到 200。缺少停机确认、损坏快照、非空目标均受控拒绝且不覆盖目标；专项测试另覆盖 staging 故障及未知上传目录拒绝。
+
+本轮实际记录、命令摘要及边界见[演练证据](evidence/2026-11-25-clean-copy-deployment.json)，专项和全量测试见[测试报告](test-report.md)。演练只在同一台 Windows 主机的临时克隆和合成数据上完成，不是异机部署、生产部署/恢复或在线热备份证明。未验证 Windows ACL、静态加密、异地保管、监控告警、RPO/RTO、保留轮转，也未运行真实模型或临床评审。
