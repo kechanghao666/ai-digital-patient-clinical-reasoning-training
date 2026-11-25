@@ -31,6 +31,14 @@ from backend.app.department_catalog import (
     catalog_for_teacher,
     map_legacy_specialty,
     explain_legacy_mapping,
+    DEPARTMENT_NAMES,
+    SUBSPECIALTY_NAMES,
+    EXCLUDED_LEVEL_1_ITEMS,
+    EXCLUDED_LEVEL_2_ITEMS,
+    EXCLUDED_LEVEL_3_ITEMS,
+    REFERENCE_CATALOG_VERSION,
+    REFERENCE_SOURCES,
+    UNRESOLVED_SOURCE_ITEMS,
 )
 
 
@@ -38,10 +46,18 @@ class TestDepartmentCodeValidation:
     """科室编码验证测试。"""
 
     def test_valid_department_code(self):
-        """有效的科室编码。"""
+        """有效的科室编码，且历史枚举别名保持可用。"""
         assert validate_department_code("03") == "03"  # 内科
         assert validate_department_code("04") == "04"  # 外科
         assert validate_department_code("20") == "20"  # 急诊医学科
+        assert validate_department_code("05") == "05"  # 妇产科
+        assert validate_department_code("32") == "32"  # 医学影像科
+        assert validate_department_code("50") == "50"  # 中医科，同一官方目录中的独立门类
+        assert DepartmentCode.INTERNAL_MEDICINE.value == "03"
+        assert DepartmentCode("03").name == "INTERNAL_MEDICINE"
+        assert DepartmentCode("03").value == "03"
+        assert DepartmentCode("05").value == "05"
+        assert DepartmentCode("05").name == "CODE_05"
 
     def test_invalid_department_code(self):
         """无效的科室编码。"""
@@ -59,10 +75,16 @@ class TestSubspecialtyCodeValidation:
         assert validate_subspecialty_code("03.04") == "03.04"  # 心血管内科专业
         assert validate_subspecialty_code("04.01") == "04.01"  # 普通外科专业
         assert validate_subspecialty_code("03.03") == "03.03"  # 神经内科专业
+        assert validate_subspecialty_code("03.06") == "03.06"  # 肾病学专业
+        assert validate_subspecialty_code("05.01") == "05.01"  # 妇科专业
+        assert validate_subspecialty_code("32.01") == "32.01"  # X线诊断专业
+        assert SubspecialtyCode("03.01").name == "RESPIRATORY"
+        assert SubspecialtyCode("05.01").name == "CODE_05_01"
 
     def test_invalid_subspecialty_code(self):
         """无效的亚专科编码。"""
         assert validate_subspecialty_code("99.99") is None
+        assert validate_subspecialty_code("07.07") is None  # 来源冲突待核，不进入启用字典
         assert validate_subspecialty_code("") is None
         assert validate_subspecialty_code(None) is None
         assert validate_subspecialty_code("invalid") is None
@@ -91,6 +113,8 @@ class TestDepartmentSubspecialtyCombination:
         assert is_valid_combination("03", "03.04") is True  # 心血管内科专业属于内科
         assert is_valid_combination("04", "04.01") is True  # 普通外科专业属于外科
         assert is_valid_combination("03", "03.03") is True  # 神经内科专业属于内科
+        assert is_valid_combination("05", "05.01") is True
+        assert is_valid_combination("03", "05.01") is False
 
     def test_mismatched_combination_is_invalid(self):
         """不匹配的科室/亚专科组合无效。"""
@@ -173,6 +197,17 @@ class TestCatalogGeneration:
         assert "03" in dept_codes  # 内科
         assert "04" in dept_codes  # 外科
         assert "20" in dept_codes  # 急诊医学科
+        assert len(dept_codes) == 34
+        all_subspecialties = {
+            child["code"]
+            for department in catalog["departments"]
+            for child in department["subspecialties"]
+        }
+        assert len(all_subspecialties) == 120
+        assert "05.01" in all_subspecialties
+        assert "61" not in dept_codes and "79" not in dept_codes and "99" not in dept_codes
+        assert catalog["catalog_version"] == REFERENCE_CATALOG_VERSION
+        assert catalog["source_documents"] == REFERENCE_SOURCES
 
     def test_teacher_catalog_enabled_only(self):
         """教师端目录可按启用科室过滤。"""
@@ -251,6 +286,19 @@ class TestNewDepartmentConfiguration:
         assert is_valid_combination("03", "03.02") is True
 
 
+def test_reference_catalog_inventory_is_complete_for_its_declared_scope():
+    assert len(DEPARTMENT_NAMES) == 34
+    assert len(SUBSPECIALTY_NAMES) == 120
+    assert set(DEPARTMENT_NAMES).isdisjoint(EXCLUDED_LEVEL_1_ITEMS)
+    assert set(SUBSPECIALTY_NAMES).isdisjoint(EXCLUDED_LEVEL_2_ITEMS)
+    assert len(EXCLUDED_LEVEL_2_ITEMS) == 18
+    assert len(EXCLUDED_LEVEL_3_ITEMS) == 6
+    assert "07.07" in UNRESOLVED_SOURCE_ITEMS
+    assert "14.*" in UNRESOLVED_SOURCE_ITEMS
+    assert any(source["id"] == "cq-2024-catalog-count" for source in REFERENCE_SOURCES)
+    assert all(code.split(".", 1)[0] in DEPARTMENT_NAMES for code in SUBSPECIALTY_NAMES)
+
+
 def test_missing_institution_config_fails_closed_and_round_trips_with_rollback(tmp_path):
     path = tmp_path / "department-catalog.json"
     missing = load_department_config(path)
@@ -274,6 +322,205 @@ def test_department_config_rejects_unknown_and_orphan_subspecialty(tmp_path):
     with pytest.raises(DepartmentConfigError, match="父科室"):
         save_department_config(path, {"04"}, {"03.05"}, "synthetic-test-operator")
     assert not path.exists()
+
+
+def test_new_enabled_empty_subspecialty_is_teacher_selectable_but_absent_from_student_filters(
+    tmp_path, monkeypatch
+):
+    from test_cases_config import Api
+
+    api = Api(tmp_path, monkeypatch)
+    before_cases = api.client.get("/api/cases", headers=api.headers).json()
+    assert len(before_cases) == 5
+    save_department_config(
+        tmp_path / "department-catalog.json",
+        {"03", "04", "05"},
+        {"03.01", "03.02", "03.03", "03.04", "03.05", "03.07", "04.01", "05.01"},
+        "synthetic-test-operator",
+    )
+
+    teacher_catalog = api.client.get(
+        "/api/teacher/department-catalog", headers={"X-Owner-Id": "teacher-wang"}
+    ).json()
+    child_codes = {
+        child["code"]
+        for department in teacher_catalog["departments"]
+        for child in department["subspecialties"]
+    }
+    assert "05" in {department["code"] for department in teacher_catalog["departments"]}
+    assert "05.01" in child_codes
+
+    after_cases = api.client.get("/api/cases", headers=api.headers).json()
+    student_catalog = api.client.get("/api/department-catalog", headers=api.headers).json()
+    assert len(after_cases) == len(before_cases) == 5
+    assert "05" not in {department["code"] for department in student_catalog["departments"]}
+    assert "05.01" not in {
+        child["code"]
+        for department in student_catalog["departments"]
+        for child in department["subspecialties"]
+    }
+
+
+def _synthetic_directory_case() -> dict:
+    """Non-clinical fixture used only to exercise the taxonomy lifecycle."""
+    return {
+        "case_id": "TEACH-SYN05",
+        "version": 1,
+        "public_id": "CASE-SYN05",
+        "specialty": "合成目录流程测试（非临床内容）",
+        "department_code": "05",
+        "subspecialty_code": "05.01",
+        "title": "合成分类生命周期测试（非临床内容）",
+        "learning_goals": ["仅验证受控分类、可见性与训练门禁"],
+        "target_population": "仅自动化流程测试，不含临床病例事实",
+        "review_status": "draft",
+        "reviewer": None,
+        "review_date": None,
+        "sources": ["合成测试夹具；无临床依据"],
+        "chief_complaint": "无临床主诉；仅用于分类和页面流程检查",
+        "facts": [{
+            "fact_id": "fact_synthetic",
+            "content": "非临床合成标记：蓝色圆点位于样本卡片上。",
+            "field": "synthetic_marker",
+            "patient_known": True,
+            "disclosure_triggers": ["圆点"],
+        }],
+        "exams": [{
+            "exam_id": "exam_synthetic",
+            "standard_name": "合成占位项目",
+            "return_after_minutes": 0,
+            "allowed_values": ["仅测试占位"],
+            "configured": False,
+            "result": None,
+        }],
+        "treatments": [{
+            "treatment_id": "action_synthetic",
+            "name": "合成无操作",
+            "trigger": "synthetic_noop",
+        }],
+        "differential_options": [{"candidate_id": "option_synthetic", "label": "合成选项"}],
+        "rules": [],
+        "rubric": [
+            {"item_id": "fact_synthetic", "stage": "病史采集", "description": "合成问答字段",
+             "evidence_type": "ask_event", "weight": 1},
+            {"item_id": "exam_synthetic", "stage": "检查选择", "description": "合成占位项目",
+             "evidence_type": "exam_order", "weight": 1},
+            {"item_id": "option_synthetic", "stage": "鉴别诊断", "description": "合成选项",
+             "evidence_type": "ddx_evidence", "weight": 1,
+             "differential": {"supporting_keys": ["fact_synthetic"], "min_supporting": 1}},
+            {"item_id": "diagnosis_synthetic", "stage": "诊断", "description": "合成文本字段",
+             "evidence_type": "diagnosis", "weight": 1,
+             "diagnosis": {"names": ["Synthetic target A"], "leak_terms": ["Synthetic target A"]}},
+            {"item_id": "action_synthetic", "stage": "治疗", "description": "合成无操作",
+             "evidence_type": "treatment_execution", "weight": 1, "critical": True},
+        ],
+        "hidden_diagnosis": "Synthetic target A",
+        "authored_by": None,
+        "acceptable_exams": [],
+    }
+
+
+def test_synthetic_new_subspecialty_publish_visibility_and_disable_preserve_sealed_history(tmp_path, monkeypatch):
+    from datetime import date
+
+    from app import main
+    from backend.app.accounts import AccountStore
+    from test_cases_config import Api
+
+    api = Api(tmp_path, monkeypatch, env="development")
+    save_department_config(
+        tmp_path / "department-catalog.json",
+        {"03", "04", "05"},
+        {"03.01", "03.02", "03.03", "03.04", "03.05", "03.07", "04.01", "05.01"},
+        "synthetic-test-operator",
+    )
+
+    accounts = AccountStore(tmp_path / "accounts.db")
+    accounts.create("synthetic-teacher", "Synthetic-Teacher-Password-2026!", "teacher", "合成教师")
+    accounts.create("synthetic-student", "Synthetic-Student-Password-2026!", "student", "合成学生")
+    monkeypatch.setattr(main, "ACCOUNTS", accounts)
+    monkeypatch.setenv("APP_AUTH_MODE", "local")
+    monkeypatch.setenv("APP_ENV", "production")
+
+    def login(username: str, password: str) -> dict[str, str]:
+        response = api.client.post("/api/auth/login", json={"username": username, "password": password})
+        assert response.status_code == 200, response.text
+        return {"Authorization": f"Bearer {response.json()['token']}"}
+
+    teacher = login("synthetic-teacher", "Synthetic-Teacher-Password-2026!")
+    student = login("synthetic-student", "Synthetic-Student-Password-2026!")
+
+    teacher_catalog = api.client.get("/api/teacher/department-catalog", headers=teacher)
+    assert teacher_catalog.status_code == 200
+    assert "05.01" in {
+        child["code"] for department in teacher_catalog.json()["departments"]
+        for child in department["subspecialties"]
+    }
+
+    raw = _synthetic_directory_case()
+    wrong_parent = {**raw, "case_id": "TEACH-SYN05-BAD", "public_id": "CASE-SYN05-BAD",
+                    "department_code": "04"}
+    rejected = api.client.put(
+        f"/api/teacher/cases/{wrong_parent['case_id']}", headers=teacher, json=wrong_parent
+    )
+    assert rejected.status_code == 422
+    assert "department_mismatch" in {issue["code"] for issue in rejected.json()["detail"]["issues"]}
+    assert not api.store.versions(wrong_parent["case_id"])
+
+    saved = api.client.put(f"/api/teacher/cases/{raw['case_id']}", headers=teacher, json=raw)
+    assert saved.status_code == 200, saved.text
+    assert (saved.json()["case_id"], saved.json()["version"]) == ("TEACH-SYN05", 1)
+
+    # In production, a teacher-authored draft is hidden from student listing and filters.
+    assert api.client.get("/api/cases", headers=student).json() == []
+    assert api.client.get("/api/department-catalog", headers=student).json()["departments"] == []
+    for action in ("validate", "submit-review"):
+        result = api.client.post(
+            f"/api/teacher/cases/TEACH-SYN05/versions/1/{action}", headers=teacher
+        )
+        assert result.status_code == 200, result.text
+    published = api.client.post(
+        "/api/teacher/cases/TEACH-SYN05/versions/1/publish",
+        headers=teacher,
+        json={
+            "reviewer": "模拟审核（自动化测试夹具，非真实医学审核）",
+            "review_date": date.today().isoformat(),
+            "confirm_medical_review": True,
+        },
+    )
+    assert published.status_code == 200, published.text
+
+    visible = api.client.get("/api/cases", headers=student).json()
+    assert [(case["case_id"], case["department_code"], case["subspecialty_code"])
+            for case in api.store.list_all() if case["case_id"] == "TEACH-SYN05"] == [
+                ("TEACH-SYN05", "05", "05.01")
+            ]
+    assert len(visible) == 1 and visible[0]["public_id"] == "CASE-SYN05"
+    student_catalog = api.client.get("/api/department-catalog", headers=student).json()
+    assert [(department["code"], child["code"])
+            for department in student_catalog["departments"]
+            for child in department["subspecialties"]] == [("05", "05.01")]
+
+    started = api.client.post("/api/sessions?case_id=CASE-SYN05", headers=student)
+    assert started.status_code == 200, started.text
+    session_id = started.json()["session_id"]
+    sealed = api.client.post(
+        f"/api/sessions/{session_id}/seal", headers=student, json={"request_id": "synthetic-seal"}
+    )
+    assert sealed.status_code == 200, sealed.text
+    score_before = api.client.get(f"/api/sessions/{session_id}/score", headers=student).json()
+    state_before = api.client.get(f"/api/sessions/{session_id}", headers=student).json()["state"]
+
+    save_department_config(
+        tmp_path / "department-catalog.json", {"03", "04"},
+        {"03.01", "03.02", "03.03", "03.04", "03.05", "03.07", "04.01"},
+        "synthetic-test-operator",
+    )
+    assert api.client.get("/api/cases", headers=student).json() == []
+    assert api.client.get("/api/department-catalog", headers=student).json()["departments"] == []
+    assert api.client.post("/api/sessions?case_id=CASE-SYN05", headers=student).status_code == 409
+    assert api.client.get(f"/api/sessions/{session_id}", headers=student).json()["state"] == state_before
+    assert api.client.get(f"/api/sessions/{session_id}/score", headers=student).json() == score_before
 
 
 def test_department_api_uses_persisted_enablement_and_empty_department_adds_no_case(

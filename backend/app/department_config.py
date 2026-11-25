@@ -13,11 +13,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .department_catalog import (
-    DepartmentCode,
-    SubspecialtyCode,
-    get_parent_department,
-)
+from .department_catalog import get_parent_department
+from .department_catalog_data import DEPARTMENT_NAMES, SUBSPECIALTY_NAMES
 
 CONFIG_FILENAME = "department-catalog.json"
 CONFIG_SCHEMA_VERSION = 1
@@ -61,8 +58,8 @@ def _validate_config(raw: Any) -> DepartmentConfig:
     if len(set(departments)) != len(departments) or len(set(subspecialties)) != len(subspecialties):
         raise DepartmentConfigError("科室配置不能包含重复编码")
 
-    known_departments = {item.value for item in DepartmentCode}
-    known_subspecialties = {item.value for item in SubspecialtyCode}
+    known_departments = set(DEPARTMENT_NAMES)
+    known_subspecialties = set(SUBSPECIALTY_NAMES)
     unknown_departments = set(departments) - known_departments
     unknown_subspecialties = set(subspecialties) - known_subspecialties
     if unknown_departments or unknown_subspecialties:

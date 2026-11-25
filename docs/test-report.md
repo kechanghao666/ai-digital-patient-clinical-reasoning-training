@@ -131,3 +131,27 @@
 专项结果示例（脱敏）：`{"occurred_at":"<UTC>","operation":"password_reset","target_account_id":"<redacted>","actor_id":"<authenticated-teacher-id>","entry":"teacher_api"}`。教师对非本班学生的重置/停用/启用请求均返回 404；账号状态、原会话和审计条目保持不变。注入 `_append_account_audit` 写入异常后，新账号插入回滚；重置密码和停用状态、会话撤销一并回滚，旧 bearer 仍可认证。审计恢复后与快照一致，但旧登录会话被清除。
 
 测试执行初期有两次夹具接线失败：一是预期审计列表未从快照构造函数返回，二是新增返回值未同步到第二个调用方；均为测试代码错误，修复后目标专项 **18/18** 通过。未覆盖管理员角色、学生自助改密/登录行为、全站敏感数据访问审计、生产/异机 ACL、安全运维配置、临床审核或真实学生评测；这些仍开放。
+
+## 2026-11-25：M1 参考科室目录与师生流程复验（`962d318` 未提交工作树）
+
+本轮开始时 HEAD 与 `origin/codex/feedback-protocol-fix` 均为 `962d31836e672fc98c8ee88e431a52428fde5942`；工作区已有 M1 代码和测试修改。本节是其后的未提交工作树验证，不归为 `962d318` 提交结果。Windows 10.0.26300 x86_64、Python 3.11.18、Node v24.18.0、Edge 158.0.4370.33；仅临时合成配置/账号、`APP_AUTH_MODE=local`、`NEXENT_MODE=simulator`，真实模型调用 0，未使用或读取凭据、现存数据库和病例原件。
+
+### 计数口径
+
+- 参考目录：代码共 **34 个 L1 / 120 个有明确目录编码的命名 L2**。不称 34/143 全量；来源与逐项名称、排除和待核理由见 [`科室目录来源与范围.md`](科室目录来源与范围.md)。
+- 合成院校启用：**3 个 L1 / 8 个 L2**，仅为本轮临时配置，不代表院校实际建制。
+- 病例：只读扫描 11 个版本文件并按 `case_id` 取最新版本，得 5 个唯一病例；旧 `specialty` 兼容映射后覆盖 2 个有病例 L1（03、04）和 5 条不同 L1/L2 路径。随仓库最新病例均为 draft。
+- 临时生产式 API 配置：模拟审核发布的合成病例 **1 个可训练版本**；停用 `05/05.01` 后可训练数为 **0**，封存事件/评分仍可回看。真实院校配置未取得。开发模式浏览器显示 5 个草稿行不等于生产发布数。
+
+### 命令和结果
+
+| 验证 | 实际命令/操作 | 结果 | 证据边界 |
+|---|---|---|---|
+| 目录/病例生命周期专项 | `./.venv/Scripts/python.exe -m pytest -q tests/test_department_catalog.py tests/test_case_copy_publish_visibility.py tests/test_case_training_stop.py tests/test_teacher_cases.py` | **64 passed / 0 failed，6.66s** | 合成院校/账号/API；错误父子组合 422 且未落库；生产草稿不可见；模拟审核标签明确；合成发布后开训/封存，停用后新开训拒绝、历史评分不变 |
+| 浏览器实际页面操作 | `./.venv/Scripts/python.exe scripts/run_department_catalog_browser_probe.py --evidence docs/evidence/2026-11-25-department-catalog-browser-final.json` | **5/5**：教师选择 `05/05.01` 未保存；病例库 5 行；空 `05` 隐藏；`03/03.04` 筛选 1 行；0 个脚本错误 | 临时数据已清理；真实 Edge 本地操作，不是生产部署/真实学生使用；JSON 记录 `worktree_clean=false` |
+| 全量离线回归 | `./.venv/Scripts/python.exe -m pytest -q` | **746 passed / 0 failed，164.33s** | 当前未提交本机工作树，不是 CI 或临床验收 |
+| Python 编译 | `./.venv/Scripts/python.exe -m compileall -q backend/app frontend tests scripts` | 通过 | 本轮执行，未输出编译错误 |
+| 前端类型检查/构建 | 在 `web/`：`npm run typecheck`、`npm run build` | 均通过；构建后 `git diff -- web/dist` 为空 | 前端业务源码未改，但 E2E 探针脚本更新；构建产物未产生差异 |
+| 浏览器证据敏感信息检查 | 检查复跑 JSON 结构与口令/令牌/密钥模式 | JSON 有效，匹配数 0 | 不读取任何凭据；原先浏览器摘要保留未覆盖 |
+
+**分层结论：** API/目录/发布门禁由自动化合成测试证明；教师选择和学生筛选由本机浏览器实际页面操作证明；所有模拟审核都是测试夹具。没有真实临床审核、真实院校建制、真实学生试用或真实模型运行。本轮未发现需改写病例原件或迁移既有编码的证据；官方原始附件仍未完整归档，34/143 的明细差异仍待核。

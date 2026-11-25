@@ -21,67 +21,54 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any
 
-# 参考目录片段：只收录本项目当前已核对的常见项，不是《医疗机构诊疗科目名录》全量转录。
-# 来源及修订说明见 docs/科室差距清单.md；不等于院校教研室/住培专业或本校实际开设清单。
-REFERENCE_CATALOG_VERSION = "NHC-1994-27-selected-items"
+from .department_catalog_data import (
+    DEPARTMENT_NAMES,
+    EXCLUDED_LEVEL_1_ITEMS,
+    EXCLUDED_LEVEL_2_ITEMS,
+    EXCLUDED_LEVEL_3_ITEMS,
+    REFERENCE_CATALOG_SCOPE,
+    REFERENCE_CATALOG_VERSION,
+    REFERENCE_SOURCES,
+    SUBSPECIALTY_NAMES,
+    UNRESOLVED_SOURCE_ITEMS,
+)
 
-class DepartmentCode(str, Enum):
-    """L1 科室编码（参考《诊疗科目名录》）。"""
-    INTERNAL_MEDICINE = "03"          # 内科
-    SURGERY = "04"                    # 外科
-    EMERGENCY = "20"                  # 急诊医学科（名录代码）
-    # 以下为可扩展项，暂不全部列出
-    # OBSTETRICS_GYNECOLOGY = "05"    # 妇产科
-    # PEDIATRICS = "06"               # 儿科
-    # NEUROLOGY = "07"                # 神经内科（部分医院作为内科下属）
-    # PSYCHIATRY = "08"               # 精神科
-
-
-class SubspecialtyCode(str, Enum):
-    """L2 亚专科/专业方向编码。
-
-    编码格式：<科室代码>.<专业序号>
-    参考《诊疗科目名录》内科下属专业。
-    """
-    # 内科下属专业
-    RESPIRATORY = "03.01"             # 呼吸内科专业
-    GASTROENTEROLOGY = "03.02"        # 消化内科专业
-    NEUROLOGY_INTERNAL = "03.03"      # 神经内科专业
-    CARDIOVASCULAR = "03.04"          # 心血管内科专业
-    HEMATOLOGY = "03.05"              # 血液内科专业
-    ENDOCRINE = "03.07"               # 内分泌专业
-    # 外科下属专业
-    GENERAL_SURGERY = "04.01"         # 普通外科专业
-    # 急诊医学科（通常无下属专业方向）
+def _enum_code_name(code: str) -> str:
+    return f"CODE_{code.replace('.', '_')}"
 
 
-# 科室与亚专科层级关系
+_department_members = {
+    "INTERNAL_MEDICINE": "03",
+    "SURGERY": "04",
+    "EMERGENCY": "20",
+}
+_department_members.update({
+    _enum_code_name(code): code
+    for code in DEPARTMENT_NAMES
+    if code not in _department_members.values()
+})
+DepartmentCode = Enum("DepartmentCode", _department_members, type=str)
+
+_subspecialty_members = {
+    "RESPIRATORY": "03.01",
+    "GASTROENTEROLOGY": "03.02",
+    "NEUROLOGY_INTERNAL": "03.03",
+    "CARDIOVASCULAR": "03.04",
+    "HEMATOLOGY": "03.05",
+    "ENDOCRINE": "03.07",
+    "GENERAL_SURGERY": "04.01",
+}
+_subspecialty_members.update({
+    _enum_code_name(code): code
+    for code in SUBSPECIALTY_NAMES
+    if code not in _subspecialty_members.values()
+})
+SubspecialtyCode = Enum("SubspecialtyCode", _subspecialty_members, type=str)
+
+
+# 名录 L2 编码以点前两位归属 L1；所有编码均来自受控参考数据。
 SUBSPECIALTY_PARENT: dict[str, str] = {
-    "03.01": "03",   # 呼吸内科专业 → 内科
-    "03.02": "03",   # 消化内科专业 → 内科
-    "03.03": "03",   # 神经内科专业 → 内科
-    "03.04": "03",   # 心血管内科专业 → 内科
-    "03.05": "03",   # 血液内科专业 → 内科
-    "03.07": "03",   # 内分泌专业 → 内科
-    "04.01": "04",   # 普通外科专业 → 外科
-}
-
-# 科室显示名称
-DEPARTMENT_NAMES: dict[str, str] = {
-    "03": "内科",
-    "04": "外科",
-    "20": "急诊医学科",
-}
-
-# 亚专科显示名称
-SUBSPECIALTY_NAMES: dict[str, str] = {
-    "03.01": "呼吸内科专业",
-    "03.02": "消化内科专业",
-    "03.03": "神经内科专业",
-    "03.04": "心血管内科专业",
-    "03.05": "血液内科专业",
-    "03.07": "内分泌专业",
-    "04.01": "普通外科专业",
+    code: code.split(".", 1)[0] for code in SUBSPECIALTY_NAMES
 }
 
 
@@ -96,10 +83,7 @@ def validate_department_code(code: str | None) -> str | None:
     """
     if not code:
         return None
-    try:
-        return DepartmentCode(code).value
-    except ValueError:
-        return None
+    return code if code in DEPARTMENT_NAMES else None
 
 
 def validate_subspecialty_code(code: str | None) -> str | None:
@@ -113,10 +97,7 @@ def validate_subspecialty_code(code: str | None) -> str | None:
     """
     if not code:
         return None
-    try:
-        return SubspecialtyCode(code).value
-    except ValueError:
-        return None
+    return code if code in SUBSPECIALTY_NAMES else None
 
 
 def get_parent_department(subspecialty_code: str) -> str | None:
@@ -132,7 +113,7 @@ def get_parent_department(subspecialty_code: str) -> str | None:
 
 
 def department_has_subspecialties(department_code: str) -> bool:
-    """Whether the current reference subset lists child items for this department."""
+    """Whether the reference catalog lists coded child items for this department."""
     return department_code in SUBSPECIALTY_PARENT.values()
 
 
@@ -251,7 +232,12 @@ def catalog_for_student(has_cases: set[tuple[str | None, str | None]]) -> dict[s
     for dept in result:
         dept["subspecialties"].sort(key=lambda s: s["code"])
 
-    return {"departments": result}
+    return {
+        "catalog_version": REFERENCE_CATALOG_VERSION,
+        "scope": REFERENCE_CATALOG_SCOPE,
+        "source_documents": REFERENCE_SOURCES,
+        "departments": result,
+    }
 
 
 def catalog_for_teacher(
@@ -261,7 +247,7 @@ def catalog_for_teacher(
     """生成教师端可选的目录片段。
 
     ``None`` 在纯目录测试中表示不筛选；运行中的教师 API 必须传入已保存的院校启用集合。
-    此处仅表示当前已核对的参考条目，不代表全量医疗机构目录或本校实际科室。
+    此处返回有编码的临床/保健目录项，不代表院校实际开设清单。
     """
     departments: dict[str, dict[str, Any]] = {}
 
@@ -286,14 +272,14 @@ def catalog_for_teacher(
         })
 
     # 添加无下属亚专科的科室（如急诊医学科）
-    for dept_code in DepartmentCode:
-        if dept_code.value not in departments:
-            if enabled_departments is not None and dept_code.value not in enabled_departments:
+    for dept_code in DEPARTMENT_NAMES:
+        if dept_code not in departments:
+            if enabled_departments is not None and dept_code not in enabled_departments:
                 continue
-            departments[dept_code.value] = {
-                "code": dept_code.value,
-                "name": get_department_display_name(dept_code.value),
-                "enabled": dept_code.value in enabled_departments if enabled_departments else True,
+            departments[dept_code] = {
+                "code": dept_code,
+                "name": get_department_display_name(dept_code),
+                "enabled": dept_code in enabled_departments if enabled_departments is not None else True,
                 "subspecialties": [],
             }
 
@@ -303,7 +289,8 @@ def catalog_for_teacher(
 
     return {
         "catalog_version": REFERENCE_CATALOG_VERSION,
-        "scope": "已核对参考条目子集；不是完整目录，也不是院校实际开设清单",
+        "scope": REFERENCE_CATALOG_SCOPE,
+        "source_documents": REFERENCE_SOURCES,
         "departments": result,
     }
 

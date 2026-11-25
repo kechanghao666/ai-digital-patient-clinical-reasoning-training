@@ -1,0 +1,68 @@
+{
+  "date": "2026-11-25",
+  "worktree_head": "962d31836e672fc98c8ee88e431a52428fde5942",
+  "worktree_clean": false,
+  "operating_system": "Windows-10-10.0.26300-SP0",
+  "python": "3.11.18",
+  "node": "v24.18.0",
+  "browser_executable": "msedge.exe",
+  "application_mode": {
+    "APP_ENV": "development",
+    "APP_AUTH_MODE": "local",
+    "NEXENT_MODE": "simulator"
+  },
+  "synthetic_enablement": {
+    "department_count": 3,
+    "subspecialty_count": 8
+  },
+  "health": {
+    "status": "ok",
+    "patient_adapter": "simulator"
+  },
+  "browser_result": {
+    "browser": "158.0.4370.33",
+    "checks": [
+      {
+        "name": "教师页面可选择新启用的分类",
+        "passed": true,
+        "detail": "选择仅保留在页面状态，未保存或更改任何病例"
+      },
+      {
+        "name": "开发模式病例库仍有五个当前病例行",
+        "passed": true,
+        "detail": "结果行数 5"
+      },
+      {
+        "name": "学生页面不显示无病例的分类",
+        "passed": true,
+        "detail": ""
+      },
+      {
+        "name": "学生页面按已有病例分类筛选",
+        "passed": true,
+        "detail": "结果行数 1"
+      },
+      {
+        "name": "浏览器无前端脚本错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "teacher_selected": {
+      "department_code": "05",
+      "subspecialty_code": "05.01",
+      "saved": false
+    },
+    "student_filter": {
+      "department_code": "03",
+      "subspecialty_code": "03.04",
+      "visible_rows": 1
+    },
+    "unfiltered_case_rows": 5,
+    "empty_enabled_specialty_absent": true,
+    "console_errors": 0
+  },
+  "failure": null,
+  "temporary_data_removed": true,
+  "evidence_boundary": "仅本机临时目录、合成账号和仓库草稿夹具的真实页面操作；未保存教师分类选择。生产草稿隐藏/发布/API 开训门禁由 tests/test_department_catalog.py 的合成认证回归验证。本证据不代表生产部署、临床审核或真实学生试用。"
+}
