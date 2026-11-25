@@ -271,3 +271,11 @@ py -3 scripts/run_o3_spotcheck.py --dataset evaluation\o3_engineering_spotcheck_
 - 本轮保留上一轮 Python 3.14.5 的 3 项历史失败记录，不修改超时断言；本次专项与全量运行使用 Python 3.11.18。
 
 **状态：** O3 原子回答路径已有服务端实现、规则模拟器学生 API 回归和可复跑报告，但结果由同一开发者撰写/判定、病例为合成草稿、没有真实模型、医学专家或真实学生。20/20 不能替代官方 20 轮≥95%验收；O3 仍未达标，第一阶段仍未准出。
+
+
+## 2026-11-26：当前 O3 代码与文档状态复核
+
+- 复核基线：本地/远端分支 `codex/feedback-protocol-fix` 均为文档提交前的 `f83002077116387ce116a564234442c17864c373`，工作区干净；产品代码沿用 `b61fdb9`。
+- 使用项目 `.venv` Python 3.11.18：O3及相邻问诊回归 `151 passed`；全量 `762 passed`（227.67s）；`compileall -q backend/app frontend tests scripts` 与 `git diff --check` 通过。全量结果覆盖当前产品代码，不是 GitHub runner 结果。
+- GitHub 最近可见 Push/PR 检查仍对应旧 SHA `51901bd`；当前 `b61fdb9` 与文档 HEAD `f830020` 无检查记录。尝试手动 dispatch 被 GitHub HTTP 403 拒绝，因此本报告不宣称当前 SHA 的远程 CI 已通过。
+- 本轮复核未修改产品代码、病例、数据库或历史评测证据；未读取 `KEY.txt`、未调用真实模型。真实学生/专家评测及官方验收仍未完成。
