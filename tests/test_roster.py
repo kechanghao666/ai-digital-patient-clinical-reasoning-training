@@ -98,13 +98,86 @@ def test_reset_disable_only_for_own_students(env):
     reset = api.client.post(f"/api/teacher/students/{account['id']}/reset-password", headers=teacher).json()
     _, user = login(api, "s001", reset["temporary_password"])
     assert user["must_change_password"] is True
-    assert api.client.post(f"/api/teacher/students/{account['id']}/disable", headers=teacher).json() == {"disabled": True}
+    assert api.client.post(f"/api/teacher/students/{account['id']}/disable", headers=teacher).json() == {"disabled": True, "changed": True}
     assert api.client.post("/api/auth/login", json={"username": "s001", "password": reset["temporary_password"]}).status_code == 401
-    api.client.post(f"/api/teacher/students/{account['id']}/enable", headers=teacher)
+    assert api.client.post(f"/api/teacher/students/{account['id']}/enable", headers=teacher).json() == {"disabled": False, "changed": True}
     assert api.client.post("/api/auth/login", json={"username": "s001", "password": reset["temporary_password"]}).status_code == 200
     # Removing from the class revokes the teacher's authority over that student.
     api.client.delete(f"/api/teacher/classes/{klass['id']}/students/{account['id']}", headers=teacher)
     assert api.client.post(f"/api/teacher/students/{account['id']}/disable", headers=teacher).status_code == 404
+
+
+def test_teacher_account_management_audit_is_scoped_and_idempotent(env):
+    api, store = env
+    teacher, teacher_user = login(api, "teacher", PASSWORD)
+    other, _ = login(api, "other", PASSWORD)
+    klass = api.client.post("/api/teacher/classes", headers=teacher, json={"name": "审计测试班"}).json()
+    added = api.client.post(
+        f"/api/teacher/classes/{klass['id']}/students", headers=teacher,
+        json={"students": [{"username": "audit-s001", "display_name": "合成学生"}]},
+    )
+    assert added.json()["results"][0]["status"] == "created"
+    student = store.find("audit-s001")
+    account_id = student["id"]
+    initial_password = added.json()["results"][0]["temporary_password"]
+    created_log = store.account_audit_log()
+    assert len(created_log) == 1
+    assert created_log[0]["operation"] == "account_created"
+    assert created_log[0]["target_account_id"] == account_id
+    assert created_log[0]["actor_id"] == teacher_user["id"]
+    assert created_log[0]["entry"] == "teacher_api"
+    assert set(created_log[0]) == {"occurred_at", "operation", "target_account_id", "actor_id", "entry"}
+    assert initial_password not in str(created_log)
+
+    second_class = api.client.post("/api/teacher/classes", headers=teacher, json={"name": "已有学生班"}).json()
+    enrolled = api.client.post(
+        f"/api/teacher/classes/{second_class['id']}/students", headers=teacher,
+        json={"students": [{"username": "audit-s001", "display_name": "不覆盖原姓名"}]},
+    )
+    assert enrolled.json()["results"][0]["status"] == "enrolled"
+    assert store.account_audit_log() == created_log
+
+    student_headers, _ = login(api, "audit-s001", initial_password)
+    before = store.get(account_id)
+    with store.connect() as db:
+        sessions_before = db.execute("SELECT COUNT(*) FROM login_sessions WHERE account_id=?", (account_id,)).fetchone()[0]
+    for action in ("reset-password", "disable", "enable"):
+        denied = api.client.post(f"/api/teacher/students/{account_id}/{action}", headers=other)
+        assert denied.status_code == 404
+    assert store.get(account_id) == before
+    with store.connect() as db:
+        assert db.execute("SELECT COUNT(*) FROM login_sessions WHERE account_id=?", (account_id,)).fetchone()[0] == sessions_before
+    assert api.client.get("/api/auth/me", headers=student_headers).status_code == 200
+    assert api.client.post("/api/auth/login", json={"username": "audit-s001", "password": initial_password}).status_code == 200
+    assert store.account_audit_log() == created_log
+
+    assert api.client.get("/api/teacher/account-audit", headers=teacher).status_code == 404
+    assert api.client.get("/api/teacher/account-audit", headers=student_headers).status_code == 404
+
+    reset = api.client.post(f"/api/teacher/students/{account_id}/reset-password", headers=teacher)
+    assert reset.status_code == 200
+    assert api.client.get("/api/auth/me", headers=student_headers).status_code == 401
+    reset_password = reset.json()["temporary_password"]
+    assert store.account_audit_log()[0]["operation"] == "password_reset"
+    assert reset_password not in str(store.account_audit_log())
+
+    new_session, _ = login(api, "audit-s001", reset_password)
+    disabled = api.client.post(f"/api/teacher/students/{account_id}/disable", headers=teacher).json()
+    assert disabled == {"disabled": True, "changed": True}
+    assert api.client.get("/api/auth/me", headers=new_session).status_code == 401
+    log_after_disable = store.account_audit_log()
+    assert log_after_disable[0]["operation"] == "account_disabled"
+    repeated = api.client.post(f"/api/teacher/students/{account_id}/disable", headers=teacher).json()
+    assert repeated == {"disabled": True, "changed": False}
+    assert store.account_audit_log() == log_after_disable
+
+    enabled = api.client.post(f"/api/teacher/students/{account_id}/enable", headers=teacher).json()
+    assert enabled == {"disabled": False, "changed": True}
+    assert [row["operation"] for row in reversed(store.account_audit_log())] == [
+        "account_created", "password_reset", "account_disabled", "account_enabled",
+    ]
+    assert all(row["actor_id"] == teacher_user["id"] and row["entry"] == "teacher_api"
+               for row in store.account_audit_log())
 
 
 def test_roster_requires_local_accounts(tmp_path, monkeypatch):

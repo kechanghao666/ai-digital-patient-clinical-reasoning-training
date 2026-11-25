@@ -42,6 +42,7 @@
 
 异常过程保留：最初专项运行 4 项时 2 项失败，原因是 WAL 模式数据库备份副本在恢复前校验时生成 `integration.db-shm`，使严格 payload 清单拒绝该文件；已仅将快照副本改为独立 DELETE journal mode（不改源库），随后专项 4 项通过。新增 CLI 端到端探针与恢复暂存阶段故障注入后，最终专项 6/6、全量 740/740 通过。损坏快照校验、非空目标保护、暂存失败不发布且清理 staging、未确认停机和源数据目录出现上传图片目录均有受控错误回归。
 
+
 本段本机测试结果记录时，工作树尚待提交/推送；`0b34f461` 的上游 CI 不能代替本次改动后的 CI。依赖审计的本机 `pip_audit` 仍不可用；真实模型调用 0 次；无外部服务请求、部署或医学内容修改。之后的推送与 GitHub CI 复核见紧接着的状态记录。
 
 ## 2026-11-25：c6b1d87 GitHub CI 复核
@@ -115,3 +116,18 @@
 ## 五、已知限制
 
 规则问诊仍有四类问题：同一句问多个方面时多答、治疗类问题被当成病史、同义说法覆盖不全、多轮指代无法处理。看板展示的是原规则分，未合并教师裁定，也不是正式成绩。本轮没有在真实浏览器中截图；页面行为由 Streamlit AppTest 验证，并在本机启动服务后做了接口级实跑。
+
+## 2026-11-25：账号管理操作审计（起点 `6d76f95` 的当前工作树）
+
+本节只记录 `6d76f95bd06dea0c9f335898e097f8be56a154f0` 之后的本地工作树改动验证；基线提交本身不含这些改动。Windows 本机仓库 `.venv` 的 Python 3.11.18。测试均由 pytest 自动创建临时合成数据库/账号，不访问既有数据目录、模型凭据或供应商；真实模型调用 0。
+
+| 验证 | 实际命令 | 结果 | 边界 |
+|---|---|---|---|
+| 账号、教师班级、备份恢复专项 | `./.venv/Scripts/python.exe -m pytest -q tests/test_accounts.py tests/test_roster.py tests/test_data_backup_restore.py` | **18 passed / 0 failed，16.56s** | Windows 临时合成账号与 SQLite；含只读审计 CLI、无权限教师拒绝、事务回滚、重复停用幂等和账号审计备份恢复一致性 |
+| 全量离线回归 | `./.venv/Scripts/python.exe -m pytest -q` | **743 passed / 0 failed，167.67s** | 本机工作树结果，不是基线提交 CI 或官方验收 |
+| Python 编译 | `./.venv/Scripts/python.exe -m compileall -q backend/app frontend tests scripts` | 通过 | 编译检查；前端源码未改 |
+| 前端类型/构建 | 未运行 `npm run typecheck` / `npm run build` | 未重跑 | 本轮未改前端或构建产物 |
+
+专项结果示例（脱敏）：`{"occurred_at":"<UTC>","operation":"password_reset","target_account_id":"<redacted>","actor_id":"<authenticated-teacher-id>","entry":"teacher_api"}`。教师对非本班学生的重置/停用/启用请求均返回 404；账号状态、原会话和审计条目保持不变。注入 `_append_account_audit` 写入异常后，新账号插入回滚；重置密码和停用状态、会话撤销一并回滚，旧 bearer 仍可认证。审计恢复后与快照一致，但旧登录会话被清除。
+
+测试执行初期有两次夹具接线失败：一是预期审计列表未从快照构造函数返回，二是新增返回值未同步到第二个调用方；均为测试代码错误，修复后目标专项 **18/18** 通过。未覆盖管理员角色、学生自助改密/登录行为、全站敏感数据访问审计、生产/异机 ACL、安全运维配置、临床审核或真实学生评测；这些仍开放。

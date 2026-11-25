@@ -123,7 +123,10 @@ class RosterStore:
             password = None
             if existing is None:
                 password = temporary_password()
-                account_id = self.accounts.create(username, password, "student", display, must_change=True)
+                account_id = self.accounts.create(
+                    username, password, "student", display, must_change=True,
+                    actor_id=teacher_id, entry="teacher_api",
+                )
                 status = "created"
             elif existing["role"] != "student":
                 results.append({"username": username, "status": "rejected", "message": "该账号不是学生账号"})
@@ -337,21 +340,23 @@ def build_router(get_roster: Callable[[], RosterStore], get_accounts: Callable[[
     def reset_password(account_id: str, teacher_id: str = Depends(current_teacher)) -> dict:
         student = student_of(teacher_id, account_id)
         password = temporary_password()
-        get_accounts().issue_password(account_id, password, must_change=True)
+        get_accounts().issue_password(
+            account_id, password, must_change=True, actor_id=teacher_id, entry="teacher_api",
+        )
         return {"username": student["username"], "temporary_password": password,
                 "notice": "新密码只显示这一次；该学生原有登录已失效，下次登录须修改密码。"}
 
     @router.post("/teacher/students/{account_id}/disable")
     def disable(account_id: str, teacher_id: str = Depends(current_teacher)) -> dict:
         student_of(teacher_id, account_id)
-        get_accounts().set_disabled(account_id, True)
-        return {"disabled": True}
+        changed = get_accounts().set_disabled(account_id, True, actor_id=teacher_id, entry="teacher_api")
+        return {"disabled": True, "changed": changed}
 
     @router.post("/teacher/students/{account_id}/enable")
     def enable(account_id: str, teacher_id: str = Depends(current_teacher)) -> dict:
         student_of(teacher_id, account_id)
-        get_accounts().set_disabled(account_id, False)
-        return {"disabled": False}
+        changed = get_accounts().set_disabled(account_id, False, actor_id=teacher_id, entry="teacher_api")
+        return {"disabled": False, "changed": changed}
 
     @router.post("/teacher/classes/{class_id}/assignments")
     def create_assignment(class_id: str, body: AssignmentBody, teacher_id: str = Depends(current_teacher)) -> dict:

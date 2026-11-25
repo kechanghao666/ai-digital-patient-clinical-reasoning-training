@@ -23,7 +23,7 @@ from app.storage import SessionRepository
 ROOT = Path(__file__).parents[1]
 
 
-def _seed_snapshot(tmp_path: Path) -> tuple[Path, Path, str, str]:
+def _seed_snapshot(tmp_path: Path) -> tuple[Path, Path, str, str, list[dict]]:
     data_dir = tmp_path / "source-data"
     data_dir.mkdir()
     external_db = tmp_path / "separate-integration" / "runtime.sqlite3"
@@ -101,7 +101,10 @@ def _seed_snapshot(tmp_path: Path) -> tuple[Path, Path, str, str]:
         "teacher",
         "合成教师（测试夹具）",
         must_change=False,
+        actor_id="local-ops",
+        entry="cli",
     )
+    expected_account_audit = accounts.account_audit_log()
     account_id = accounts.find("synthetic_teacher")["id"]
     with accounts.connect() as connection:
         connection.execute(
@@ -135,11 +138,11 @@ def _seed_snapshot(tmp_path: Path) -> tuple[Path, Path, str, str]:
         "合成评分复核记录",
         {"total_score": 4.0, "source": "synthetic fixture"},
     )
-    return data_dir, external_db, session_id, saved_case.case_id
+    return data_dir, external_db, session_id, saved_case.case_id, expected_account_audit
 
 
 def test_offline_backup_restore_preserves_all_service_data(tmp_path):
-    data_dir, external_db, session_id, case_id = _seed_snapshot(tmp_path)
+    data_dir, external_db, session_id, case_id, expected_account_audit = _seed_snapshot(tmp_path)
     expected_state = SessionRepository(data_dir / "app.db").get(session_id, "synthetic-student")
     expected_case_store = CaseStore(ROOT / "cases", data_dir / "teacher_cases")
     expected_case = expected_case_store.get(case_id, 1)
@@ -176,6 +179,7 @@ def test_offline_backup_restore_preserves_all_service_data(tmp_path):
 
     restored_accounts = AccountStore(restored_dir / "accounts.db")
     assert restored_accounts.find("synthetic_teacher")["display_name"] == "合成教师（测试夹具）"
+    assert restored_accounts.account_audit_log() == expected_account_audit
     with restored_accounts.connect() as connection:
         assert connection.execute("SELECT COUNT(*) FROM login_sessions").fetchone()[0] == 0
     assert CaseTrainingStore(restored_dir / "integration.db").get(case_id, 1)["request_id"] == "synthetic-stop-request"
@@ -275,7 +279,7 @@ def test_restore_staging_failure_does_not_publish_or_modify_existing_data(tmp_pa
 
 
 def test_documented_cli_backup_and_restore_flow_uses_only_isolated_data(tmp_path):
-    data_dir, external_db, session_id, _ = _seed_snapshot(tmp_path)
+    data_dir, external_db, session_id, _, _ = _seed_snapshot(tmp_path)
     backup_dir = tmp_path / "cli-backups" / "snapshot"
     restored_dir = tmp_path / "cli-restored-data"
     command = [

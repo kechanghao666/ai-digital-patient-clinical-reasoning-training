@@ -114,7 +114,8 @@ def test_invalid_bearer_never_falls_back_to_development_identity(accounts, monke
     assert api.client.get("/api/cases", headers=student).status_code == 200
 
 
-def test_management_command_uses_selected_data_and_revokes_sessions(tmp_path, monkeypatch):
+def test_management_command_uses_selected_data_and_audits_operator_actions(tmp_path, monkeypatch, capsys):
+    import json
     import runpy
     from test_cases_config import ROOT
     monkeypatch.setenv("APP_DATA_DIR", str(tmp_path))
@@ -124,11 +125,103 @@ def test_management_command_uses_selected_data_and_revokes_sessions(tmp_path, mo
     store = AccountStore(tmp_path / "accounts.db")
     result = store.login("instructor", PASSWORD, "test")
     assert result["user"]["role"] == "teacher"
-    monkeypatch.setattr("sys.argv", ["manage_accounts.py", "disable", "instructor"])
+
+    monkeypatch.setattr("sys.argv", ["manage_accounts.py", "reset-password", "instructor"])
     runpy.run_path(str(ROOT / "scripts/manage_accounts.py"), run_name="__main__")
     with pytest.raises(HTTPException) as exc:
         store.authenticate("Bearer " + result["token"])
     assert exc.value.status_code == 401
+    reset = store.login("instructor", PASSWORD, "test")
+
+    monkeypatch.setattr("sys.argv", ["manage_accounts.py", "disable", "instructor"])
+    runpy.run_path(str(ROOT / "scripts/manage_accounts.py"), run_name="__main__")
+    with pytest.raises(HTTPException) as exc:
+        store.authenticate("Bearer " + reset["token"])
+    assert exc.value.status_code == 401
+
+    monkeypatch.setattr("sys.argv", ["manage_accounts.py", "audit-log", "--limit", "10"])
+    runpy.run_path(str(ROOT / "scripts/manage_accounts.py"), run_name="__main__")
+    records = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    assert [row["operation"] for row in reversed(records)] == [
+        "account_created", "password_reset", "account_disabled",
+    ]
+    assert all(row["actor_id"] == "local-ops" and row["entry"] == "cli" for row in records)
+    assert all(set(row) == {"occurred_at", "operation", "target_account_id", "actor_id", "entry"}
+               for row in records)
+    assert PASSWORD not in json.dumps(records) and "password_hash" not in json.dumps(records)
+
+
+def test_audit_log_cli_does_not_create_missing_database(tmp_path, monkeypatch, capsys):
+    import json
+    import runpy
+    from test_cases_config import ROOT
+
+    monkeypatch.setenv("APP_DATA_DIR", str(tmp_path))
+    database = tmp_path / "accounts.db"
+    monkeypatch.setattr("sys.argv", ["manage_accounts.py", "audit-log"])
+    runpy.run_path(str(ROOT / "scripts/manage_accounts.py"), run_name="__main__")
+
+    assert json.loads(capsys.readouterr().out) == []
+    assert not database.exists()
+
+
+def test_account_audit_failure_rolls_back_account_password_and_sessions(tmp_path, monkeypatch):
+    store = AccountStore(tmp_path / "accounts.db")
+    store.create("auditstudent", PASSWORD, "student", "合成学生")
+    account_id = store.find("auditstudent")["id"]
+    session = store.login("auditstudent", PASSWORD, "test")
+    bearer = "Bearer " + session["token"]
+
+    def fail_audit(*_args):
+        raise RuntimeError("injected audit write failure")
+
+    with store.connect() as db:
+        columns = [row["name"] for row in db.execute("PRAGMA table_info(account_management_audit)")]
+        before = db.execute("SELECT salt, password_hash, disabled, must_change_password FROM accounts WHERE id=?",
+                            (account_id,)).fetchone()
+        sessions_before = db.execute("SELECT COUNT(*) FROM login_sessions WHERE account_id=?",
+                                     (account_id,)).fetchone()[0]
+    assert columns == ["occurred_at", "operation", "target_account_id", "actor_id", "entry"]
+
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "_append_account_audit", fail_audit)
+        with pytest.raises(RuntimeError, match="injected audit"):
+            store.create("auditnew", PASSWORD, "student", "合成新生", actor_id="local-ops", entry="cli")
+    assert store.find("auditnew") is None
+
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "_append_account_audit", fail_audit)
+        with pytest.raises(RuntimeError, match="injected audit"):
+            store.reset_password("auditstudent", "replacement-password-43", actor_id="local-ops", entry="cli")
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "_append_account_audit", fail_audit)
+        with pytest.raises(RuntimeError, match="injected audit"):
+            store.issue_password(account_id, "teacher-reset-password-43", actor_id="account-teacher",
+                                 entry="teacher_api")
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "_append_account_audit", fail_audit)
+        with pytest.raises(RuntimeError, match="injected audit"):
+            store.set_disabled(account_id, True, actor_id="account-teacher", entry="teacher_api")
+
+    with store.connect() as db:
+        after = db.execute("SELECT salt, password_hash, disabled, must_change_password FROM accounts WHERE id=?",
+                           (account_id,)).fetchone()
+        sessions_after = db.execute("SELECT COUNT(*) FROM login_sessions WHERE account_id=?",
+                                    (account_id,)).fetchone()[0]
+    assert tuple(after) == tuple(before)
+    assert sessions_after == sessions_before
+    assert store.authenticate(bearer)["id"] == account_id
+    assert store.login("auditstudent", PASSWORD, "test")["user"]["id"] == account_id
+    assert store.account_audit_log() == []
+
+    assert store.set_disabled(account_id, True, actor_id="account-teacher", entry="teacher_api") is True
+    assert store.account_audit_log()[0]["operation"] == "account_disabled"
+    with monkeypatch.context() as patch:
+        patch.setattr(store, "_append_account_audit", fail_audit)
+        with pytest.raises(RuntimeError, match="injected audit"):
+            store.set_disabled(account_id, False, actor_id="account-teacher", entry="teacher_api")
+    assert store.get(account_id)["disabled"] is True
+    assert [row["operation"] for row in store.account_audit_log()] == ["account_disabled"]
 
 
 def test_frontend_login_roles_logout_and_identity_cache(accounts, monkeypatch):

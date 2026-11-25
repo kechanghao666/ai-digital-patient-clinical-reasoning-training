@@ -10,6 +10,7 @@ import sqlite3
 import time
 import uuid
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Header, HTTPException, Request, Response
@@ -63,6 +64,15 @@ class AccountStore:
                 CREATE TABLE IF NOT EXISTS login_attempts (
                     bucket TEXT PRIMARY KEY, attempts INTEGER NOT NULL, reset_at REAL NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS account_management_audit (
+                    occurred_at TEXT NOT NULL,
+                    operation TEXT NOT NULL CHECK(operation IN (
+                        'account_created', 'password_reset', 'account_disabled', 'account_enabled'
+                    )),
+                    target_account_id TEXT NOT NULL,
+                    actor_id TEXT NOT NULL,
+                    entry TEXT NOT NULL CHECK(entry IN ('teacher_api', 'cli'))
+                );
             """)
             columns = {row["name"] for row in db.execute("PRAGMA table_info(accounts)")}
             if "must_change_password" not in columns:
@@ -110,8 +120,43 @@ class AccountStore:
             row = db.execute("SELECT * FROM accounts WHERE username=?", (normalize_username(username),)).fetchone()
         return self.get(row["id"]) if row else None
 
-    def issue_password(self, account_id, password, must_change=True):
-        """Teacher/admin sets a password (e.g. a reset); existing logins end immediately."""
+    def _append_account_audit(self, db, operation, target_account_id, actor_id, entry):
+        if operation not in {"account_created", "password_reset", "account_disabled", "account_enabled"}:
+            raise ValueError("账号审计操作无效")
+        if not actor_id or entry not in {"teacher_api", "cli"}:
+            raise ValueError("账号审计操作者或入口无效")
+        if entry == "cli" and actor_id != "local-ops":
+            raise ValueError("CLI 审计操作者必须标记为 local-ops")
+        occurred_at = datetime.now(timezone.utc).isoformat(timespec="microseconds")
+        db.execute("""INSERT INTO account_management_audit
+            (occurred_at, operation, target_account_id, actor_id, entry) VALUES (?,?,?,?,?)""",
+                   (occurred_at, operation, target_account_id, actor_id, entry))
+
+    def account_audit_log(self, limit=100):
+        return self.read_account_audit(self.path, limit)
+
+    @staticmethod
+    def read_account_audit(path, limit=100):
+        if not 1 <= limit <= 500:
+            raise ValueError("审计查询条数须为 1–500")
+        database = Path(path)
+        if not database.is_file():
+            return []
+        connection = sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True, timeout=10)
+        connection.row_factory = sqlite3.Row
+        try:
+            exists = connection.execute("""SELECT 1 FROM sqlite_master
+                WHERE type='table' AND name='account_management_audit'""").fetchone()
+            if not exists:
+                return []
+            rows = connection.execute("""SELECT occurred_at, operation, target_account_id, actor_id, entry
+                FROM account_management_audit ORDER BY rowid DESC LIMIT ?""", (limit,)).fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            connection.close()
+
+    def issue_password(self, account_id, password, must_change=True, *, actor_id=None, entry=None):
+        """Set a password and revoke sessions atomically; audit only explicit management entries."""
         check_password(password)
         salt = secrets.token_bytes(32)
         with self.connect() as db:
@@ -120,13 +165,25 @@ class AccountStore:
             if not updated:
                 raise KeyError(account_id)
             db.execute("DELETE FROM login_sessions WHERE account_id=?", (account_id,))
+            if actor_id is not None or entry is not None:
+                self._append_account_audit(db, "password_reset", account_id, actor_id, entry)
 
-    def set_disabled(self, account_id, disabled):
+    def set_disabled(self, account_id, disabled, *, actor_id=None, entry=None):
+        desired = int(bool(disabled))
         with self.connect() as db:
-            if not db.execute("UPDATE accounts SET disabled=? WHERE id=?", (int(disabled), account_id)).rowcount:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT disabled FROM accounts WHERE id=?", (account_id,)).fetchone()
+            if not row:
                 raise KeyError(account_id)
-            if disabled:
+            if row["disabled"] == desired:
+                return False
+            db.execute("UPDATE accounts SET disabled=? WHERE id=?", (desired, account_id))
+            if desired:
                 db.execute("DELETE FROM login_sessions WHERE account_id=?", (account_id,))
+            if actor_id is not None or entry is not None:
+                operation = "account_disabled" if desired else "account_enabled"
+                self._append_account_audit(db, operation, account_id, actor_id, entry)
+            return True
 
     def change_password(self, authorization, current, new):
         """Self-service change: verifies the current password, ends every login and returns a new one."""
@@ -149,7 +206,7 @@ class AccountStore:
             row = db.execute("SELECT * FROM accounts WHERE id=?", (user["id"],)).fetchone()
         return {"token": token, "expires_at": now + SESSION_SECONDS, "user": self.session_user(row)}
 
-    def create(self, username, password, role, display_name, must_change=False):
+    def create(self, username, password, role, display_name, must_change=False, *, actor_id=None, entry=None):
         username = normalize_username(username)
         check_password(password)
         if role not in {"student", "teacher"} or not 1 <= len(display_name.strip()) <= 80:
@@ -162,11 +219,13 @@ class AccountStore:
                            "must_change_password) VALUES (?,?,?,?,?,?,0,?)",
                            (account_id, username, display_name.strip(), role, salt, password_digest(password, salt),
                             int(must_change)))
+                if actor_id is not None or entry is not None:
+                    self._append_account_audit(db, "account_created", account_id, actor_id, entry)
         except sqlite3.IntegrityError as exc:
             raise ValueError("该账号已存在") from exc
         return account_id
 
-    def reset_password(self, username, password):
+    def reset_password(self, username, password, *, actor_id=None, entry=None):
         check_password(password)
         salt = secrets.token_bytes(32)
         with self.connect() as db:
@@ -175,14 +234,23 @@ class AccountStore:
                 raise ValueError("账号不存在")
             db.execute("UPDATE accounts SET salt=?,password_hash=? WHERE id=?", (salt, password_digest(password, salt), row["id"]))
             db.execute("DELETE FROM login_sessions WHERE account_id=?", (row["id"],))
+            if actor_id is not None or entry is not None:
+                self._append_account_audit(db, "password_reset", row["id"], actor_id, entry)
 
-    def disable(self, username):
+    def disable(self, username, *, actor_id=None, entry=None):
         with self.connect() as db:
             row = db.execute("SELECT id FROM accounts WHERE username=?", (normalize_username(username),)).fetchone()
             if not row:
                 raise ValueError("账号不存在")
+            db.execute("BEGIN IMMEDIATE")
+            current = db.execute("SELECT disabled FROM accounts WHERE id=?", (row["id"],)).fetchone()
+            if current["disabled"]:
+                return False
             db.execute("UPDATE accounts SET disabled=1 WHERE id=?", (row["id"],))
             db.execute("DELETE FROM login_sessions WHERE account_id=?", (row["id"],))
+            if actor_id is not None or entry is not None:
+                self._append_account_audit(db, "account_disabled", row["id"], actor_id, entry)
+            return True
 
     def login(self, username, password, source):
         now = time.time()
