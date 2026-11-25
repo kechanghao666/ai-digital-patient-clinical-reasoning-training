@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "title": "O3 问答路由问题修复前开发复现探针",
+  "run_at": "2026-11-25T13:21:44+00:00",
+  "authorship": "开发者编写的复现样例；不是独立评审或盲测",
+  "git_head_sha": "30028a042f7599f4fb94a4ea1cb28288baba362c",
+  "git_branch": "codex/feedback-protocol-fix",
+  "worktree_status": "?? evaluation/o3_engineering_spotcheck_20261125.json\n?? evaluation/o3_engineering_spotcheck_seed_20261125.json\n?? evaluation/o3_reproduction_probes_20261125.json\n?? scripts/freeze_o3_engineering_spotcheck.py\n?? scripts/run_o3_spotcheck.py",
+  "environment": {
+    "os": "Windows-11-10.0.26300-SP0",
+    "python": "3.14.5",
+    "python_executable": "python.exe",
+    "auth_mode": "local",
+    "app_environment": "development (draft visibility enabled only for this isolated synthetic run)",
+    "patient_adapter": "simulator",
+    "database_scope": "temporary APP_DATA_DIR and INTEGRATION_DB_PATH; removed after run",
+    "real_provider_calls": 0
+  },
+  "dataset_file": "evaluation/o3_reproduction_probes_20261125.json",
+  "dataset_sha256": "c5383a0bf983b96c785a0cb47348510d4d11f74f90f4f5b72f8ccd4386f845c4",
+  "baseline_sha": null,
+  "round_count": 4,
+  "student_case_entry": {
+    "source": "GET /api/cases and POST /api/sessions via local synthetic student bearer session",
+    "visible_case_count": 2,
+    "http_status": 200,
+    "health_http_status": 200
+  },
+  "counts": {
+    "round_count": 4,
+    "correct": 2,
+    "omission": 1,
+    "over_answer": 2,
+    "unauthorized_disclosure": 2,
+    "inappropriate_refusal": 0,
+    "interface_failure": 0,
+    "primary_results": {
+      "correct": 2,
+      "omission": 0,
+      "over_answer": 0,
+      "unauthorized_disclosure": 2,
+      "inappropriate_refusal": 0,
+      "interface_failure": 0,
+      "nonfact_response_not_accepted": 0
+    }
+  },
+  "category_counts_are_overlapping": true,
+  "category_rule": "错误标记可重叠；primary_results 按每轮一个主结果汇总。所有轮次保留在分母中。",
+  "temporary_data_removed": true,
+  "rounds": [
+    {
+      "index": 1,
+      "round_id": "surgery-management-vs-history-management",
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "surgery-management",
+      "session_policy": "每个探针使用独立训练，避免上一轮披露状态影响判定",
+      "question": "现在需要做手术吗？",
+      "http_status": 200,
+      "answer": "既往体健，没有做过手术，没有药物过敏。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [
+        "f_hx"
+      ],
+      "actual_fact_ids": [
+        "f_hx"
+      ],
+      "persisted_event_id": "05b1262f-da28-443d-b3ca-485f052d999a",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "unauthorized_disclosure",
+        "over_answer"
+      ],
+      "primary_result": "unauthorized_disclosure",
+      "student_case_entry_visible": true
+    },
+    {
+      "index": 2,
+      "round_id": "surgery-management-vs-history-history",
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "surgery-history",
+      "session_policy": "每个探针使用独立训练，避免上一轮披露状态影响判定",
+      "question": "以前做过手术吗？",
+      "http_status": 200,
+      "answer": "既往体健，没有做过手术，没有药物过敏。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_hx"
+      ],
+      "allowed_fact_ids": [
+        "f_hx"
+      ],
+      "prohibited_fact_ids": [],
+      "actual_fact_ids": [
+        "f_hx"
+      ],
+      "persisted_event_id": "11d2a035-0468-47b7-84de-ec134acda562",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [],
+      "primary_result": "correct",
+      "student_case_entry_visible": true
+    },
+    {
+      "index": 3,
+      "round_id": "family-discovery-vs-history-discovery",
+      "case_id": "STROKE-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "family-discovery",
+      "session_policy": "每个探针使用独立训练，避免上一轮披露状态影响判定",
+      "question": "家里人什么时候发现症状的？",
+      "http_status": 200,
+      "answer": "我哥哥前几年也中过风。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_care"
+      ],
+      "allowed_fact_ids": [
+        "f_care"
+      ],
+      "prohibited_fact_ids": [
+        "f_family"
+      ],
+      "actual_fact_ids": [
+        "f_family"
+      ],
+      "persisted_event_id": "411b7d7e-fba1-48a9-800c-5875a079a645",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "unauthorized_disclosure",
+        "over_answer",
+        "omission"
+      ],
+      "primary_result": "unauthorized_disclosure",
+      "student_case_entry_visible": true
+    },
+    {
+      "index": 4,
+      "round_id": "family-discovery-vs-history-history",
+      "case_id": "STROKE-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "family-history",
+      "session_policy": "每个探针使用独立训练，避免上一轮披露状态影响判定",
+      "question": "家族里有人得过类似的病吗？",
+      "http_status": 200,
+      "answer": "我哥哥前几年也中过风。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_family"
+      ],
+      "allowed_fact_ids": [
+        "f_family"
+      ],
+      "prohibited_fact_ids": [],
+      "actual_fact_ids": [
+        "f_family"
+      ],
+      "persisted_event_id": "4c1d7495-393e-42e0-ac43-7adee69ed225",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [],
+      "primary_result": "correct",
+      "student_case_entry_visible": true
+    }
+  ],
+  "evidence_boundary": "本报告只证明该提交代码在本机 FastAPI 学生 API、本地认证、隔离合成数据库及确定性模拟器上的工程行为；不证明真实模型、临床正确性、专家/学生评价或官方 20 轮验收。"
+}

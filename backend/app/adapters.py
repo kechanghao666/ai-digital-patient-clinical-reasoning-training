@@ -3,14 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
-from .disclosure import CLARIFY_REPLY, CLARIFY_TOPIC_REPLY, DONE_REPLY
+from .disclosure import CLARIFY_REPLY, CLARIFY_TOPIC_REPLY, DONE_REPLY, TREATMENT_DECISION_REPLY
 from .models import CaseDefinition, Fact
 
 FALLBACK_ANSWER = "我不太确定您的问题，能否换一种方式询问？"
 # Fixed, fact-free replies the backend may use when no fact is disclosed (see disclosure.py).
 NON_FACT_REPLIES = frozenset({
     "医生您好。", "好的，谢谢医生。", "这个我也不清楚，得请医生帮我看看。", "这个我没太注意，说不好。", "检查结果我不清楚，您看看报告吧。",
-    CLARIFY_REPLY, CLARIFY_TOPIC_REPLY, DONE_REPLY,
+    CLARIFY_REPLY, CLARIFY_TOPIC_REPLY, DONE_REPLY, TREATMENT_DECISION_REPLY,
 })
 _SENTENCE_END = ("。", "！", "？", "!", "?", "…")
 

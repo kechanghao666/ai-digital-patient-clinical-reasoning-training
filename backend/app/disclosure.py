@@ -95,7 +95,12 @@ CLINICAL_INTENTS: tuple[tuple[str, re.Pattern[str], str], ...] = tuple(
 )
 
 # Non-clinical turns. These never disclose a case fact; the reply text is fixed and safe.
+TREATMENT_DECISION_REPLY = "这我不清楚，得请医生结合检查判断。"
 SOCIAL_INTENTS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    # A patient cannot decide whether the current episode needs a procedure; this is not surgery history.
+    ("treatment_decision", re.compile(
+        r"(?:现在|目前|这次)?(?:是否需要|是否要|需不需要|需要不需要|要不要|应不应该|应该不应该|该不该|需要|要)"
+        r"(?:去|做|进行|接受|安排)?(?:做)?(?:手术|开刀)|(?:手术|开刀)(?:需要|需不需要|要不要|是否|有没有必要)")),
     # Asking the patient for test results: they come from the order system, never from the patient.
     ("exam_request", re.compile(
         r"ct|心电图|超声|b超|彩超|化验|胸片|片子|血气|血常规|尿常规|核磁|磁共振|结果|报告|查出来|指标")),
@@ -106,6 +111,7 @@ SOCIAL_INTENTS: tuple[tuple[str, re.Pattern[str]], ...] = (
 )
 
 SOCIAL_REPLIES = {
+    "treatment_decision": TREATMENT_DECISION_REPLY,
     "greeting": "医生您好。",
     "acknowledge": "好的，谢谢医生。",
     "diagnosis_request": "这个我也不清楚，得请医生帮我看看。",
@@ -142,6 +148,12 @@ CONTINUATION_FILLER = re.compile(
 # Bare "还有吗 / 还有呢 / 还有别的吗" also continue; a clause naming a symptom or disease
 # ("还有别的症状吗") is handled by its own clinical intent, so it never reaches here.
 CONTINUATION_BARE_ANY = re.compile(r"^还有(别的|其他|其它|什么|啥)?(吗|呢)?$")
+
+RELATIVE_DISCOVERY_QUERY = re.compile(
+    r"(?:家里人|家人|家属|家里|父母|父亲|母亲|爸|妈|兄弟|姐妹|亲戚)\S{0,8}(?:发现|注意到|察觉|看到)|"
+    r"(?:发现|注意到|察觉|看到)\S{0,8}(?:家里人|家人|家属|父母|父亲|母亲|爸|妈|兄弟|姐妹|亲戚)"
+)
+DISCOVERY_IN_CASE = re.compile(r"发现|注意到|察觉|看到")
 
 CLARIFY_REPLY = "您想先说说哪里不舒服？"
 CLARIFY_TOPIC_REPLY = "您想了解哪方面的情况？"
@@ -311,12 +323,20 @@ def classify_turn(state: SessionState, question: str, facts: list[Fact]) -> tupl
 
     social = social_intent(question)
     # Test results and diagnoses are never the patient's to give, whatever words they contain.
-    if social == "exam_request" or (social == "diagnosis_request" and set(intents) <= {"named_disease"}):
+    if social in {"exam_request", "treatment_decision"} or (
+        social == "diagnosis_request" and set(intents) <= {"named_disease"}
+    ):
         return [], "social"
+    if "family" in by_intent and RELATIVE_DISCOVERY_QUERY.search(query):
+        # A relative who noticed the current symptoms is a narrative event, not family history.
+        matches = [
+            fact for fact in visible
+            if fact.field == "就诊经过" and DISCOVERY_IN_CASE.search(fact.content)
+        ]
+        return (matches, "fact") if matches else ([], "unconfigured")
     if "family" in by_intent and not re.search(r"您|你|自己", query):
-        # Questions about relatives only open family-history facts, even if they name a disease.
-        matches = [fact for fact in visible if hits(fact, by_intent["family"]) and not hits(fact, [])
-                   or fact.field == "家族史"]
+        # A family-history question must not pull unrelated household/exposure facts by shared wording.
+        matches = [fact for fact in visible if fact.field == "家族史"]
         return (matches, "fact") if matches else ([], "unconfigured")
     # A pure continuation follows up on what was just disclosed; only when nothing clinical was asked.
     if not intents and social is None and _is_continuation(query):

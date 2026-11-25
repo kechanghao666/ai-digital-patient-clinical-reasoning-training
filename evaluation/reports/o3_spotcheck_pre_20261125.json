@@ -1,0 +1,998 @@
+{
+  "schema_version": 1,
+  "title": "O3 开发者预登记工程抽检（修复前冻结）",
+  "run_at": "2026-11-25T13:21:55+00:00",
+  "authorship": "同一开发者撰写与预登记；不是独立盲测、医学专家判定或官方验收",
+  "git_head_sha": "30028a042f7599f4fb94a4ea1cb28288baba362c",
+  "git_branch": "codex/feedback-protocol-fix",
+  "worktree_status": "?? evaluation/o3_engineering_spotcheck_20261125.json\n?? evaluation/o3_engineering_spotcheck_seed_20261125.json\n?? evaluation/o3_reproduction_probes_20261125.json\n?? evaluation/reports/o3_reproduction_pre_20261125.json\n?? scripts/freeze_o3_engineering_spotcheck.py\n?? scripts/run_o3_spotcheck.py",
+  "environment": {
+    "os": "Windows-11-10.0.26300-SP0",
+    "python": "3.14.5",
+    "python_executable": "python.exe",
+    "auth_mode": "local",
+    "app_environment": "development (draft visibility enabled only for this isolated synthetic run)",
+    "patient_adapter": "simulator",
+    "database_scope": "temporary APP_DATA_DIR and INTEGRATION_DB_PATH; removed after run",
+    "real_provider_calls": 0
+  },
+  "dataset_file": "evaluation/o3_engineering_spotcheck_20261125.json",
+  "dataset_sha256": "827f61361d892e474fd703ad6e7bda09813a1355ad24512a5516942f66719ada",
+  "baseline_sha": "30028a042f7599f4fb94a4ea1cb28288baba362c",
+  "round_count": 20,
+  "student_case_entry": {
+    "source": "GET /api/cases and POST /api/sessions via local synthetic student bearer session",
+    "visible_case_count": 5,
+    "http_status": 200,
+    "health_http_status": 200
+  },
+  "counts": {
+    "round_count": 20,
+    "correct": 9,
+    "omission": 1,
+    "over_answer": 11,
+    "unauthorized_disclosure": 11,
+    "inappropriate_refusal": 0,
+    "interface_failure": 0,
+    "primary_results": {
+      "correct": 9,
+      "omission": 0,
+      "over_answer": 0,
+      "unauthorized_disclosure": 11,
+      "inappropriate_refusal": 0,
+      "interface_failure": 0,
+      "nonfact_response_not_accepted": 0
+    }
+  },
+  "category_counts_are_overlapping": true,
+  "category_rule": "错误标记可重叠；primary_results 按每轮一个主结果汇总。所有轮次保留在分母中。",
+  "temporary_data_removed": true,
+  "rounds": [
+    {
+      "index": 1,
+      "round_id": "STEMI-001-R01",
+      "case_id": "STEMI-001",
+      "case_version": 3,
+      "review_status": "draft",
+      "session_group": "STEMI-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "现在需要做手术吗？",
+      "http_status": 200,
+      "answer": "没有药物过敏，也没做过手术。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_pain_character",
+        "f_pain_radiation",
+        "f_pain_onset",
+        "f_hx_htn",
+        "f_hx_dm",
+        "f_hx_smoke",
+        "f_med_asa",
+        "f_identity",
+        "f_location",
+        "f_accompany",
+        "f_dyspnea",
+        "f_back",
+        "f_ros",
+        "f_alcohol",
+        "f_general",
+        "f_allergy",
+        "f_family",
+        "f_prior",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_allergy"
+      ],
+      "persisted_event_id": "fd4414ce-413b-4bba-bddd-5a7623cb7682",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "unauthorized_disclosure",
+        "over_answer"
+      ],
+      "primary_result": "unauthorized_disclosure",
+      "student_case_entry_visible": true
+    },
+    {
+      "index": 2,
+      "round_id": "STEMI-001-R02",
+      "case_id": "STEMI-001",
+      "case_version": 3,
+      "review_status": "draft",
+      "session_group": "STEMI-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "以前做过手术吗？",
+      "http_status": 200,
+      "answer": "没有药物过敏，也没做过手术。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_allergy"
+      ],
+      "allowed_fact_ids": [
+        "f_allergy"
+      ],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_pain_character",
+        "f_pain_radiation",
+        "f_pain_onset",
+        "f_hx_htn",
+        "f_hx_dm",
+        "f_hx_smoke",
+        "f_med_asa",
+        "f_identity",
+        "f_location",
+        "f_accompany",
+        "f_dyspnea",
+        "f_back",
+        "f_ros",
+        "f_alcohol",
+        "f_general",
+        "f_family",
+        "f_prior",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_allergy"
+      ],
+      "persisted_event_id": "37c4af0d-e819-47e1-a036-07d19385cc27",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [],
+      "primary_result": "correct"
+    },
+    {
+      "index": 3,
+      "round_id": "STEMI-001-R03",
+      "case_id": "STEMI-001",
+      "case_version": 3,
+      "review_status": "draft",
+      "session_group": "STEMI-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "家里人什么时候发现症状的？",
+      "http_status": 200,
+      "answer": "我父亲有冠心病，常年吃药。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_pain_character",
+        "f_pain_radiation",
+        "f_pain_onset",
+        "f_hx_htn",
+        "f_hx_dm",
+        "f_hx_smoke",
+        "f_med_asa",
+        "f_identity",
+        "f_location",
+        "f_accompany",
+        "f_dyspnea",
+        "f_back",
+        "f_ros",
+        "f_alcohol",
+        "f_general",
+        "f_allergy",
+        "f_family",
+        "f_prior",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_family"
+      ],
+      "persisted_event_id": "c61b046c-d157-4079-b3d4-8f488e25c0f4",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "unauthorized_disclosure",
+        "over_answer"
+      ],
+      "primary_result": "unauthorized_disclosure"
+    },
+    {
+      "index": 4,
+      "round_id": "STEMI-001-R04",
+      "case_id": "STEMI-001",
+      "case_version": 3,
+      "review_status": "draft",
+      "session_group": "STEMI-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "家族里有人得过类似的病吗？",
+      "http_status": 200,
+      "answer": "我父亲有冠心病，常年吃药。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_family"
+      ],
+      "allowed_fact_ids": [
+        "f_family"
+      ],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_pain_character",
+        "f_pain_radiation",
+        "f_pain_onset",
+        "f_hx_htn",
+        "f_hx_dm",
+        "f_hx_smoke",
+        "f_med_asa",
+        "f_identity",
+        "f_location",
+        "f_accompany",
+        "f_dyspnea",
+        "f_back",
+        "f_ros",
+        "f_alcohol",
+        "f_general",
+        "f_allergy",
+        "f_prior",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_family"
+      ],
+      "persisted_event_id": "bcf8351e-77c0-4867-aed8-4337d8a883de",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [],
+      "primary_result": "correct"
+    },
+    {
+      "index": 5,
+      "round_id": "APPY-001-R01",
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "APPY-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "现在需要做手术吗？",
+      "http_status": 200,
+      "answer": "既往体健，没有做过手术，没有药物过敏。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_pain_migration",
+        "f_pain_character",
+        "f_onset",
+        "f_gi",
+        "f_fever",
+        "f_bowel",
+        "f_urine",
+        "f_hx",
+        "f_identity",
+        "f_relief",
+        "f_ros",
+        "f_general",
+        "f_personal",
+        "f_family",
+        "f_prior",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_hx"
+      ],
+      "persisted_event_id": "11603431-670e-45e2-86c5-37e5ffc68edc",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "unauthorized_disclosure",
+        "over_answer"
+      ],
+      "primary_result": "unauthorized_disclosure",
+      "student_case_entry_visible": true
+    },
+    {
+      "index": 6,
+      "round_id": "APPY-001-R02",
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "APPY-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "以前做过手术吗？",
+      "http_status": 200,
+      "answer": "既往体健，没有做过手术，没有药物过敏。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_hx"
+      ],
+      "allowed_fact_ids": [
+        "f_hx"
+      ],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_pain_migration",
+        "f_pain_character",
+        "f_onset",
+        "f_gi",
+        "f_fever",
+        "f_bowel",
+        "f_urine",
+        "f_identity",
+        "f_relief",
+        "f_ros",
+        "f_general",
+        "f_personal",
+        "f_family",
+        "f_prior",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_hx"
+      ],
+      "persisted_event_id": "f6fcc236-3c87-4fda-830e-74823006beed",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [],
+      "primary_result": "correct"
+    },
+    {
+      "index": 7,
+      "round_id": "APPY-001-R03",
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "APPY-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "家里人什么时候发现症状的？",
+      "http_status": 200,
+      "answer": "家里人身体都还好，没有类似的病。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_pain_migration",
+        "f_pain_character",
+        "f_onset",
+        "f_gi",
+        "f_fever",
+        "f_bowel",
+        "f_urine",
+        "f_hx",
+        "f_identity",
+        "f_relief",
+        "f_ros",
+        "f_general",
+        "f_personal",
+        "f_family",
+        "f_prior",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_family"
+      ],
+      "persisted_event_id": "cefc82a2-82df-4801-a515-64bad7d33122",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "unauthorized_disclosure",
+        "over_answer"
+      ],
+      "primary_result": "unauthorized_disclosure"
+    },
+    {
+      "index": 8,
+      "round_id": "APPY-001-R04",
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "APPY-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "家族里有人得过类似的病吗？",
+      "http_status": 200,
+      "answer": "家里人身体都还好，没有类似的病。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_family"
+      ],
+      "allowed_fact_ids": [
+        "f_family"
+      ],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_pain_migration",
+        "f_pain_character",
+        "f_onset",
+        "f_gi",
+        "f_fever",
+        "f_bowel",
+        "f_urine",
+        "f_hx",
+        "f_identity",
+        "f_relief",
+        "f_ros",
+        "f_general",
+        "f_personal",
+        "f_prior",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_family"
+      ],
+      "persisted_event_id": "130f9539-eff2-4659-9e03-2cbb159bc92d",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [],
+      "primary_result": "correct"
+    },
+    {
+      "index": 9,
+      "round_id": "STROKE-001-R01",
+      "case_id": "STROKE-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "STROKE-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "现在需要做手术吗？",
+      "http_status": 200,
+      "answer": "没有吃抗凝药，最近也没有手术或外伤，没有出血病史。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_onset_time",
+        "f_symptom_detail",
+        "f_headache",
+        "f_hx_af",
+        "f_hx_htn",
+        "f_anticoag",
+        "f_pain_none",
+        "f_general",
+        "f_identity",
+        "f_dm",
+        "f_seizure",
+        "f_ros",
+        "f_personal",
+        "f_allergy",
+        "f_family",
+        "f_prior",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_anticoag"
+      ],
+      "persisted_event_id": "29137644-1806-4625-b835-f9bfeec92241",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "unauthorized_disclosure",
+        "over_answer"
+      ],
+      "primary_result": "unauthorized_disclosure",
+      "student_case_entry_visible": true
+    },
+    {
+      "index": 10,
+      "round_id": "STROKE-001-R02",
+      "case_id": "STROKE-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "STROKE-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "以前做过手术吗？",
+      "http_status": 200,
+      "answer": "没有吃抗凝药，最近也没有手术或外伤，没有出血病史。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_anticoag"
+      ],
+      "allowed_fact_ids": [
+        "f_anticoag"
+      ],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_onset_time",
+        "f_symptom_detail",
+        "f_headache",
+        "f_hx_af",
+        "f_hx_htn",
+        "f_pain_none",
+        "f_general",
+        "f_identity",
+        "f_dm",
+        "f_seizure",
+        "f_ros",
+        "f_personal",
+        "f_allergy",
+        "f_family",
+        "f_prior",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_anticoag"
+      ],
+      "persisted_event_id": "66453609-0fe2-4886-b1c3-a3e097147b59",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [],
+      "primary_result": "correct"
+    },
+    {
+      "index": 11,
+      "round_id": "STROKE-001-R03",
+      "case_id": "STROKE-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "STROKE-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "家里人什么时候发现症状的？",
+      "http_status": 200,
+      "answer": "我哥哥前几年也中过风。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_care"
+      ],
+      "allowed_fact_ids": [
+        "f_care"
+      ],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_onset_time",
+        "f_symptom_detail",
+        "f_headache",
+        "f_hx_af",
+        "f_hx_htn",
+        "f_anticoag",
+        "f_pain_none",
+        "f_general",
+        "f_identity",
+        "f_dm",
+        "f_seizure",
+        "f_ros",
+        "f_personal",
+        "f_allergy",
+        "f_family",
+        "f_prior",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_family"
+      ],
+      "persisted_event_id": "f07b2bbb-1c22-4a6f-8a0c-c4e4a6d963b7",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "unauthorized_disclosure",
+        "over_answer",
+        "omission"
+      ],
+      "primary_result": "unauthorized_disclosure"
+    },
+    {
+      "index": 12,
+      "round_id": "STROKE-001-R04",
+      "case_id": "STROKE-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "STROKE-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "家族里有人得过类似的病吗？",
+      "http_status": 200,
+      "answer": "我哥哥前几年也中过风。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_family"
+      ],
+      "allowed_fact_ids": [
+        "f_family"
+      ],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_onset_time",
+        "f_symptom_detail",
+        "f_headache",
+        "f_hx_af",
+        "f_hx_htn",
+        "f_anticoag",
+        "f_pain_none",
+        "f_general",
+        "f_identity",
+        "f_dm",
+        "f_seizure",
+        "f_ros",
+        "f_personal",
+        "f_allergy",
+        "f_prior",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_family"
+      ],
+      "persisted_event_id": "4aba02bf-5ccd-402f-bfe0-6f8b9c909a23",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [],
+      "primary_result": "correct"
+    },
+    {
+      "index": 13,
+      "round_id": "CAP-001-R01",
+      "case_id": "CAP-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "CAP-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "现在需要做手术吗？",
+      "http_status": 200,
+      "answer": "没做过手术，最近也没受过伤。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_fever_detail",
+        "f_cough",
+        "f_dyspnea",
+        "f_hemoptysis",
+        "f_exposure",
+        "f_hx",
+        "f_surgery",
+        "f_identity",
+        "f_onset",
+        "f_ros",
+        "f_general",
+        "f_alcohol",
+        "f_family",
+        "f_prior",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_surgery"
+      ],
+      "persisted_event_id": "ecf0dd37-c405-4dbc-ae77-260c7beb80f9",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "unauthorized_disclosure",
+        "over_answer"
+      ],
+      "primary_result": "unauthorized_disclosure",
+      "student_case_entry_visible": true
+    },
+    {
+      "index": 14,
+      "round_id": "CAP-001-R02",
+      "case_id": "CAP-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "CAP-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "以前做过手术吗？",
+      "http_status": 200,
+      "answer": "没做过手术，最近也没受过伤。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_surgery"
+      ],
+      "allowed_fact_ids": [
+        "f_surgery"
+      ],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_fever_detail",
+        "f_cough",
+        "f_dyspnea",
+        "f_hemoptysis",
+        "f_exposure",
+        "f_hx",
+        "f_identity",
+        "f_onset",
+        "f_ros",
+        "f_general",
+        "f_alcohol",
+        "f_family",
+        "f_prior",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_surgery"
+      ],
+      "persisted_event_id": "3e5721d7-82d6-4291-818e-dc7c151f8fbe",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [],
+      "primary_result": "correct"
+    },
+    {
+      "index": 15,
+      "round_id": "CAP-001-R03",
+      "case_id": "CAP-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "CAP-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "家里人什么时候发现症状的？",
+      "http_status": 200,
+      "answer": "家里人没有类似的病，也没有得过结核的。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_fever_detail",
+        "f_cough",
+        "f_dyspnea",
+        "f_hemoptysis",
+        "f_exposure",
+        "f_hx",
+        "f_surgery",
+        "f_identity",
+        "f_onset",
+        "f_ros",
+        "f_general",
+        "f_alcohol",
+        "f_family",
+        "f_prior",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_family"
+      ],
+      "persisted_event_id": "892b269c-a31e-44fe-aa18-2e920e6da865",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "unauthorized_disclosure",
+        "over_answer"
+      ],
+      "primary_result": "unauthorized_disclosure"
+    },
+    {
+      "index": 16,
+      "round_id": "CAP-001-R04",
+      "case_id": "CAP-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "CAP-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "家族里有人得过类似的病吗？",
+      "http_status": 200,
+      "answer": "家里最近没人生病，没去过外地，没有接触禽类。家里人没有类似的病，也没有得过结核的。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_family"
+      ],
+      "allowed_fact_ids": [
+        "f_family"
+      ],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_fever_detail",
+        "f_cough",
+        "f_dyspnea",
+        "f_hemoptysis",
+        "f_exposure",
+        "f_hx",
+        "f_surgery",
+        "f_identity",
+        "f_onset",
+        "f_ros",
+        "f_general",
+        "f_alcohol",
+        "f_prior",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_exposure",
+        "f_family"
+      ],
+      "persisted_event_id": "356a7a95-c6ff-457c-b516-a4999f246420",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "unauthorized_disclosure",
+        "over_answer"
+      ],
+      "primary_result": "unauthorized_disclosure"
+    },
+    {
+      "index": 17,
+      "round_id": "DKA-001-R01",
+      "case_id": "DKA-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "DKA-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "现在需要做手术吗？",
+      "http_status": 200,
+      "answer": "没有药物过敏，也没做过手术。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_polyuria",
+        "f_gi",
+        "f_breath",
+        "f_hx",
+        "f_insulin",
+        "f_ros",
+        "f_prior",
+        "f_identity",
+        "f_onset",
+        "f_home_glucose",
+        "f_general",
+        "f_menstrual",
+        "f_personal",
+        "f_allergy",
+        "f_family",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_allergy"
+      ],
+      "persisted_event_id": "24aae4a3-ea74-472d-97e1-c71fa0ec7220",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "unauthorized_disclosure",
+        "over_answer"
+      ],
+      "primary_result": "unauthorized_disclosure",
+      "student_case_entry_visible": true
+    },
+    {
+      "index": 18,
+      "round_id": "DKA-001-R02",
+      "case_id": "DKA-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "DKA-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "以前做过手术吗？",
+      "http_status": 200,
+      "answer": "没有药物过敏，也没做过手术。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_allergy"
+      ],
+      "allowed_fact_ids": [
+        "f_allergy"
+      ],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_polyuria",
+        "f_gi",
+        "f_breath",
+        "f_hx",
+        "f_insulin",
+        "f_ros",
+        "f_prior",
+        "f_identity",
+        "f_onset",
+        "f_home_glucose",
+        "f_general",
+        "f_menstrual",
+        "f_personal",
+        "f_family",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_allergy"
+      ],
+      "persisted_event_id": "7e992cba-24dd-4913-ac54-aba6119f72ce",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [],
+      "primary_result": "correct"
+    },
+    {
+      "index": 19,
+      "round_id": "DKA-001-R03",
+      "case_id": "DKA-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "DKA-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "家里人什么时候发现症状的？",
+      "http_status": 200,
+      "answer": "家里人没有糖尿病。",
+      "turn_kind": "fact",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_polyuria",
+        "f_gi",
+        "f_breath",
+        "f_hx",
+        "f_insulin",
+        "f_ros",
+        "f_prior",
+        "f_identity",
+        "f_onset",
+        "f_home_glucose",
+        "f_general",
+        "f_menstrual",
+        "f_personal",
+        "f_allergy",
+        "f_family",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_family"
+      ],
+      "persisted_event_id": "7001d9c7-05f5-4921-ae19-1a4793b9ac90",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [
+        "unauthorized_disclosure",
+        "over_answer"
+      ],
+      "primary_result": "unauthorized_disclosure"
+    },
+    {
+      "index": 20,
+      "round_id": "DKA-001-R04",
+      "case_id": "DKA-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "DKA-001",
+      "session_policy": "four sequential rounds share one session within each case",
+      "question": "家族里有人得过类似的病吗？",
+      "http_status": 200,
+      "answer": "家里人没有糖尿病。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_family"
+      ],
+      "allowed_fact_ids": [
+        "f_family"
+      ],
+      "prohibited_fact_ids": [
+        "f_cc",
+        "f_polyuria",
+        "f_gi",
+        "f_breath",
+        "f_hx",
+        "f_insulin",
+        "f_ros",
+        "f_prior",
+        "f_identity",
+        "f_onset",
+        "f_home_glucose",
+        "f_general",
+        "f_menstrual",
+        "f_personal",
+        "f_allergy",
+        "f_care",
+        "f_deterioration"
+      ],
+      "actual_fact_ids": [
+        "f_family"
+      ],
+      "persisted_event_id": "231a2288-d959-4251-ba23-7bb5be515a30",
+      "persisted_event_matches_api": true,
+      "adapter_source": "simulator",
+      "flags": [],
+      "primary_result": "correct"
+    }
+  ],
+  "evidence_boundary": "本报告只证明该提交代码在本机 FastAPI 学生 API、本地认证、隔离合成数据库及确定性模拟器上的工程行为；不证明真实模型、临床正确性、专家/学生评价或官方 20 轮验收。"
+}
