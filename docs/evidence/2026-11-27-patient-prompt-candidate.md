@@ -68,6 +68,6 @@
 
 **发布方式**：以候选提示词发布为独立版本，保留 v9 作历史对照；模型、工具白名单（仅 `get_turn_context`、`submit_fact_selection`）、`enable_protocol_repair_retry` 与重试上限均与 v9 一致。
 
-**测量入口**：真实测量沿用 `NEXENT_MODE=nexent node web/e2e/o10a-latency.mjs --three-turns`；`o10a_nexent_stack.py` 从受保护环境读取 `NEXENT_PATIENT_AGENT`。请求按 `agent_name` 路由，未携带版本号或提示词指纹。候选发布后、首次提问前，用 `python scripts/verify_published_prompt.py <候选导出件> --name <智能体名称>` 核对名称与完整提示词 SHA-256（与本节候选指纹比对），并在平台 UI 记录该名称对应的已发布版本号；三者对应后开始三问。`--three-turns` 固定两个会话三问——新会话依次「有高血压吗？」「有糖尿病吗？」，另一新会话「以前做过手术吗？」——每问只发起一次 `chat/run`，失败计入分母、不补跑。
+**测量入口**：真实测量沿用 `NEXENT_MODE=nexent node web/e2e/o10a-latency.mjs --three-turns`；`o10a_nexent_stack.py` 从受保护环境读取 `NEXENT_PATIENT_AGENT`。请求按 `agent_name` 路由，未携带版本号或提示词指纹。候选发布后、首次提问前，用 `python scripts/verify_published_prompt.py <候选导出件> --name <智能体名称>` 核对导出件顶层 `agent_id` 指定的主智能体名称与完整提示词 SHA-256（与本节候选指纹比对），并在平台 UI 记录该名称对应的已发布版本号；此脚本需单独运行，测量入口不会自动执行它。检查成功且平台版本号已确认后开始三问。`--three-turns` 固定两个会话三问——新会话依次「有高血压吗？」「有糖尿病吗？」，另一新会话「以前做过手术吗？」——每问只发起一次 `chat/run`，失败计入分母、不补跑。
 
 **待批准**：负责人单独批准候选发布及最多 3 次 `chat/run` 后，再执行真实测量；本轮真实调用预算为 0。

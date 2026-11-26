@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Verify the published candidate target before the first real question (zero model calls).
 
-After the负责人 publishes the independent candidate version, export that agent and run:
+After the project owner publishes the independent candidate version, export that agent and run:
 
     python scripts/verify_published_prompt.py <agent_export.json> [--name digital_patient_stemi]
 
@@ -32,15 +32,15 @@ def main() -> int:
     if not isinstance(agents, dict) or not agents:
         raise SystemExit("导出件缺少 agent_info")
 
-    match = None
-    for entry in agents.values():
-        if entry.get("name") == args.name:
-            match = entry
-            break
-    if match is None:
-        raise SystemExit(f"导出件中找不到名为 {args.name} 的智能体")
-
-    prompt = match.get("prompt", "")
+    root_id = data.get("agent_id")
+    match = agents.get(str(root_id))
+    if root_id is None or not isinstance(match, dict) or str(match.get("agent_id")) != str(root_id):
+        raise SystemExit("导出件的主智能体编号与 agent_info 不一致")
+    if match.get("name") != args.name:
+        raise SystemExit("导出的主智能体名称与预期不符")
+    prompt = match.get("prompt")
+    if not isinstance(prompt, str) or not prompt:
+        raise SystemExit("导出件缺少主智能体的完整提示词")
     digest = hashlib.sha256(prompt.encode()).hexdigest()
     ok = digest == CANDIDATE_SHA256
     report = {
