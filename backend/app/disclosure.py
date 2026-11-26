@@ -31,6 +31,13 @@ LOCATION_OPENING = re.compile(r"(?:哪(?:里|儿)?|什么(?:地方|位置))(?:�
 # can be answered from the same pain-location fact the explicit location intent would disclose.
 LOCATION_CANONICALS = "哪里疼 哪里痛 部位 位置 哪个地方".split()
 
+# A subjectless question about improvement at rest needs one identifiable prior symptom.
+REST_RELIEF = re.compile(
+    r"休息(?:一下|一会儿?)?(?:以后|之后|后|时|的时候)?(?:症状)?(?:会不会|能不能|会|能|是否|有没有|有无)?"
+    r"(?:有所|明显|稍微|没有|不)?(?:好转|好一点|好点|好些|缓解|减轻)"
+)
+
+
 # Clinical history intents. Each maps natural phrasings to canonical words that contain the
 # trigger words cases already use. Intents only *route* a question to existing synthetic facts;
 # they never create clinical content. Ordered as a standard history.
@@ -48,7 +55,7 @@ CLINICAL_INTENTS: tuple[tuple[str, re.Pattern[str], str], ...] = tuple(
          "性质 怎么疼 怎么痛 什么样的痛"),
         ("radiation", r"放射|窜|传到|牵扯|跑到|扩散|蔓延|别的地方也(疼|痛)|后背|背(疼|痛)",
          "放射 传到哪里 窜到哪 转移 后背"),
-        ("modifiers", r"加重|缓解|减轻|好转|好(一)?点|好些|舒服(一)?(点|些)|姿势|好受|更(疼|痛|厉害)|一阵一阵|阵发|间断|没停|一直(疼|痛)",
+        ("modifiers", r"加重|缓解|减轻|好(一)?点|好些|舒服(一)?(点|些)|姿势|好受|更(疼|痛|厉害)|一阵一阵|阵发|间断|没停|一直(疼|痛)|" + REST_RELIEF.pattern,
          "加重 缓解 持续"),
         ("accompany", r"(还有|其他|别的|其它|另外|同时)\S{0,4}(症状|不舒服|难受|感觉|不得劲)|伴随|伴有|还有哪",
          "伴随 其他症状"),
@@ -137,13 +144,6 @@ UNCONFIGURED_REPLY = "这个我没太注意，说不好。"
 # A trigger occurring only inside such a word does not count, unless the trigger itself contains it.
 MASK_TERMS = ("糖尿病", "尿常规", "尿检", "尿酸", "烧心", "吐字", "检查结果", "化验结果", "最开始", "一开始",
               "头晕", "眩晕")
-
-# A subjectless question about improvement at rest needs one identifiable prior symptom.
-REST_RELIEF = re.compile(
-    r"休息(?:一下|一会儿?)?(?:以后|之后|后|时|的时候)?(?:症状)?(?:会不会|能不能|会|能|是否|有没有|有无)?"
-    r"(?:有所|明显|稍微|没有|不)?(?:好转|好一点|好点|好些|缓解|减轻)"
-)
-
 
 # Follow-up continuations ("后来呢", "然后呢", "接着说", "继续") ask the patient to keep
 # describing the presenting illness after a prior disclosure. They are recognised only when the

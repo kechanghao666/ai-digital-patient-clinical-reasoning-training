@@ -264,3 +264,11 @@ def test_full_four_turn_sequence_is_answered_coherently(tmp_path, monkeypatch):
     assert answers["哪里不舒服？"] != answers["怎么了？"]
     assert "两个小时前" in answers["什么时候开始的？"]
     assert "持续没有缓解" in answers["后来呢？"]
+
+
+@pytest.mark.parametrize("case_id", ["CASE-001", "APPY-001"])
+def test_opening_with_unspecified_improvement_discloses_no_symptoms(case_id, tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start(case_id)
+    _ask(api, sid, "好转了吗？")
+    assert not api.repository.get(sid, "demo-cfg").events[-1].result["answer_atom_ids"]
