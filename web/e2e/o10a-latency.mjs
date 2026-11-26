@@ -39,9 +39,13 @@ const check = (scenario, name, ok, detail = "") => {
   return !!ok;
 };
 
+// NEXENT_MODE=nexent -> real Nexent instance (requires NEXENT_BASE_URL / NEXENT_API_KEY /
+// NEXENT_PATIENT_AGENT / MCP_SERVICE_TOKEN); otherwise the rule simulator. The driver only
+// starts the chosen stack and never auto-starts the simulator when a real instance is requested.
+const STACK = process.env.NEXENT_MODE === "nexent" ? "o10a_nexent_stack.py" : "o10a_stack.py";
 function startStack() {
   return new Promise((resolve, reject) => {
-    const child = spawn(PYTHON, [path.join(ROOT, "web", "e2e", "o10a_stack.py")], {
+    const child = spawn(PYTHON, [path.join(ROOT, "web", "e2e", STACK)], {
       cwd: ROOT, env: { ...process.env, PYTHONUNBUFFERED: "1" }, stdio: ["ignore", "pipe", "pipe"],
     });
     let output = "";
