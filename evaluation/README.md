@@ -67,3 +67,13 @@ py -3 scripts/run_o3_spotcheck.py --dataset evaluation\o3_engineering_spotcheck_
 - 同一开发者撰写和预登记，Windows 11 build `10.0.26300`、Python 3.11.18、本地认证、模拟器和临时隔离数据库；病例均为草稿，仅在隔离开发运行开放可见性。临时数据已清理，真实供应商调用 0。非独立盲测、临床审核、学生评测或官方验收。O3 仍未达标。
 - `d4f6669` 初版全量回归的历史结果为 744 passed / 18 failed；原始控制台输出和 18 个失败节点列表未归档。共同根因和证据限制见 `reports/o3_atomic_full_regression_iteration_d4f6669.md`。后续 `b61fdb9` 专项 40 passed、全量 762 passed，未改超时断言。
 - `reports/o3_atomic_spotcheck_iteration1.json`、`iteration2.json`、`iteration3.json`、`final_candidate.json`、`o3_atomic_semantic_spotcheck_post_d4f6669.json` 和 `o3_atomic_spotcheck_replay_validation.json` 均作为迭代/口径/重放证据保留；不可替代或覆盖冻结最终报告 `o3_atomic_semantic_spotcheck_post_b61fdb9.json`。
+
+
+## 2026-11-26：评分基线归档和原题复跑
+
+- 原始 22 条评分项/110 场景报告：[o3_compound_baseline_47226e6.json](reports/o3_compound_baseline_47226e6.json)，72 符合工程预期、28 偏差、10 待教学审核；原始 SHA-256 `986ac1cf213f1ee2a5cfc76ccccd132bd5204b1cf174d7a4ccd884feeee6151e`。
+- 产品 `d05450d` [修后报告](reports/o3_compound_post_d05450d.json)：78/22/10，仅 6 个 APPY 起病评分改变，110 组问答不变。其余偏差保留，不能视为全通过。
+- 新 [20 轮复跑清单](o3_atomic_semantic_replay_20261126.json) 的 SHA-256 为 `a3cbe557b746fd4b8ae0528eae6ab98c4fb321c83d3df7a4e9e0df5c75c63952`。只更新量表配置改动后的病例哈希并记录来源；原题、预期、判定和原冻结文件不变，pytest 持续验证这一约束。它是旧开发者题集复跑，不是独立新预登记集。
+- [复跑报告](reports/o3_atomic_semantic_replay_20261126.json) 20/20，临时数据已清理，真实调用 0。旧冻结清单直接运行在新病例上会正确拒绝哈希变化；在历史提交复现时仍使用原清单。
+
+完整命令、局限及剩余问题见[当前工程交接](../docs/工程接手.md)。

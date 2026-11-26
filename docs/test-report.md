@@ -279,3 +279,18 @@ py -3 scripts/run_o3_spotcheck.py --dataset evaluation\o3_engineering_spotcheck_
 - 使用项目 `.venv` Python 3.11.18：O3及相邻问诊回归 `151 passed`；全量 `762 passed`（227.67s）；`compileall -q backend/app frontend tests scripts` 与 `git diff --check` 通过。全量结果覆盖当前产品代码，不是 GitHub runner 结果。
 - GitHub 最近可见 Push/PR 检查仍对应旧 SHA `51901bd`；当前 `b61fdb9` 与文档 HEAD `f830020` 无检查记录。尝试手动 dispatch 被 GitHub HTTP 403 拒绝，因此本报告不宣称当前 SHA 的远程 CI 已通过。
 - 本轮复核未修改产品代码、病例、数据库或历史评测证据；未读取 `KEY.txt`、未调用真实模型。真实学生/专家评测及官方验收仍未完成。
+
+
+## 2026-11-26：起病量表片段计分及完整交接复核
+
+产品提交 `d05450df6eec8abf2e912d9dd72f4774a4c23af9` 已推送。接手时 `b95ad9a` 的 Push/PR CI 已成功（run 45775252395 / 45775260054）；不将这些结果用于证明后续提交 CI。
+
+- 项目 Python 3.11.18；最终全量 **796 passed，0 failed，144.14s**。运行从提交前最终源码工作树开始，产品/测试源码与 `d05450d` 相同。新评分专项 26 passed。
+- 首轮全量 **795 passed，1 failed，146.29s**，节点 `tests/test_natural_dialogue.py::test_frozen_atomic_semantic_spotcheck_regression`。原冻结输入的病例哈希与新增量表配置后的文件不同；新增独立复跑清单并更新调用方，仍校验原题 SHA-256、所有题目及判定不变。没有改写历史冻结题集、放宽断言或删失败用例。
+- 在产品提交上复跑：12 组工程样本全部通过；20 轮原子语义复跑 20/20；110 评分场景 78 符合工程预期、22 偏差、10 待教学审核。110 组问答对照不变，仅 6 个起病评分转正；重复请求和封存重放检查通过。
+- `npm run typecheck`、`npm run build`、Python compileall、git diff 检查通过。前端构建没有需提交的产物变化；未新增浏览器交互测试。工程样本确认原业务数据库哈希不变。
+- 新评分保留旧事件兼容；旧封存零分在升级规则后仍原样返回。原子 ID 按位置生成，病例文字/拆分调整仍须人工核对。教师复制病例未迁移。
+
+[本轮复核记录](evidence/2026-11-26-handoff-review.json)、[工程样本摘要](evidence/2026-11-26-engineering-samples.json)、[当前接手与剩余偏差](工程接手.md)。全部为本机合成病例/规则模拟器工程检查，不是临床、真实学生、真实模型或官方验收；O3 与第一阶段仍未准出。
+
+远程补核：产品 `d05450d` 的 Push run `45787364377`、PR run `45787372710` 均完成且成功；与上述本机结果分开记录。后续文档提交仍按各自 SHA 查验。
