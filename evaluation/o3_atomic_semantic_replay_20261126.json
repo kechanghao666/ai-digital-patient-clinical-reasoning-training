@@ -38,7 +38,7 @@
       "case_id": "DKA-001",
       "version": 2,
       "source_file": "cases/dka_case_v2.json",
-      "source_sha256": "fb3bace924afd895fef2ca95fe022bef5168ef0b87beda9794392f53527441d8",
+      "source_sha256": "444667d2924edf0bf14fc84344ee8e7a54cd29780aeb02f9aff24030385d329a",
       "review_status": "draft"
     }
   ],

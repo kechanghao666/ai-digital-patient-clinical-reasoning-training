@@ -49,7 +49,6 @@
         "恶心",
         "呕吐",
         "腹痛",
-        "肚子",
         "吃不下",
         "哪里疼",
         "哪里痛",
@@ -337,7 +336,8 @@
       "stage": "病史采集",
       "description": "询问恶心呕吐和腹痛",
       "evidence_type": "ask_event",
-      "weight": 1
+      "weight": 1,
+      "required_atom_ids": ["f_gi#a1", "f_gi#a2"]
     },
     {
       "item_id": "f_hx",
