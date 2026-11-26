@@ -340,6 +340,7 @@
     },
     {
       "item_id": "f_dyspnea",
+      "required_atom_ids": ["f_dyspnea#a1", "f_dyspnea#a2"],
       "stage": "病史采集",
       "description": "询问气短和呼吸困难",
       "evidence_type": "ask_event",

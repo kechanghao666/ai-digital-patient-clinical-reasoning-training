@@ -273,6 +273,36 @@ def test_other_history_questions_do_not_disclose_cap_chronic_condition(question,
     assert score_item(api.seal_and_score(sid), "f_hx")["score"] == 0
 
 
+@pytest.mark.parametrize("version", [1, 2])
+@pytest.mark.parametrize("questions, answers", [
+    (["活动后有没有气短，休息后会不会好一点？"], ["活动后气短，休息时好一点。"]),
+    (["活动后有没有气短，休息后会不会好转？"], ["活动后气短，休息时好一点。"]),
+    (["有没有气短？", "休息后会好转吗？"], ["活动后气短。", "休息时好一点。"]),
+])
+def test_cap_rest_answer_and_sealed_evidence(version, questions, answers, tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    state = SessionState(owner_id="demo-cfg", case_id="CAP-001", case_version=version)
+    api.repository.create(state)
+    events = []
+    for question, answer in zip(questions, answers, strict=True):
+        events.append(api.ask(state.session_id, question))
+        assert api.repository.get(state.session_id, "demo-cfg").events[-1].result["answer"] == answer
+    item = score_item(api.seal_and_score(state.session_id), "f_dyspnea")
+    assert item["score"] == item["max_score"] == 1
+    assert item["evidence_event_ids"] == events
+
+
+@pytest.mark.parametrize("prior", [None, "有没有药物过敏？", "有没有气短和咳嗽？"])
+def test_rest_followup_without_one_clear_symptom_asks_for_clarification(prior, tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start("CAP-001")
+    if prior:
+        api.ask(sid, prior)
+    api.ask(sid, "休息后会好转吗？")
+    event = api.repository.get(sid, "demo-cfg").events[-1]
+    assert event.result["turn_kind"] == "clarify_topic" and not event.result["answer_atom_ids"]
+
+
 def test_sealed_score_snapshot_is_returned_unchanged(tmp_path, monkeypatch):
     from app import main
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .disclosure import DISEASE_ALIASES, detect_intents, normalize
+from .disclosure import DISEASE_ALIASES, REST_RELIEF, asks_about_rest_only, detect_intents, normalize
 from .models import Fact
 
 
@@ -125,6 +125,8 @@ def _family_topic_matches(question: str, fragment: FactFragment, fact: Fact) -> 
 
 
 def fragment_matches_question(question: str, fragment: FactFragment, fact: Fact, *, continuing_topic: bool = False) -> bool:
+    if asks_about_rest_only(question):
+        return REST_RELIEF.search(fragment.content) is not None
     _, question_intents, question_canonicals = detect_intents(question)
     if not question_intents:
         return False
