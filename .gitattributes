@@ -1,0 +1,7 @@
+# Preserve the original byte hashes of the preregistered O3 inputs on every checkout.
+/evaluation/o3_*_20261125.json text eol=crlf
+/cases/stemi_case_v3.json text eol=lf
+/cases/appendicitis_case_v2.json text eol=lf
+/cases/stroke_case_v2.json text eol=lf
+/cases/pneumonia_case_v2.json text eol=lf
+/cases/dka_case_v2.json text eol=lf
