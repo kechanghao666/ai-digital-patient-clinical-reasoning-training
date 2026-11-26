@@ -1,0 +1,91 @@
+{
+  "date": "2026-11-27",
+  "title": "O10a 浏览器测量：点击发送到本轮患者回答首次可见的耗时（规则模拟器）",
+  "worktree_head": "run-time HEAD (see git_head_sha in the run)",
+  "operating_system": "Windows (see run)",
+  "model_policy": "zero real model calls; NEXENT_MODE=simulator (rule simulator) only",
+  "case_id": "CASE-001 (synthetic teaching case)",
+  "runnable_entry": "OUT=local-only/o10a-latency node web/e2e/o10a-latency.mjs",
+  "method": {
+    "browser": "Playwright-core + installed Edge/Chrome; the driver starts web/e2e/o10a_stack.py (temporary databases, NEXENT_MODE=simulator, loopback FastAPI serving web/dist).",
+    "timestamps": {
+      "clickT": "capture-phase click listener on the 发送 button records performance.now() at dispatch",
+      "postT": "a fetch wrapper records performance.now() when the POST /api/sessions/{sid}/ask response resolves",
+      "visibleT": "a MutationObserver on .dialog-log records performance.now() when a new .turn.patient .text:not(.faint) answer is inserted (the loading … is .faint and excluded)",
+      "paintT": "double requestAnimationFrame after visibleT, approximating the first painted frame"
+    },
+    "durations": {
+      "click_to_response": "postT - clickT",
+      "click_to_visible": "visibleT - clickT",
+      "click_to_paint": "paintT - clickT (what the student actually sees)",
+      "response_to_visible": "visibleT - postT (render/commit)",
+      "response_to_paint": "paintT - postT (render/commit/paint)"
+    },
+    "correlation": "the POST response body carries the saved event (event_id, seq, answer); the driver checks the DOM answer equals that event and that the event is the one persisted in the session."
+  },
+  "ui_existing_latency_definition": {
+    "location": "web/src/pages/Training.tsx Intake.ask()",
+    "start": "const t = performance.now() immediately before mutate() POST",
+    "end": "setLatency(performance.now() - t) immediately after onSavedAsk merges the event into React state",
+    "display": "tooltip title `应答 ${(latency/1000).toFixed(1)} 秒` on the 已问 N 项 counter",
+    "meaning": "click -> (POST response received + response body read + event merged into React state), i.e. roughly the response instant, NOT the DOM paint"
+  },
+  "runs": [
+    {
+      "scenario": "first-ask",
+      "question": "有高血压吗",
+      "displayed_answer": "有高血压10年。",
+      "event_id": "cca7fad2-d010-463f-913a-9a0e34a61cf8",
+      "seq": 1,
+      "timings_ms": {"clickT": 391.7, "postT": 408.0, "visibleT": 409.4, "paintT": 414.6},
+      "durations_ms": {"click_to_response": 16.3, "click_to_visible": 17.7, "click_to_paint": 22.9, "response_to_visible": 1.4, "response_to_paint": 6.6},
+      "ui_latency_title": "应答 0.0 秒"
+    },
+    {
+      "scenario": "later-ask",
+      "question": "有高血压吗",
+      "displayed_answer": "有高血压10年。",
+      "event_id": "d6c19a4f-d607-4035-b8b7-6d36549b2725",
+      "seq": 1,
+      "timings_ms": {"clickT": 163.6, "postT": 184.4, "visibleT": 185.6, "paintT": 196.9},
+      "durations_ms": {"click_to_response": 20.8, "click_to_visible": 22.0, "click_to_paint": 33.3, "response_to_visible": 1.2, "response_to_paint": 12.5},
+      "ui_latency_title": "应答 0.0 秒"
+    },
+    {
+      "scenario": "later-ask",
+      "question": "有糖尿病吗",
+      "displayed_answer": "有糖尿病5年。",
+      "event_id": "7fbda07c-70e5-425f-897a-1b92d75ef182",
+      "seq": 2,
+      "timings_ms": {"clickT": 241.9, "postT": 264.7, "visibleT": 265.7, "paintT": 273.4},
+      "durations_ms": {"click_to_response": 22.8, "click_to_visible": 23.8, "click_to_paint": 31.5, "response_to_visible": 1.0, "response_to_paint": 8.7},
+      "ui_latency_title": "应答 0.0 秒"
+    },
+    {
+      "scenario": "failure-retry (failure)",
+      "question": "有高血压吗",
+      "displayed_answer": null,
+      "outcome": "no visible answer; unconfirmed error shown; server already saved the event",
+      "event_id": "5181a0bf-a5b9-4189-b757-406e1d2b80e6",
+      "saved_ask_count": 1
+    },
+    {
+      "scenario": "failure-retry (retry)",
+      "question": "有高血压吗",
+      "displayed_answer": "有高血压10年。",
+      "event_id": "5181a0bf-a5b9-4189-b757-406e1d2b80e6",
+      "seq": 1,
+      "replayed": true,
+      "timings_ms": {"clickT": 274.7, "postT": 287.8, "visibleT": 289.1, "paintT": 299.5},
+      "durations_ms": {"click_to_response": 13.1, "click_to_visible": 14.4, "click_to_paint": 24.8, "response_to_visible": 1.3, "response_to_paint": 11.7},
+      "total_wait_ms_from_first_click": 127.8,
+      "ui_latency_title": "应答 0.0 秒"
+    }
+  ],
+  "finding": {
+    "difference": "界面显示的耗时与实际测量含义不同",
+    "detail": "Training.tsx 的 `应答 X 秒` 起于 POST 前、止于事件并入 React 状态后，约等于点击->收到响应（本轮模拟器 click->response 16.3~22.8ms），不含 React 渲染/提交/绘制。学生真正'看见'回答的时点是 paint（click->paint 22.9~33.3ms），比该显示晚约 6~12ms（response->paint）。此外显示按 toFixed(1) 舍入到 0.1 秒，本轮显示为 `应答 0.0 秒`，丢失了毫秒分辨率。",
+    "reproduce": "OUT=local-only/o10a-latency node web/e2e/o10a-latency.mjs  （逐轮 JSON 与校验见 OUT/run.json）",
+    "boundary": "本轮是规则模拟器的测量方法验收，数值为毫秒级单次快照，不代表真实模型的 5 秒目标；真实模型点击->首字可见仍待单独实测。"
+  }
+}
