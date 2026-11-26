@@ -1,0 +1,748 @@
+{
+  "run_at": "2026-11-26T14:45:49+00:00",
+  "git_head_sha": "bb2c88b51bac436fa7355b07f3991f4c764f1675",
+  "environment": {
+    "os": "Windows-10-10.0.26300-SP0",
+    "python": "3.11.18",
+    "python_executable": "python.exe",
+    "auth_mode": "local",
+    "patient_adapter": "simulator",
+    "database_scope": "temporary APP_DATA_DIR / INTEGRATION_DB_PATH / accounts; removed after run",
+    "real_provider_calls": 0
+  },
+  "temporary_data_removed": true,
+  "scope": "8 targeted sessions, two fixture versions; separate from the fixed 110.",
+  "raw_sha256": "cd46fc1ad075d1fd2a80194e7206989c5acd698a0e5e92f0cb54f2523fb14efb",
+  "runs": [
+    {
+      "case_id": "APPY-001",
+      "case_version": 1,
+      "source_file": "cases/appendicitis_case_v1.json",
+      "source_sha256": "582404bdd1d4415158cd9f0cbaed013bc85ee1dd46a12338f0af0045721d28c6",
+      "scenario_id": "trauma_only",
+      "rubric": {
+        "description": "询问起病时间和诱因",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_onset#a1",
+          "f_onset#a3"
+        ]
+      },
+      "questions": [
+        "有没有受伤？"
+      ],
+      "turns": [
+        {
+          "question": "有没有受伤？",
+          "http_status": 200,
+          "api_answer": "我不太确定您的问题，能否换一种方式询问？",
+          "api_event_id": "df3672eb-741c-4e98-a9ce-91cf36861538",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "我不太确定您的问题，能否换一种方式询问？",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [],
+          "persisted_turn_kind": "fallback"
+        }
+      ],
+      "score_item": {
+        "hit": false,
+        "score": 0.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [],
+        "reason": "未找到满足时点和证据类型的事件"
+      },
+      "evidence_events": [],
+      "replay_after_seal": {
+        "request_id": "o3-001-1",
+        "http_status": 200,
+        "replayed_flag": true,
+        "answer_matches": true,
+        "event_matches": true,
+        "single_persisted_event": true,
+        "score_unchanged": true,
+        "event_count": 2,
+        "ask_event_count": 1,
+        "replayed_ask_answers": [
+          "我不太确定您的问题，能否换一种方式询问？"
+        ],
+        "api_answers": [
+          "我不太确定您的问题，能否换一种方式询问？"
+        ],
+        "replayed_event_ids": [
+          "df3672eb-741c-4e98-a9ce-91cf36861538"
+        ],
+        "api_event_ids": [
+          "df3672eb-741c-4e98-a9ce-91cf36861538"
+        ]
+      }
+    },
+    {
+      "case_id": "APPY-001",
+      "case_version": 1,
+      "source_file": "cases/appendicitis_case_v1.json",
+      "source_sha256": "582404bdd1d4415158cd9f0cbaed013bc85ee1dd46a12338f0af0045721d28c6",
+      "scenario_id": "surgery_only",
+      "rubric": {
+        "description": "询问起病时间和诱因",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_onset#a1",
+          "f_onset#a3"
+        ]
+      },
+      "questions": [
+        "以前做过手术吗？"
+      ],
+      "turns": [
+        {
+          "question": "以前做过手术吗？",
+          "http_status": 200,
+          "api_answer": "没有做过手术。",
+          "api_event_id": "67680b76-022a-4c8e-b4a9-276212735ba3",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "没有做过手术。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_hx#a2"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "score_item": {
+        "hit": false,
+        "score": 0.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [],
+        "reason": "未找到满足时点和证据类型的事件"
+      },
+      "evidence_events": [],
+      "replay_after_seal": {
+        "request_id": "o3-002-1",
+        "http_status": 200,
+        "replayed_flag": true,
+        "answer_matches": true,
+        "event_matches": true,
+        "single_persisted_event": true,
+        "score_unchanged": true,
+        "event_count": 2,
+        "ask_event_count": 1,
+        "replayed_ask_answers": [
+          "没有做过手术。"
+        ],
+        "api_answers": [
+          "没有做过手术。"
+        ],
+        "replayed_event_ids": [
+          "67680b76-022a-4c8e-b4a9-276212735ba3"
+        ],
+        "api_event_ids": [
+          "67680b76-022a-4c8e-b4a9-276212735ba3"
+        ]
+      }
+    },
+    {
+      "case_id": "APPY-001",
+      "case_version": 1,
+      "source_file": "cases/appendicitis_case_v1.json",
+      "source_sha256": "582404bdd1d4415158cd9f0cbaed013bc85ee1dd46a12338f0af0045721d28c6",
+      "scenario_id": "time_trigger_then_trauma",
+      "rubric": {
+        "description": "询问起病时间和诱因",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_onset#a1",
+          "f_onset#a3"
+        ]
+      },
+      "questions": [
+        "什么时候开始的？",
+        "有没有诱因？",
+        "有没有受伤？"
+      ],
+      "turns": [
+        {
+          "question": "什么时候开始的？",
+          "http_status": 200,
+          "api_answer": "大约24小时前开始的。",
+          "api_event_id": "854e9b9f-3f17-4817-b94f-118b03a2681f",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "大约24小时前开始的。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_onset#a1"
+          ],
+          "persisted_turn_kind": "fact"
+        },
+        {
+          "question": "有没有诱因？",
+          "http_status": 200,
+          "api_answer": "没有明显诱因。",
+          "api_event_id": "d2e0a9d9-45f8-447f-9ca3-518b3d11f487",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "没有明显诱因。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_onset#a3"
+          ],
+          "persisted_turn_kind": "fact"
+        },
+        {
+          "question": "有没有受伤？",
+          "http_status": 200,
+          "api_answer": "我不太确定您的问题，能否换一种方式询问？",
+          "api_event_id": "4f26ab70-50b2-4c2c-b98c-54e58a827373",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "我不太确定您的问题，能否换一种方式询问？",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [],
+          "persisted_turn_kind": "fallback"
+        }
+      ],
+      "score_item": {
+        "hit": true,
+        "score": 1.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "854e9b9f-3f17-4817-b94f-118b03a2681f",
+          "d2e0a9d9-45f8-447f-9ca3-518b3d11f487"
+        ],
+        "reason": "已找到符合条件的事件证据"
+      },
+      "evidence_events": [
+        {
+          "event_id": "854e9b9f-3f17-4817-b94f-118b03a2681f",
+          "request_id": "o3-003-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "什么时候开始的？",
+          "result": {
+            "answer": "大约24小时前开始的。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "d2e0a9d9-45f8-447f-9ca3-518b3d11f487",
+          "request_id": "o3-003-2",
+          "seq": 2,
+          "action": "ask",
+          "intent": "有没有诱因？",
+          "result": {
+            "answer": "没有明显诱因。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "replay_after_seal": {
+        "request_id": "o3-003-3",
+        "http_status": 200,
+        "replayed_flag": true,
+        "answer_matches": true,
+        "event_matches": true,
+        "single_persisted_event": true,
+        "score_unchanged": true,
+        "event_count": 4,
+        "ask_event_count": 3,
+        "replayed_ask_answers": [
+          "大约24小时前开始的。",
+          "没有明显诱因。",
+          "我不太确定您的问题，能否换一种方式询问？"
+        ],
+        "api_answers": [
+          "大约24小时前开始的。",
+          "没有明显诱因。",
+          "我不太确定您的问题，能否换一种方式询问？"
+        ],
+        "replayed_event_ids": [
+          "854e9b9f-3f17-4817-b94f-118b03a2681f",
+          "d2e0a9d9-45f8-447f-9ca3-518b3d11f487",
+          "4f26ab70-50b2-4c2c-b98c-54e58a827373"
+        ],
+        "api_event_ids": [
+          "854e9b9f-3f17-4817-b94f-118b03a2681f",
+          "d2e0a9d9-45f8-447f-9ca3-518b3d11f487",
+          "4f26ab70-50b2-4c2c-b98c-54e58a827373"
+        ]
+      }
+    },
+    {
+      "case_id": "APPY-001",
+      "case_version": 1,
+      "source_file": "cases/appendicitis_case_v1.json",
+      "source_sha256": "582404bdd1d4415158cd9f0cbaed013bc85ee1dd46a12338f0af0045721d28c6",
+      "scenario_id": "time_trigger_trauma_together",
+      "rubric": {
+        "description": "询问起病时间和诱因",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_onset#a1",
+          "f_onset#a3"
+        ]
+      },
+      "questions": [
+        "什么时候开始的，有没有受伤或诱因？"
+      ],
+      "turns": [
+        {
+          "question": "什么时候开始的，有没有受伤或诱因？",
+          "http_status": 200,
+          "api_answer": "大约24小时前开始的，没有受伤，没有明显诱因。",
+          "api_event_id": "aff69184-bc6b-4e35-9af0-9f9a9bef023c",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "大约24小时前开始的，没有受伤，没有明显诱因。",
+          "persisted_matched_fact_ids": [
+            "f_onset"
+          ],
+          "persisted_answer_atom_ids": [
+            "f_onset#a1",
+            "f_onset#a2",
+            "f_onset#a3"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "score_item": {
+        "hit": true,
+        "score": 1.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "aff69184-bc6b-4e35-9af0-9f9a9bef023c"
+        ],
+        "reason": "已找到符合条件的事件证据"
+      },
+      "evidence_events": [
+        {
+          "event_id": "aff69184-bc6b-4e35-9af0-9f9a9bef023c",
+          "request_id": "o3-004-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "什么时候开始的，有没有受伤或诱因？",
+          "result": {
+            "answer": "大约24小时前开始的，没有受伤，没有明显诱因。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "replay_after_seal": {
+        "request_id": "o3-004-1",
+        "http_status": 200,
+        "replayed_flag": true,
+        "answer_matches": true,
+        "event_matches": true,
+        "single_persisted_event": true,
+        "score_unchanged": true,
+        "event_count": 2,
+        "ask_event_count": 1,
+        "replayed_ask_answers": [
+          "大约24小时前开始的，没有受伤，没有明显诱因。"
+        ],
+        "api_answers": [
+          "大约24小时前开始的，没有受伤，没有明显诱因。"
+        ],
+        "replayed_event_ids": [
+          "aff69184-bc6b-4e35-9af0-9f9a9bef023c"
+        ],
+        "api_event_ids": [
+          "aff69184-bc6b-4e35-9af0-9f9a9bef023c"
+        ]
+      }
+    },
+    {
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "source_file": "cases/appendicitis_case_v2.json",
+      "source_sha256": "347ee714495612c6e0a02736f76e5a449658d4b0b9383e9136fb507e0f06c8ea",
+      "scenario_id": "trauma_only",
+      "rubric": {
+        "description": "询问起病时间和诱因",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_onset#a1",
+          "f_onset#a3"
+        ]
+      },
+      "questions": [
+        "有没有受伤？"
+      ],
+      "turns": [
+        {
+          "question": "有没有受伤？",
+          "http_status": 200,
+          "api_answer": "我不太确定您的问题，能否换一种方式询问？",
+          "api_event_id": "d48e1e79-a303-4a4f-81f6-6c96476dee11",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "我不太确定您的问题，能否换一种方式询问？",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [],
+          "persisted_turn_kind": "fallback"
+        }
+      ],
+      "score_item": {
+        "hit": false,
+        "score": 0.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [],
+        "reason": "未找到满足时点和证据类型的事件"
+      },
+      "evidence_events": [],
+      "replay_after_seal": {
+        "request_id": "o3-005-1",
+        "http_status": 200,
+        "replayed_flag": true,
+        "answer_matches": true,
+        "event_matches": true,
+        "single_persisted_event": true,
+        "score_unchanged": true,
+        "event_count": 2,
+        "ask_event_count": 1,
+        "replayed_ask_answers": [
+          "我不太确定您的问题，能否换一种方式询问？"
+        ],
+        "api_answers": [
+          "我不太确定您的问题，能否换一种方式询问？"
+        ],
+        "replayed_event_ids": [
+          "d48e1e79-a303-4a4f-81f6-6c96476dee11"
+        ],
+        "api_event_ids": [
+          "d48e1e79-a303-4a4f-81f6-6c96476dee11"
+        ]
+      }
+    },
+    {
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "source_file": "cases/appendicitis_case_v2.json",
+      "source_sha256": "347ee714495612c6e0a02736f76e5a449658d4b0b9383e9136fb507e0f06c8ea",
+      "scenario_id": "surgery_only",
+      "rubric": {
+        "description": "询问起病时间和诱因",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_onset#a1",
+          "f_onset#a3"
+        ]
+      },
+      "questions": [
+        "以前做过手术吗？"
+      ],
+      "turns": [
+        {
+          "question": "以前做过手术吗？",
+          "http_status": 200,
+          "api_answer": "没有做过手术。",
+          "api_event_id": "bbf77304-e9a5-4316-9366-55ce07cae7c7",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "没有做过手术。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_hx#a2"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "score_item": {
+        "hit": false,
+        "score": 0.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [],
+        "reason": "未找到满足时点和证据类型的事件"
+      },
+      "evidence_events": [],
+      "replay_after_seal": {
+        "request_id": "o3-006-1",
+        "http_status": 200,
+        "replayed_flag": true,
+        "answer_matches": true,
+        "event_matches": true,
+        "single_persisted_event": true,
+        "score_unchanged": true,
+        "event_count": 2,
+        "ask_event_count": 1,
+        "replayed_ask_answers": [
+          "没有做过手术。"
+        ],
+        "api_answers": [
+          "没有做过手术。"
+        ],
+        "replayed_event_ids": [
+          "bbf77304-e9a5-4316-9366-55ce07cae7c7"
+        ],
+        "api_event_ids": [
+          "bbf77304-e9a5-4316-9366-55ce07cae7c7"
+        ]
+      }
+    },
+    {
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "source_file": "cases/appendicitis_case_v2.json",
+      "source_sha256": "347ee714495612c6e0a02736f76e5a449658d4b0b9383e9136fb507e0f06c8ea",
+      "scenario_id": "time_trigger_then_trauma",
+      "rubric": {
+        "description": "询问起病时间和诱因",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_onset#a1",
+          "f_onset#a3"
+        ]
+      },
+      "questions": [
+        "什么时候开始的？",
+        "有没有诱因？",
+        "有没有受伤？"
+      ],
+      "turns": [
+        {
+          "question": "什么时候开始的？",
+          "http_status": 200,
+          "api_answer": "大约24小时前开始的。",
+          "api_event_id": "f693d666-8551-48f9-b780-5b3aaa0956c0",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "大约24小时前开始的。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_onset#a1"
+          ],
+          "persisted_turn_kind": "fact"
+        },
+        {
+          "question": "有没有诱因？",
+          "http_status": 200,
+          "api_answer": "没有明显诱因。",
+          "api_event_id": "4d97b893-2879-46fc-af32-418ed09340e6",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "没有明显诱因。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_onset#a3"
+          ],
+          "persisted_turn_kind": "fact"
+        },
+        {
+          "question": "有没有受伤？",
+          "http_status": 200,
+          "api_answer": "我不太确定您的问题，能否换一种方式询问？",
+          "api_event_id": "3ea8961d-b494-40c1-a742-603fe37bad41",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "我不太确定您的问题，能否换一种方式询问？",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [],
+          "persisted_turn_kind": "fallback"
+        }
+      ],
+      "score_item": {
+        "hit": true,
+        "score": 1.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "f693d666-8551-48f9-b780-5b3aaa0956c0",
+          "4d97b893-2879-46fc-af32-418ed09340e6"
+        ],
+        "reason": "已找到符合条件的事件证据"
+      },
+      "evidence_events": [
+        {
+          "event_id": "f693d666-8551-48f9-b780-5b3aaa0956c0",
+          "request_id": "o3-007-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "什么时候开始的？",
+          "result": {
+            "answer": "大约24小时前开始的。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "4d97b893-2879-46fc-af32-418ed09340e6",
+          "request_id": "o3-007-2",
+          "seq": 2,
+          "action": "ask",
+          "intent": "有没有诱因？",
+          "result": {
+            "answer": "没有明显诱因。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "replay_after_seal": {
+        "request_id": "o3-007-3",
+        "http_status": 200,
+        "replayed_flag": true,
+        "answer_matches": true,
+        "event_matches": true,
+        "single_persisted_event": true,
+        "score_unchanged": true,
+        "event_count": 4,
+        "ask_event_count": 3,
+        "replayed_ask_answers": [
+          "大约24小时前开始的。",
+          "没有明显诱因。",
+          "我不太确定您的问题，能否换一种方式询问？"
+        ],
+        "api_answers": [
+          "大约24小时前开始的。",
+          "没有明显诱因。",
+          "我不太确定您的问题，能否换一种方式询问？"
+        ],
+        "replayed_event_ids": [
+          "f693d666-8551-48f9-b780-5b3aaa0956c0",
+          "4d97b893-2879-46fc-af32-418ed09340e6",
+          "3ea8961d-b494-40c1-a742-603fe37bad41"
+        ],
+        "api_event_ids": [
+          "f693d666-8551-48f9-b780-5b3aaa0956c0",
+          "4d97b893-2879-46fc-af32-418ed09340e6",
+          "3ea8961d-b494-40c1-a742-603fe37bad41"
+        ]
+      }
+    },
+    {
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "source_file": "cases/appendicitis_case_v2.json",
+      "source_sha256": "347ee714495612c6e0a02736f76e5a449658d4b0b9383e9136fb507e0f06c8ea",
+      "scenario_id": "time_trigger_trauma_together",
+      "rubric": {
+        "description": "询问起病时间和诱因",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_onset#a1",
+          "f_onset#a3"
+        ]
+      },
+      "questions": [
+        "什么时候开始的，有没有受伤或诱因？"
+      ],
+      "turns": [
+        {
+          "question": "什么时候开始的，有没有受伤或诱因？",
+          "http_status": 200,
+          "api_answer": "大约24小时前开始的，没有受伤，没有明显诱因。",
+          "api_event_id": "31a308c4-8373-44c4-8f43-da3fc00dafcb",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "大约24小时前开始的，没有受伤，没有明显诱因。",
+          "persisted_matched_fact_ids": [
+            "f_onset"
+          ],
+          "persisted_answer_atom_ids": [
+            "f_onset#a1",
+            "f_onset#a2",
+            "f_onset#a3"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "score_item": {
+        "hit": true,
+        "score": 1.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "31a308c4-8373-44c4-8f43-da3fc00dafcb"
+        ],
+        "reason": "已找到符合条件的事件证据"
+      },
+      "evidence_events": [
+        {
+          "event_id": "31a308c4-8373-44c4-8f43-da3fc00dafcb",
+          "request_id": "o3-008-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "什么时候开始的，有没有受伤或诱因？",
+          "result": {
+            "answer": "大约24小时前开始的，没有受伤，没有明显诱因。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "replay_after_seal": {
+        "request_id": "o3-008-1",
+        "http_status": 200,
+        "replayed_flag": true,
+        "answer_matches": true,
+        "event_matches": true,
+        "single_persisted_event": true,
+        "score_unchanged": true,
+        "event_count": 2,
+        "ask_event_count": 1,
+        "replayed_ask_answers": [
+          "大约24小时前开始的，没有受伤，没有明显诱因。"
+        ],
+        "api_answers": [
+          "大约24小时前开始的，没有受伤，没有明显诱因。"
+        ],
+        "replayed_event_ids": [
+          "31a308c4-8373-44c4-8f43-da3fc00dafcb"
+        ],
+        "api_event_ids": [
+          "31a308c4-8373-44c4-8f43-da3fc00dafcb"
+        ]
+      }
+    }
+  ]
+}
