@@ -61,3 +61,13 @@
 
 - 回放旧输出只能验证**解析行为**；候选能否改变模型的实际输出、降低真实 `malformed_action` 比例、或达到 5 秒内首次看见有效回答，仍需真实三问对照。
 - 本轮模型调用为 0；已发布的 v9 留作对照；另行批准后，用独立候选版本进行真实三问。
+
+## 七、发布差异与测量入口
+
+**版本指纹**：已发布 v9 完整提示词 SHA-256 `089dc4af3771c88e39b2d1097ed3dd18451dead9ded82258c08f9c936d9b1767`；按第二节把第 2 步替换后，候选完整提示词 SHA-256 `cb1de45e02980e5d0002f84cae66909b1b714ba49bc1f40413396ed6983873c3`（两份完整导出均一致，见 [export-check](2026-11-27-patient-prompt-export-check.json)）。
+
+**发布方式**：以候选提示词发布为独立版本，保留 v9 作历史对照；模型、工具白名单（仅 `get_turn_context`、`submit_fact_selection`）、`enable_protocol_repair_retry` 与重试上限均与 v9 一致。
+
+**测量入口**：真实测量沿用 `NEXENT_MODE=nexent node web/e2e/o10a-latency.mjs --three-turns`；`o10a_nexent_stack.py` 从受保护环境读取 `NEXENT_PATIENT_AGENT` 指向候选版本。`--three-turns` 固定两个会话三问——新会话依次「有高血压吗？」「有糖尿病吗？」，另一新会话「以前做过手术吗？」——每问只发起一次 `chat/run`，失败计入分母、不补跑。
+
+**待批准**：负责人单独批准候选发布及最多 3 次 `chat/run` 后，再执行真实测量；本轮真实调用预算为 0。
