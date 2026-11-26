@@ -125,6 +125,18 @@ def git_value(*args: str) -> str:
     return result.stdout.strip() if result.returncode == 0 else "unavailable"
 
 
+def replay_passes(row: dict[str, Any]) -> bool:
+    replay = row["replay_after_seal"]
+    return (
+        replay["replayed_flag"] is True
+        and replay["answer_matches"] and replay["event_matches"]
+        and replay["single_persisted_event"] and replay["score_unchanged"]
+        and replay["replayed_ask_answers"] == replay["api_answers"]
+        and replay["replayed_event_ids"] == replay["api_event_ids"]
+        and replay["ask_event_count"] == len(row["questions"])
+    )
+
+
 def configure_isolated_environment(temp_root: Path) -> None:
     os.environ.update({
         "APP_ENV": "development",
@@ -306,7 +318,6 @@ def run(output_path: Path) -> dict[str, Any]:
                         })
 
             # Requirement 4: one repeated request is saved once; sealed replay keeps events and score.
-            anchor_case, _ = cases[("APPY-001", 2)]
             sid, _ = start_session("APPY-001", 2)
             body = {"request_id": "o3-duplicate-1", "question": "什么时候开始的？"}
             first = client.post(f"/api/sessions/{sid}/ask", headers=headers, json=body)
@@ -341,6 +352,9 @@ def run(output_path: Path) -> dict[str, Any]:
                 "score_unchanged_after_replay": final_score == sealed_score,
                 "checks": {
                     "same_request_saved_once": len(asks_before_seal) == 1 and len(asks_after) == 1,
+                    "first_response_is_new": first.json()["timing"]["replayed"] is False,
+                    "seal_succeeded": seal.status_code == 200,
+                    "sealed_response_is_replay": after_seal.json()["timing"]["replayed"] is True,
                     "second_response_is_replay": second.json()["timing"]["replayed"] is True,
                     "same_answer_and_event": first.json()["answer"] == second.json()["answer"] == after_seal.json()["answer"]
                     and first.json()["event"]["event_id"] == after_seal.json()["event"]["event_id"],
@@ -378,13 +392,7 @@ def run(output_path: Path) -> dict[str, Any]:
             "deviation_partial_ask_full_credit": sum(r["verdict"] == "deviation_partial_ask_full_credit" for r in results),
             "deviation_rubric_asked_no_credit": sum(r["verdict"] == "deviation_rubric_asked_no_credit" for r in results),
             "for_teaching_review": len(review),
-            "replay_checks_all_pass": all(
-                all(v for k, v in r["replay_after_seal"].items()
-                    if k in {"answer_matches", "event_matches", "single_persisted_event", "score_unchanged"})
-                and r["replay_after_seal"]["replayed_ask_answers"] == r["replay_after_seal"]["api_answers"]
-                and r["replay_after_seal"]["replayed_event_ids"] == r["replay_after_seal"]["api_event_ids"]
-                and r["replay_after_seal"]["ask_event_count"] == len(r["questions"])
-                for r in results),
+            "replay_checks_all_pass": all(replay_passes(row) for row in results),
         },
         "duplicate_request_check": duplicate_check,
         "temporary_data_removed": temporary_removed,
@@ -409,3 +417,7 @@ if __name__ == "__main__":
     print(json.dumps(summary["denominator"], ensure_ascii=False, indent=2))
     print(json.dumps(summary["duplicate_request_check"]["checks"], ensure_ascii=False))
     print("temporary_data_removed", summary["temporary_data_removed"])
+    if not (summary["denominator"]["replay_checks_all_pass"]
+            and all(summary["duplicate_request_check"]["checks"].values())
+            and summary["temporary_data_removed"]):
+        raise SystemExit("Replay, duplicate-request or temporary-data check failed; see report")

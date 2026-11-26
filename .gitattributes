@@ -5,6 +5,11 @@
 /cases/stroke_case_v2.json text eol=lf
 /cases/pneumonia_case_v2.json text eol=lf
 /cases/dka_case_v2.json text eol=lf
+# Match the four v1 source hashes recorded in the compound-score audit.
+/cases/appendicitis_case_v1.json text eol=crlf
+/cases/dka_case_v1.json text eol=crlf
+/cases/pneumonia_case_v1.json text eol=crlf
+/cases/stroke_case_v1.json text eol=crlf
 # Keep audit report and replay-manifest byte hashes stable across platforms.
 /evaluation/reports/o3_compound_*.json text eol=crlf
 /evaluation/reports/o3_atomic_semantic_replay_20261126.json text eol=crlf
