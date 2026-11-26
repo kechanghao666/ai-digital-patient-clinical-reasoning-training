@@ -2,7 +2,7 @@
 
 Browser -> FastAPI (NEXENT_MODE=nexent) -> the configured Nexent instance -> the trusted MCP
 server (get_turn_context / submit_fact_selection) running here in-process. Every database lives in
-a temporary directory unless APP_DATA_DIR / INTEGRATION_DB_PATH are supplied. No simulator and no
+a temporary directory owned by this process. No simulator and no
 loopback fake Nexent are started; a missing base URL / API key / patient agent fails fast.
 
 Run from web/e2e/o10a-latency.mjs (set NEXENT_MODE=nexent). The READY line contains the API base
@@ -12,7 +12,7 @@ Required environment (from the protected service config, never from source):
   NEXENT_BASE_URL, NEXENT_API_KEY, NEXENT_PATIENT_AGENT, MCP_SERVICE_TOKEN
 Optional:
   MCP_PORT (default 8765; must match the address the Nexent platform uses to reach this MCP server),
-  NEXENT_PATIENT_PROTOCOL (default dual), NEXENT_TOTAL_TIMEOUT_S, APP_DATA_DIR, INTEGRATION_DB_PATH.
+  NEXENT_PATIENT_PROTOCOL (default dual), NEXENT_TOTAL_TIMEOUT_S.
 """
 from __future__ import annotations
 
@@ -45,6 +45,7 @@ class LiveServer:
 
     def stop(self):
         self.server.should_exit = True
+        self.thread.join(timeout=5)
 
 
 def _required(name: str) -> str:
@@ -58,15 +59,19 @@ def main():
     os.environ["APP_ENV"] = "development"
     os.environ["APP_AUTH_MODE"] = "demo"
     os.environ.setdefault("NEXENT_MODE", "nexent")
-    base_url = _required("NEXENT_BASE_URL")
+    _required("NEXENT_BASE_URL")
     _required("NEXENT_API_KEY")
     _required("NEXENT_PATIENT_AGENT")
-    mcp_token = _required("MCP_SERVICE_TOKEN")
+    _required("MCP_SERVICE_TOKEN")
 
-    data = tempfile.mkdtemp(prefix="o10a-nexent-")
-    os.environ.setdefault("APP_DATA_DIR", data)
-    os.environ.setdefault("INTEGRATION_DB_PATH", str(Path(data) / "integration.db"))
-    os.environ.setdefault("NEXENT_PATIENT_PROTOCOL", "dual")
+    with tempfile.TemporaryDirectory(prefix="o10a-nexent-") as data:
+        serve(data)
+
+
+def serve(data: str):
+    os.environ["APP_DATA_DIR"] = data
+    os.environ["INTEGRATION_DB_PATH"] = str(Path(data) / "integration.db")
+    os.environ["NEXENT_PATIENT_PROTOCOL"] = "dual"
 
     from app import main as app_main
     from app.department_config import save_department_config
@@ -80,28 +85,18 @@ def main():
     # Trusted MCP service, in-process, on the fixed port the Nexent platform reaches.
     # The API's own RUNTIME reads NEXENT_* from the environment (NEXENT_MODE=nexent) lazily, so no
     # simulator or loopback fake Nexent is ever started here.
-    from app.case_store import CaseStore
-    from app.integration.knowledge import KnowledgeStore
-    from app.integration.tools import TrustedToolService
-    from app.integration.turns import TurnStore
-    from app.mcp_server import BearerGate, build_mcp
+    from app.integration.config import IntegrationSettings
+    from app.mcp_server import build_asgi_app
 
-    cases = CaseStore(ROOT / "cases")
-    repository = app_main.REPOSITORY
-    service = TrustedToolService(
-        TurnStore(os.environ["INTEGRATION_DB_PATH"]), repository, cases,
-        KnowledgeStore(os.environ.get("KNOWLEDGE_DIR", str(ROOT / "knowledge"))),
-    )
     mcp_port = int(os.getenv("MCP_PORT", "8765"))
-    mcp_app = BearerGate(build_mcp(service).http_app(path="/mcp", transport="streamable-http"), mcp_token)
+    mcp_app = build_asgi_app(IntegrationSettings.from_env())
     mcp_server = LiveServer(mcp_app, mcp_port).start()
 
     api_server = LiveServer(app_main.app, 0).start()
     api_port = api_server.server.servers[0].sockets[0].getsockname()[1]
     print(f"READY http://127.0.0.1:{api_port}", flush=True)
-    print(f"MCP http://127.0.0.1:{mcp_port}/mcp base={base_url}", flush=True)
     try:
-        threading.Event().wait()
+        sys.stdin.read()
     except KeyboardInterrupt:
         pass
     finally:
