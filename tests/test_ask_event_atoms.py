@@ -61,6 +61,27 @@ def test_f_onset_requires_time_and_trigger_atoms_not_the_trauma_clause(version):
     assert "受伤" in atoms["f_onset#a2"]  # bundled into the fact but outside the rubric
 
 
+@pytest.mark.parametrize("version", [1, 2])
+@pytest.mark.parametrize(("item_id", "target"), [
+    ("f_onset_time", "是上午9点半发生的"),
+    ("f_hx_af", "有房颤好几年"),
+])
+def test_stroke_rubric_cites_only_the_answer_to_its_question(version, item_id, target):
+    case = CASES.get("STROKE-001", version)
+    fact = next(fact for fact in case.facts if fact.fact_id == item_id)
+    fragments = fact_fragments(fact)
+    target_id = next(fragment.atom_id for fragment in fragments if fragment.content == target)
+    other_ids = [fragment.atom_id for fragment in fragments if fragment.atom_id != target_id]
+    state = SessionState(owner_id="t", case_id=case.case_id, case_version=version,
+                         events=[_event(1, other_ids)])
+    before = next(item for item in score_session(state, case).items if item.item_id == item_id)
+    assert before.score == 0 and not before.evidence_event_ids
+    state.events.append(_event(2, [target_id]))
+    after = next(item for item in score_session(state, case).items if item.item_id == item_id)
+    assert after.hit and after.score == after.max_score
+    assert after.evidence_event_ids == ["e2"]
+
+
 def test_required_atoms_must_reference_derived_atoms():
     raw, f_onset = _f_onset_raw()
     f_onset["required_atom_ids"] = ["f_onset#a9"]

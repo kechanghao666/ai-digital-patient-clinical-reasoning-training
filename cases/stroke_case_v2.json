@@ -351,6 +351,7 @@
   "rubric": [
     {
       "item_id": "f_onset_time",
+      "required_atom_ids": ["f_onset_time#a1"],
       "stage": "病史采集",
       "description": "询问起病的具体时间",
       "evidence_type": "ask_event",
@@ -375,6 +376,7 @@
     },
     {
       "item_id": "f_hx_af",
+      "required_atom_ids": ["f_hx_af#a1"],
       "stage": "病史采集",
       "description": "询问房颤等心脏病史",
       "evidence_type": "ask_event",

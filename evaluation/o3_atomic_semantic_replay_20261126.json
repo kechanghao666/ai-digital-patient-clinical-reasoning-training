@@ -24,7 +24,7 @@
       "case_id": "STROKE-001",
       "version": 2,
       "source_file": "cases/stroke_case_v2.json",
-      "source_sha256": "aa8fd4baa7afc735b9fa22be9bddeed065782f928115434873bfc5d473ba9919",
+      "source_sha256": "b724b20427512b9239bf16811d91d4122b9ace4605b1a364f5a750ee118db120",
       "review_status": "draft"
     },
     {
