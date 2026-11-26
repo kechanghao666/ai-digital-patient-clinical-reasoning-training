@@ -120,7 +120,7 @@ def _family_topic_matches(question: str, fragment: FactFragment, fact: Fact) -> 
     return bool(_FAMILY_BROAD_QUERY.search(question) and _FAMILY_DETAIL.search(fragment.content))
 
 
-def _matches_requested_intent(question: str, fragment: FactFragment, fact: Fact) -> bool:
+def fragment_matches_question(question: str, fragment: FactFragment, fact: Fact) -> bool:
     _, question_intents, question_canonicals = detect_intents(question)
     if not question_intents:
         return False
@@ -179,7 +179,7 @@ def select_answer_fragments(
         if not intents:
             result.extend(fragment for fragment in fragments if fragment.atom_id not in answered)
             continue
-        matched = [fragment for fragment in fragments if _matches_requested_intent(question, fragment, fact)]
+        matched = [fragment for fragment in fragments if fragment_matches_question(question, fragment, fact)]
         if matched:
             result.extend(matched)
         elif len(fragments) == 1:

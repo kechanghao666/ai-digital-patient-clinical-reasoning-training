@@ -276,6 +276,42 @@ def _last_ask_fields(state: SessionState, facts: list[Fact]) -> set[str] | None:
     return {by_id[fact_id].field for fact_id in ids if fact_id in by_id}
 
 
+def _last_topic_question(state: SessionState) -> str | None:
+    """The most recent non-continuation question in the current ask run.
+
+    A chain of "后来呢" questions inherits the topic of the question that started it, so the
+    continuation can be checked against the requested clinical intent instead of only the field.
+    """
+    for event in reversed(state.events):
+        if event.action != ActionKind.ASK:
+            break
+        question = (event.payload or {}).get("question") or event.intent
+        if not question:
+            return None
+        if not _is_continuation(_clean(question)):
+            return question
+    return None
+
+
+def _answered_atom_ids(state: SessionState) -> set[str]:
+    return {
+        atom_id
+        for event in state.events
+        if event.action == ActionKind.ASK
+        for atom_id in event.result.get("answer_atom_ids", [])
+    }
+
+
+def _unanswered_atoms_match_topic(fact: Fact, question: str, answered: set[str]) -> bool:
+    """A continuation renders all remaining fragments, so each must fit the topic."""
+    from .patient_answers import fact_fragments, fragment_matches_question
+
+    unanswered = [fragment for fragment in fact_fragments(fact) if fragment.atom_id not in answered]
+    if not unanswered:
+        return False
+    return all(fragment_matches_question(question, fragment, fact) for fragment in unanswered)
+
+
 def _continue_turn(state: SessionState, visible: list[Fact], facts: list[Fact]) -> tuple[list[Fact], str]:
     """Carry the previous turn's topic forward, never fabricating a fact.
 
@@ -295,15 +331,23 @@ def _continue_turn(state: SessionState, visible: list[Fact], facts: list[Fact]) 
     topic = _last_ask_fields(state, facts)
     if topic is None or not topic:
         return [], "clarify_topic"
+    topic_question = _last_topic_question(state)
+    if not topic_question:
+        return [], "clarify_topic"
+    answered = _answered_atom_ids(state)
     continuable = [
         fact for fact in visible
         if fact.fact_id not in disclosed and fact.disclosure_triggers
     ]
-    same_field = [fact for fact in continuable if fact.field in topic]
+    same_field = [
+        fact for fact in continuable
+        if fact.field in topic
+        and _unanswered_atoms_match_topic(fact, topic_question, answered)
+    ]
     if same_field:
         return [same_field[0]], "fact"
     if topic & set(_HPI_FIELD_ORDER):
-        hpi = [fact for fact in continuable if fact.field in _HPI_FIELD_ORDER]
+        hpi = [fact for fact in continuable if fact.field in _HPI_FIELD_ORDER and fact.field not in topic]
         if hpi:
             order = {fact.fact_id: index for index, fact in enumerate(visible)}
             next_fact = min(hpi, key=lambda fact: (_HPI_FIELD_ORDER[fact.field], order[fact.fact_id]))

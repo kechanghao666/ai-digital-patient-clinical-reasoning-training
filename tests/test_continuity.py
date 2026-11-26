@@ -11,7 +11,8 @@ import pytest
 from app import disclosure
 from app.case_store import CaseStore
 from app.disclosure import _is_continuation, classify_turn, non_fact_reply
-from app.models import Fact, SessionState
+from app.models import ActionKind, Event, Fact, SessionState
+from app.patient_answers import select_answer_fragments
 from test_cases_config import Api
 
 ROOT = Path(__file__).parents[1]
@@ -136,16 +137,94 @@ def test_three_consecutive_laters_do_not_unlock_unrelated_symptoms(tmp_path, mon
     assert any("持续" in r for r in replies)
 
 
-def test_later_after_partial_compound_history_answers_remaining_atom(tmp_path, monkeypatch):
+@pytest.mark.parametrize("case_id", ["CASE-001", "CASE-005"])
+def test_later_after_allergy_does_not_leak_surgery_and_keeps_fact_incomplete(case_id, tmp_path, monkeypatch):
+    """A bare follow-up inherits the allergy topic, not the surgery clause of the same fact.
+
+    The compound fact is "没有药物过敏，也没做过手术". After the allergy atom is answered, the
+    remaining surgery atom belongs to another topic and must not be volunteered by "后来呢".
+    The patient therefore closes the topic, and the parent fact stays partially disclosed until
+    the student explicitly asks about surgery. CASE-005 is a different specialty case with the
+    same structure, proving the rule is shared rather than keyed to one case id.
+    """
     api = Api(tmp_path, monkeypatch)
-    sid = api.start("CASE-001")
-    _ask(api, sid, "有药物过敏吗？")
+    sid = api.start(case_id)
+    first = _ask(api, sid, "有药物过敏吗？")
     later = _ask(api, sid, "后来呢？")
-    assert later["answer"] == "没做过手术。"
+    assert first["answer"] == "没有药物过敏。"
+    assert later["answer"] == "暂时就这些了。"
+    assert "手术" not in later["answer"]
+
+    state = api.repository.get(sid, "demo-cfg")
+    assert "f_allergy" not in state.disclosed_fact_ids
+    assert state.events[-1].result["answer_atom_ids"] == []
+    assert state.events[-1].payload["matched_fact_ids"] == []
+
+    surgery = _ask(api, sid, "以前做过手术吗？")
+    assert surgery["answer"] == "没做过手术。"
     state = api.repository.get(sid, "demo-cfg")
     assert "f_allergy" in state.disclosed_fact_ids
     assert state.events[-1].result["answer_atom_ids"] == ["f_allergy#a2"]
-    assert _ask(api, sid, "后来呢？")["answer"] == "暂时就这些了。"
+
+
+def test_explicit_double_question_discloses_both_atoms_in_one_turn(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start("CASE-001")
+    answer = _ask(api, sid, "有药物过敏吗？以前做过手术吗？")["answer"]
+    assert "没有药物过敏" in answer and "没做过手术" in answer
+    state = api.repository.get(sid, "demo-cfg")
+    assert "f_allergy" in state.disclosed_fact_ids
+    assert set(state.events[-1].result["answer_atom_ids"]) == {"f_allergy#a1", "f_allergy#a2"}
+
+
+def test_same_topic_allergy_continuation_still_answers_remaining_atom():
+    """The fix must not block a genuine same-topic continuation."""
+    allergy = Fact(fact_id="f_allergy_a", field="过敏史", content="没有药物过敏。",
+                   disclosure_triggers=["过敏"])
+    food = Fact(fact_id="f_allergy_b", field="过敏史", content="也没有食物过敏。",
+                disclosure_triggers=["过敏"])
+    previous = Event(
+        request_id="r1", seq=1, actor="student", action=ActionKind.ASK,
+        intent="有药物过敏吗？",
+        payload={"question": "有药物过敏吗？", "matched_fact_ids": ["f_allergy_a"]},
+        result={"answer_atom_ids": ["f_allergy_a#a1"]},
+        sim_time=0, state_before={}, state_after={}, fact_ids_revealed=["f_allergy_a"],
+    )
+    state = SessionState(owner_id="t", case_id="t", case_version=1,
+                         disclosed_fact_ids=["f_allergy_a"], events=[previous])
+    selected, kind = classify_turn(state, "后来呢", [allergy, food])
+    assert kind == "fact" and [fact.fact_id for fact in selected] == ["f_allergy_b"]
+    fragments = select_answer_fragments("后来呢", selected, {"f_allergy_a#a1"})
+    assert [fragment.content for fragment in fragments] == ["没有食物过敏"]
+    assert "手术" not in "".join(fragment.content for fragment in fragments)
+
+
+@pytest.mark.parametrize(("field", "question", "expected"), [
+    ("过敏史", None, "clarify_topic"),
+    ("起病经过", "有药物过敏吗？", "clarify_done"),
+])
+def test_unrelated_remaining_atom_cannot_reenter_continuation(field, question, expected):
+    fact = Fact(fact_id="f_partial", field=field, content="没有药物过敏，也没做过手术。",
+                disclosure_triggers=["过敏", "手术"])
+    event = Event(request_id="r1", seq=1, actor="student", action=ActionKind.ASK,
+                  intent=question, payload={}, result={"answer_atom_ids": ["f_partial#a1"]},
+                  sim_time=0, state_before={}, state_after={})
+    state = SessionState(owner_id="t", case_id="t", case_version=1, events=[event])
+    assert classify_turn(state, "后来呢", [fact]) == ([], expected)
+
+
+def test_repeated_allergy_request_replays_without_adding_atoms(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start("CASE-001")
+    body = {"request_id": "same-allergy", "question": "有药物过敏吗？"}
+    first = api.client.post(f"/api/sessions/{sid}/ask", headers=api.headers, json=body)
+    replay = api.client.post(f"/api/sessions/{sid}/ask", headers=api.headers, json=body)
+    assert first.status_code == 200 and replay.status_code == 200
+    assert replay.json()["timing"]["replayed"] is True
+    assert replay.json()["answer"] == first.json()["answer"]
+    state = api.repository.get(sid, "demo-cfg")
+    assert len([event for event in state.events if event.action == ActionKind.ASK]) == 1
+    assert state.events[-1].result["answer_atom_ids"] == ["f_allergy#a1"]
 
 
 # --- clarification and safety -----------------------------------------------
