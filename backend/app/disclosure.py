@@ -309,7 +309,7 @@ def _unanswered_atoms_match_topic(fact: Fact, question: str, answered: set[str])
     unanswered = [fragment for fragment in fact_fragments(fact) if fragment.atom_id not in answered]
     if not unanswered:
         return False
-    return all(fragment_matches_question(question, fragment, fact) for fragment in unanswered)
+    return all(fragment_matches_question(question, fragment, fact, continuing_topic=True) for fragment in unanswered)
 
 
 def _continue_turn(state: SessionState, visible: list[Fact], facts: list[Fact]) -> tuple[list[Fact], str]:

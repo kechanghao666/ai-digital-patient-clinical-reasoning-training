@@ -245,6 +245,34 @@ def test_unasked_trauma_atom_stays_undisclosed(version, tmp_path, monkeypatch):
     assert "f_onset" not in stored.disclosed_fact_ids
 
 
+@pytest.mark.parametrize("version", [1, 2])
+def test_cap_history_cites_smoking_condition_and_allergy_turns(version, tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    state = SessionState(owner_id="demo-cfg", case_id="CAP-001", case_version=version)
+    api.repository.create(state)
+    events = []
+    for question, expected in [("抽烟吗？", "吸烟30年。"),
+                               ("以前有什么病吗？", "有慢性支气管炎。"),
+                               ("有药物过敏吗？", "没有药物过敏。")]:
+        events.append(api.ask(state.session_id, question))
+        saved = api.repository.get(state.session_id, "demo-cfg").events[-1]
+        assert saved.result["answer"] == expected
+    item = score_item(api.seal_and_score(state.session_id), "f_hx")
+    assert item["score"] == item["max_score"] == 1
+    assert item["evidence_event_ids"] == events
+
+
+@pytest.mark.parametrize("question", ["以前有糖尿病史吗？", "您父亲有哪些基础病？", "抽烟吗？"])
+def test_other_history_questions_do_not_disclose_cap_chronic_condition(question, tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start("CAP-001")
+    api.ask(sid, question)
+    saved = api.repository.get(sid, "demo-cfg").events[-1]
+    assert "支气管炎" not in saved.result["answer"]
+    assert "f_hx#a2" not in saved.result["answer_atom_ids"]
+    assert score_item(api.seal_and_score(sid), "f_hx")["score"] == 0
+
+
 def test_sealed_score_snapshot_is_returned_unchanged(tmp_path, monkeypatch):
     from app import main
 

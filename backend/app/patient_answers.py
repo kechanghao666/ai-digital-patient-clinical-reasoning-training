@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .disclosure import detect_intents, normalize
+from .disclosure import DISEASE_ALIASES, detect_intents, normalize
 from .models import Fact
 
 
@@ -30,6 +30,10 @@ _TRIGGER_CONTENT = re.compile(r"休息|活动|运动|走路|进食|受凉|着凉
 _TIME_CONTENT = re.compile(r"\d+(?:\.\d+)?\s*(?:点|分钟|小时|天)|凌晨|清晨|上午|下午|昨晚|昨天|今天|前天|半小时前|一小时前")
 _TEMPERATURE_VALUE = re.compile(r"\d+(?:\.\d+)?\s*(?:℃|度)")
 _THIRST_CONTENT = re.compile(r"口渴|喝.{0,2}水|多饮|饮水")
+_GENERAL_CONDITION_QUERY = re.compile(
+    r"(?:以前|之前|过去|既往|平时|从前)(?:都|还)?(?:有过|得过|患过|有)?(?:哪些|什么|啥)(?:疾病|病|毛病)"
+    r"|(?:基础病|慢性病|老毛病)(?=$|[吗呢么？?，,。；;和、]|有哪些|是什么)"
+)
 _FAMILY_SUBJECT = re.compile(r"我(?:父母|父亲|母亲|爸爸|妈妈|爸|妈|哥哥|姐姐|弟弟|妹妹|兄弟|姐妹)|家里人|家人|家族|父母|父亲|母亲|爸爸|妈妈|爸|妈|哥哥|姐姐|弟弟|妹妹|兄弟|姐妹|亲戚")
 _FAMILY_DETAIL = re.compile(r"病|身体|健康|患|得过|疾病|冠心病|糖尿病|中风")
 _FAMILY_BROAD_QUERY = re.compile(r"家族史|(?:家族|家里人|家人).{0,8}(?:什么|哪些|啥)?(?:病|疾病|身体|健康)|(?:什么|哪些|啥).{0,4}(?:家族|家里人|家人).{0,8}(?:病|疾病)")
@@ -120,7 +124,7 @@ def _family_topic_matches(question: str, fragment: FactFragment, fact: Fact) -> 
     return bool(_FAMILY_BROAD_QUERY.search(question) and _FAMILY_DETAIL.search(fragment.content))
 
 
-def fragment_matches_question(question: str, fragment: FactFragment, fact: Fact) -> bool:
+def fragment_matches_question(question: str, fragment: FactFragment, fact: Fact, *, continuing_topic: bool = False) -> bool:
     _, question_intents, question_canonicals = detect_intents(question)
     if not question_intents:
         return False
@@ -138,6 +142,19 @@ def fragment_matches_question(question: str, fragment: FactFragment, fact: Fact)
                 if asks_surgery and atom_surgery or asks_trauma and atom_trauma:
                     return True
                 continue
+        if intent == "named_disease" and "named_disease" in fragment_intents:
+            # A follow-up can continue the disease-history topic; a direct question names a specific disease.
+            if continuing_topic or any(pattern.search(question) and pattern.search(fragment.content)
+                                       for pattern, _ in DISEASE_ALIASES):
+                return True
+            continue
+        if (
+            intent == "past_history" and "既往史" in fact.field
+            and _GENERAL_CONDITION_QUERY.search(question) and "family" not in question_intents
+            and not fragment.subject_prefix and fragment_intents == ["named_disease"]
+            and fragment.content.startswith(("有", "患有", "确诊"))
+        ):
+            return True
         if intent == "location" and _LOCATION_CONTENT.search(fragment.content):
             return True
         if intent == "trigger" and _TRIGGER_CONTENT.search(fragment.content):

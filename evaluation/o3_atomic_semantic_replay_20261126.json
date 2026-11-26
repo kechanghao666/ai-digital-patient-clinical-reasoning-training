@@ -31,7 +31,7 @@
       "case_id": "CAP-001",
       "version": 2,
       "source_file": "cases/pneumonia_case_v2.json",
-      "source_sha256": "3fd13bc792dc4ebf4affefe438ae7f543db85e299a0292ee28adb5e2b221b6e3",
+      "source_sha256": "835b9db0877d596cb756f42389a926135e1147bcdccba2fd5a92bca24091951e",
       "review_status": "draft"
     },
     {

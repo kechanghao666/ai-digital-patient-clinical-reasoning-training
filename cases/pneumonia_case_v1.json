@@ -222,6 +222,7 @@
     },
     {
       "item_id": "f_hx",
+      "required_atom_ids": ["f_hx#a1", "f_hx#a2", "f_hx#a3"],
       "stage": "病史采集",
       "description": "询问吸烟史、基础病和过敏史",
       "evidence_type": "ask_event",
