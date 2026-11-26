@@ -1,0 +1,328 @@
+{
+  "run_at": "2026-11-26T14:20:10+00:00",
+  "git_head_sha": "9bde2f8d3dda58609417ce564767e123b13c7dc4",
+  "environment": {
+    "os": "Windows-10-10.0.26300-SP0",
+    "python": "3.11.18",
+    "python_executable": "python.exe",
+    "auth_mode": "local",
+    "patient_adapter": "simulator",
+    "database_scope": "temporary APP_DATA_DIR / INTEGRATION_DB_PATH / accounts; removed after run",
+    "real_provider_calls": 0
+  },
+  "temporary_data_removed": true,
+  "scope": "两个版本，每版本三个独立场景。单独记录措辞和分数差异。",
+  "raw_sha256": "070f70e39088118a4e3ed88ef1ff7f86e144570138b09c6bc3ac4e4abbcf7190",
+  "runs": [
+    {
+      "case_id": "CAP-001",
+      "case_version": 1,
+      "scenario_id": "better_combined",
+      "rubric": {
+        "description": "询问气短和呼吸困难",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "出现气短时必须询问活动耐量和呼吸困难程度，评估严重度。",
+        "required_atom_ids": []
+      },
+      "questions": [
+        "活动后有没有气短，休息后会不会好一点？"
+      ],
+      "turns": [
+        {
+          "question": "活动后有没有气短，休息后会不会好一点？",
+          "http_status": 200,
+          "api_answer": "活动后气短，休息时好一点。",
+          "api_event_id": "86f9f45e-e98b-494a-8b86-ea81f337c02f",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "活动后气短，休息时好一点。",
+          "persisted_matched_fact_ids": [
+            "f_dyspnea"
+          ],
+          "persisted_answer_atom_ids": [
+            "f_dyspnea#a1",
+            "f_dyspnea#a2"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "score_item": {
+        "hit": true,
+        "score": 1.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "86f9f45e-e98b-494a-8b86-ea81f337c02f"
+        ],
+        "reason": "已找到符合条件的事件证据"
+      },
+      "evidence_events": [
+        {
+          "event_id": "86f9f45e-e98b-494a-8b86-ea81f337c02f",
+          "request_id": "o3-001-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "活动后有没有气短，休息后会不会好一点？",
+          "result": {
+            "answer": "活动后气短，休息时好一点。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "CAP-001",
+      "case_version": 1,
+      "scenario_id": "improve_combined",
+      "rubric": {
+        "description": "询问气短和呼吸困难",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "出现气短时必须询问活动耐量和呼吸困难程度，评估严重度。",
+        "required_atom_ids": []
+      },
+      "questions": [
+        "活动后有没有气短，休息后会不会好转？"
+      ],
+      "turns": [
+        {
+          "question": "活动后有没有气短，休息后会不会好转？",
+          "http_status": 200,
+          "api_answer": "活动后气短。",
+          "api_event_id": "8937a60e-eb25-4af5-a8c8-560f8d98c06a",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "活动后气短。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_dyspnea#a1"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "score_item": {
+        "hit": false,
+        "score": 0.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [],
+        "reason": "未找到满足时点和证据类型的事件"
+      },
+      "evidence_events": []
+    },
+    {
+      "case_id": "CAP-001",
+      "case_version": 1,
+      "scenario_id": "improve_followup",
+      "rubric": {
+        "description": "询问气短和呼吸困难",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "出现气短时必须询问活动耐量和呼吸困难程度，评估严重度。",
+        "required_atom_ids": []
+      },
+      "questions": [
+        "有没有气短？",
+        "休息后会好转吗？"
+      ],
+      "turns": [
+        {
+          "question": "有没有气短？",
+          "http_status": 200,
+          "api_answer": "活动后气短。",
+          "api_event_id": "7808165b-42bf-4d90-930c-ce62b2c323e3",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "活动后气短。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_dyspnea#a1"
+          ],
+          "persisted_turn_kind": "fact"
+        },
+        {
+          "question": "休息后会好转吗？",
+          "http_status": 200,
+          "api_answer": "我不太确定您的问题，能否换一种方式询问？",
+          "api_event_id": "3ed0e4bb-b9d4-4c3e-91d8-25d5353cdf04",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "我不太确定您的问题，能否换一种方式询问？",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [],
+          "persisted_turn_kind": "unknown"
+        }
+      ],
+      "score_item": {
+        "hit": false,
+        "score": 0.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [],
+        "reason": "未找到满足时点和证据类型的事件"
+      },
+      "evidence_events": []
+    },
+    {
+      "case_id": "CAP-001",
+      "case_version": 2,
+      "scenario_id": "better_combined",
+      "rubric": {
+        "description": "询问气短和呼吸困难",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "出现气短时必须询问活动耐量和呼吸困难程度，评估严重度。",
+        "required_atom_ids": []
+      },
+      "questions": [
+        "活动后有没有气短，休息后会不会好一点？"
+      ],
+      "turns": [
+        {
+          "question": "活动后有没有气短，休息后会不会好一点？",
+          "http_status": 200,
+          "api_answer": "活动后气短，休息时好一点。",
+          "api_event_id": "305b3a94-c252-4aa6-8d1c-9032e647258a",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "活动后气短，休息时好一点。",
+          "persisted_matched_fact_ids": [
+            "f_dyspnea"
+          ],
+          "persisted_answer_atom_ids": [
+            "f_dyspnea#a1",
+            "f_dyspnea#a2"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "score_item": {
+        "hit": true,
+        "score": 1.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "305b3a94-c252-4aa6-8d1c-9032e647258a"
+        ],
+        "reason": "已找到符合条件的事件证据"
+      },
+      "evidence_events": [
+        {
+          "event_id": "305b3a94-c252-4aa6-8d1c-9032e647258a",
+          "request_id": "o3-004-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "活动后有没有气短，休息后会不会好一点？",
+          "result": {
+            "answer": "活动后气短，休息时好一点。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "CAP-001",
+      "case_version": 2,
+      "scenario_id": "improve_combined",
+      "rubric": {
+        "description": "询问气短和呼吸困难",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "出现气短时必须询问活动耐量和呼吸困难程度，评估严重度。",
+        "required_atom_ids": []
+      },
+      "questions": [
+        "活动后有没有气短，休息后会不会好转？"
+      ],
+      "turns": [
+        {
+          "question": "活动后有没有气短，休息后会不会好转？",
+          "http_status": 200,
+          "api_answer": "活动后气短。",
+          "api_event_id": "8178c23c-aa2c-47a8-83fe-857bb1b81131",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "活动后气短。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_dyspnea#a1"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "score_item": {
+        "hit": false,
+        "score": 0.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [],
+        "reason": "未找到满足时点和证据类型的事件"
+      },
+      "evidence_events": []
+    },
+    {
+      "case_id": "CAP-001",
+      "case_version": 2,
+      "scenario_id": "improve_followup",
+      "rubric": {
+        "description": "询问气短和呼吸困难",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "出现气短时必须询问活动耐量和呼吸困难程度，评估严重度。",
+        "required_atom_ids": []
+      },
+      "questions": [
+        "有没有气短？",
+        "休息后会好转吗？"
+      ],
+      "turns": [
+        {
+          "question": "有没有气短？",
+          "http_status": 200,
+          "api_answer": "活动后气短。",
+          "api_event_id": "556a252d-c7aa-463c-8652-fef8d87af87d",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "活动后气短。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_dyspnea#a1"
+          ],
+          "persisted_turn_kind": "fact"
+        },
+        {
+          "question": "休息后会好转吗？",
+          "http_status": 200,
+          "api_answer": "我不太确定您的问题，能否换一种方式询问？",
+          "api_event_id": "d5e40e69-f4b4-4bdd-b9f1-226351bc0da1",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "我不太确定您的问题，能否换一种方式询问？",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [],
+          "persisted_turn_kind": "unknown"
+        }
+      ],
+      "score_item": {
+        "hit": false,
+        "score": 0.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [],
+        "reason": "未找到满足时点和证据类型的事件"
+      },
+      "evidence_events": []
+    }
+  ]
+}

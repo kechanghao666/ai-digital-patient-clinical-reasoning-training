@@ -78,6 +78,8 @@ py -3 scripts/run_o3_spotcheck.py --dataset evaluation\o3_engineering_spotcheck_
 
 产品 `6ef93af` 的[逐场景记录](reports/o3_compound_post_6ef93af.json)为 86/14/10，SHA-256 `86b90d4dd3c8f0258bb0fa2db9f768b4a45da1a61372c10ae00c8cba207d45df`。`6ef93af` 的 20 轮复跑清单仅刷新卒中 v2 病例哈希，清单 SHA-256 为 `25ae108743c3700cddd5aa7541a9e2ac3ff92dd320948190294d1dcc6b148a6d`。上一轮清单和对应病例可在 `d05450d` 复现。
 
-产品 `14a6b26` 的[逐场景记录](reports/o3_compound_post_14a6b26.json)为 90/10/10，SHA-256 `f31a1da8349ecce35a0e27eccdab903e5960ba2ea2e565a31fed0603202a0b82`。本轮[20 轮复跑清单](o3_atomic_semantic_replay_20261126.json)仅更新肺炎 v2 文件指纹，清单 SHA-256 `7377d4fd2ba61c25b8a89fc1160af63aa968e23d5ba04579042b51683420b0fa`。历史清单及当时病例可从对应产品提交复现。
+产品 `14a6b26` 的[逐场景记录](reports/o3_compound_post_14a6b26.json)为 90/10/10，SHA-256 `f31a1da8349ecce35a0e27eccdab903e5960ba2ea2e565a31fed0603202a0b82`。`14a6b26` 的 20 轮复跑清单仅更新肺炎 v2 文件指纹，清单 SHA-256 `7377d4fd2ba61c25b8a89fc1160af63aa968e23d5ba04579042b51683420b0fa`。历史清单及当时病例可从对应产品提交复现。
+
+产品 `9bde2f8` 的[固定评分集](reports/o3_compound_post_9bde2f8.json)为 94/6/10，[DKA 专项](reports/dka_boundary_post_9bde2f8.json)为 18/18。另有 [CAP 气短措辞基线](reports/cap_rest_baseline_9bde2f8.json)。本轮[20 轮复跑清单](o3_atomic_semantic_replay_20261126.json)只更新 DKA v2 病例指纹，清单 SHA-256 为 `7ae1ffa2d92d9e153da68ee991f05214c29a1509c388f1fcc288a937323de1bc`。
 
 完整命令、局限及剩余问题见[当前工程交接](../docs/工程接手.md)。
