@@ -3,10 +3,8 @@
 The real three-turn run (docs/evidence/2026-11-27-o10a-real-three-turns.json) recorded, on the
 Nexent platform, a step-2 ``malformed_action`` that succeeded after two retries in the hypertension
 turn and failed after three consecutive retries (loop error -> HTTP 502) in the diabetes turn. The
-raw model text for those steps was NOT exported to this machine, so the exact rejected output is
-unknown. This module is a *reference* classifier for the documented <code> format, not the platform
-parser: it lets a captured raw output be classified once the platform log is exported, and fixes the
-acceptance conditions in one place.
+raw model text was later recovered and replayed in the runtime; see the dated malformed-action
+analysis for the parser verdicts. These examples check only the repository prompt conventions.
 
 The patient prompt (docs/patient-selection-prompt.txt) requires one action per response:
     <code>
