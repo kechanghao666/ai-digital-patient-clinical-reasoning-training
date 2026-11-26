@@ -84,4 +84,6 @@ py -3 scripts/run_o3_spotcheck.py --dataset evaluation\o3_engineering_spotcheck_
 
 产品 `bb2c88b` 的[固定评分集](reports/o3_compound_post_bb2c88b.json)为 96/4/10（SHA-256 `3e83f84770b971b4d39eae503510be74509982aa999deec294ff82d9a5b482d9`）。[肺炎措辞复跑](reports/cap_rest_post_bb2c88b.json)为两个版本各 3 次；[普外外伤问答基线](reports/appy_trauma_baseline_bb2c88b.json)为两个版本各 4 次。两组对照各自计数。[20 轮复跑清单](o3_atomic_semantic_replay_20261126.json)只更新 CAP v2 病例指纹，SHA-256 `3debdef62a72260a2a9d4e756733489ba016b43ccca58549f6c41663134dc3fc`。
 
+产品 `c5c50ce` 修复 APPY-001 v1/v2 单问外伤史被误判为手术史：单问“有没有受伤？”只答“没有受伤。”，单问“以前做过手术吗？”只答“没有做过手术。”，无外伤依据的病例不套用“没有受伤”。修后[普外外伤复跑](reports/appy_trauma_post_c5c50ce.json)两版本各 4 次、8/8 通过（SHA-256 `cba456602a479dce25bcbc96a23b4a72e56f257dedb03d9a3a18463544790849`）；[固定 110 场景](reports/o3_compound_post_c5c50ce.json)仍为 96/4/10（SHA-256 `cbbfde419a7c4fa92e880916c5bc71036763495dc7d294f185a4840f1bf191df`），仅 `S2b_time_trigger_trauma` 两版本第三轮回答与披露计数改变，其余 108 个场景回答与分项得分不变。
+
 完整命令、局限及剩余问题见[当前工程交接](../docs/工程接手.md)。
