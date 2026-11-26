@@ -214,18 +214,30 @@ def test_api_greeting_and_diagnosis_request_disclose_nothing(tmp_path, monkeypat
 
 def test_frozen_atomic_semantic_spotcheck_regression(tmp_path):
     """Run the pre-registered 20-turn set; this is a developer regression set, not blind acceptance."""
+    import hashlib
     import json
     import subprocess
     import sys
+    original_bytes = (ROOT / "evaluation/o3_atomic_semantic_spotcheck_20261125.json").read_bytes()
+    assert hashlib.sha256(original_bytes).hexdigest() == "425a0303bcfc9b7d9aaf341bb6ad0fb330aad0d033e8463b18878420fff59e01"
+    original = json.loads(original_bytes)
+    dataset = ROOT / "evaluation/o3_atomic_semantic_replay_20261126.json"
+    replay = json.loads(dataset.read_bytes())
+    provenance = replay.pop("replay_provenance")
+    assert provenance["source_sha256"] == hashlib.sha256(original_bytes).hexdigest()
+    # Only case hashes may change; the frozen questions and all acceptance rules must stay identical.
+    for case, frozen in zip(replay["cases"], original["cases"], strict=True):
+        case["source_sha256"] = frozen["source_sha256"]
+    assert replay == original
     report = tmp_path / "o3-atomic-report.json"
     subprocess.run([
         sys.executable, str(ROOT / "scripts/run_o3_spotcheck.py"),
-        "--dataset", str(ROOT / "evaluation/o3_atomic_semantic_spotcheck_20261125.json"),
+        "--dataset", str(dataset),
         "--report", str(report),
     ], check=True, capture_output=True, timeout=180)
     result = json.loads(report.read_text(encoding="utf-8"))
     counts = result["counts"]
-    assert result["dataset_sha256"] == "425a0303bcfc9b7d9aaf341bb6ad0fb330aad0d033e8463b18878420fff59e01"
+    assert result["dataset_sha256"] == hashlib.sha256(dataset.read_bytes()).hexdigest()
     assert counts["round_count"] == 20 and counts["correct"] == 20
     assert counts["omission"] == 0 and counts["over_answer"] == 0
     assert counts["unauthorized_disclosure"] == 0

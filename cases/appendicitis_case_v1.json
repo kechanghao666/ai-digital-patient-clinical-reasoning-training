@@ -151,7 +151,7 @@
   ],
   "rubric": [
     {"item_id": "f_pain_migration", "stage": "病史采集", "description": "询问疼痛部位及是否转移", "evidence_type": "ask_event", "weight": 1, "improvement": "建议询问疼痛最初出现的位置以及是否发生转移。"},
-    {"item_id": "f_onset", "stage": "病史采集", "description": "询问起病时间和诱因", "evidence_type": "ask_event", "weight": 1},
+    {"item_id": "f_onset", "stage": "病史采集", "description": "询问起病时间和诱因", "evidence_type": "ask_event", "weight": 1, "required_atom_ids": ["f_onset#a1", "f_onset#a3"]},
     {"item_id": "f_fever", "stage": "病史采集", "description": "询问是否发热", "evidence_type": "ask_event", "weight": 1},
     {"item_id": "f_gi", "stage": "病史采集", "description": "询问恶心呕吐和食欲", "evidence_type": "ask_event", "weight": 1},
     {"item_id": "f_hx", "stage": "病史采集", "description": "询问既往史、手术史和过敏史", "evidence_type": "ask_event", "weight": 1, "improvement": "拟手术或用药前应询问既往史、手术史和过敏史。"},

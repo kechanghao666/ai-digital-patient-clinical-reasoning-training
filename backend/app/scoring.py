@@ -291,13 +291,31 @@ def score_session(state: SessionState, case) -> ScoreSnapshot:
         improvement: str | None = None
         reason = "未找到满足时点和证据类型的事件"
         if rubric.evidence_type == "ask_event":
-            evidence = [
-                event.event_id
-                for event in events
-                if event.action == ActionKind.ASK
-                and rubric.item_id in event.payload.get("matched_fact_ids", [])
-            ]
-            hit = bool(evidence)
+            if rubric.required_atom_ids:
+                required = set(rubric.required_atom_ids)
+                evidence, covered = [], set()
+                for event in events:
+                    if event.action != ActionKind.ASK:
+                        continue
+                    answered = set(event.result.get("answer_atom_ids", []))
+                    # Pre-atom events recorded full disclosure only; an explicit empty atom list is not legacy.
+                    if "answer_atom_ids" not in event.result and rubric.item_id in event.payload.get("matched_fact_ids", []):
+                        answered = required
+                    gained = (required & answered) - covered
+                    if gained:
+                        evidence.append(event.event_id)
+                        covered |= gained
+                hit = required <= covered
+                if not hit and covered:
+                    reason = f"已取得 {len(covered)}/{len(required)} 项量表要求的问答，尚未问齐"
+            else:
+                evidence = [
+                    event.event_id
+                    for event in events
+                    if event.action == ActionKind.ASK
+                    and rubric.item_id in event.payload.get("matched_fact_ids", [])
+                ]
+                hit = bool(evidence)
         elif rubric.evidence_type == "exam_order":
             matching_events = [
                 event.event_id

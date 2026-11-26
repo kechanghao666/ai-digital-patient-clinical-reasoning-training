@@ -161,6 +161,8 @@ class RubricItem(BaseModel):
     latest_workflow: None = None
     ordering_constraint: Literal["any", "first_exam_before_wait"] = "any"
     required_prior_exam_ids: list[str] = Field(default_factory=list)
+    # Empty preserves full-fact scoring; explicit atoms limit credit to the rubric's requirements.
+    required_atom_ids: list[str] = Field(default_factory=list)
     diagnosis: DiagnosisSpec | None = None
     differential: DifferentialRule | None = None
     # Shown to the student when the item is missed; defaults are generated from the item type.
@@ -275,6 +277,18 @@ class CaseDefinition(BaseModel):
         for rubric in self.rubric:
             if rubric.evidence_type == "ask_event" and rubric.item_id not in fact_ids:
                 raise ValueError(f"rubric references unknown fact: {rubric.item_id}")
+            if rubric.required_atom_ids:
+                if rubric.evidence_type != "ask_event":
+                    raise ValueError("required_atom_ids is only valid for ask_event rubrics")
+                if len(rubric.required_atom_ids) != len(set(rubric.required_atom_ids)):
+                    raise ValueError(f"rubric {rubric.item_id} repeats a required atom")
+                from .patient_answers import fact_fragments
+
+                declared_fact = next(fact for fact in self.facts if fact.fact_id == rubric.item_id)
+                atom_ids = {fragment.atom_id for fragment in fact_fragments(declared_fact)}
+                missing = set(rubric.required_atom_ids) - atom_ids
+                if missing:
+                    raise ValueError(f"rubric {rubric.item_id} requires unknown atoms: {sorted(missing)}")
             if rubric.evidence_type == "exam_order" and rubric.item_id not in exam_ids_set:
                 raise ValueError(f"rubric references unknown exam: {rubric.item_id}")
             if rubric.evidence_type != "exam_order" and rubric.ordering_constraint != "any":

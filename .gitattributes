@@ -5,3 +5,7 @@
 /cases/stroke_case_v2.json text eol=lf
 /cases/pneumonia_case_v2.json text eol=lf
 /cases/dka_case_v2.json text eol=lf
+# Keep audit report and replay-manifest byte hashes stable across platforms.
+/evaluation/reports/o3_compound_*.json text eol=crlf
+/evaluation/reports/o3_atomic_semantic_replay_20261126.json text eol=crlf
+/evaluation/o3_atomic_semantic_replay_20261126.json text eol=lf
