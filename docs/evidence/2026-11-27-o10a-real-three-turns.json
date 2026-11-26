@@ -193,7 +193,79 @@
         "loop_status": "error"
       }
     ],
-    "usage": "Runtime token_usage fields in this window were null. Upstream inference count and bill unavailable."
+    "usage": "Step monitor and output-protocol diagnostic counters below are partial and can overlap. No authoritative total or bill obtained.",
+    "runtime_token_counters": {
+      "fields": [
+        "step",
+        "input_tokens",
+        "output_tokens"
+      ],
+      "step_monitor_by_turn": [
+        [
+          [
+            1,
+            3643,
+            120
+          ],
+          [
+            2,
+            7740,
+            254
+          ]
+        ],
+        [
+          [
+            1,
+            3650,
+            130
+          ]
+        ],
+        [
+          [
+            1,
+            3637,
+            125
+          ],
+          [
+            2,
+            7552,
+            246
+          ]
+        ]
+      ],
+      "malformed_action_diagnostics_by_turn": [
+        [
+          [
+            2,
+            3915,
+            180
+          ],
+          [
+            2,
+            4006,
+            92
+          ]
+        ],
+        [
+          [
+            2,
+            3930,
+            215
+          ],
+          [
+            2,
+            4021,
+            97
+          ],
+          [
+            2,
+            4112,
+            147
+          ]
+        ],
+        []
+      ]
+    }
   },
   "outcomes": {
     "planned": 3,
