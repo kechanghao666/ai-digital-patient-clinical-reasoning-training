@@ -1,0 +1,1213 @@
+{
+  "schema_version": 1,
+  "title": "Bundled-symptom probe: single symptom question, incidental answer, and teacher view",
+  "run_at": "2026-11-26T16:23:45+00:00",
+  "git_head_sha": "de9552448304b7a7e1962ab96df1b09c57d84ac9",
+  "git_branch": "codex/feedback-protocol-fix",
+  "worktree_status": "",
+  "environment": {
+    "os": "Windows-10-10.0.26300-SP0",
+    "python": "3.11.18",
+    "python_executable": "python.exe",
+    "auth_mode": "local",
+    "patient_adapter": "simulator",
+    "database_scope": "temporary APP_DATA_DIR / INTEGRATION_DB_PATH / accounts; removed after run",
+    "real_provider_calls": 0
+  },
+  "denominator": {
+    "records": 4,
+    "named_record_scenarios": 6,
+    "contrast_scenarios": 2
+  },
+  "duplicate_request_check": {
+    "case": "APPY-001@2",
+    "fact": "f_bowel",
+    "question": "有没有腹泻？",
+    "first": {
+      "http": 200,
+      "replayed": false,
+      "answer": "排便基本正常，没有腹泻。",
+      "event_id": "7c360416-bb0a-4b15-be98-6c00cda1631d"
+    },
+    "second_same_request": {
+      "http": 200,
+      "replayed": true,
+      "answer": "排便基本正常，没有腹泻。",
+      "event_id": "7c360416-bb0a-4b15-be98-6c00cda1631d"
+    },
+    "ask_events_before_seal": 1,
+    "ask_events_after_seal_and_replay": 1,
+    "seal_http": 200,
+    "replay_after_seal": {
+      "http": 200,
+      "replayed": true,
+      "answer": "排便基本正常，没有腹泻。",
+      "event_id": "7c360416-bb0a-4b15-be98-6c00cda1631d"
+    },
+    "total_events": 2,
+    "score_total": 0.0,
+    "score_unchanged_after_replay": true,
+    "checks": {
+      "same_request_saved_once": true,
+      "first_response_is_new": true,
+      "seal_succeeded": true,
+      "sealed_response_is_replay": true,
+      "second_response_is_replay": true,
+      "same_answer_and_event": true,
+      "score_unchanged": true
+    }
+  },
+  "temporary_data_removed": true,
+  "records": [
+    {
+      "case_id": "STEMI-001",
+      "case_version": 3,
+      "fact_id": "f_ros",
+      "kind": "named_record",
+      "source_file": "cases/stemi_case_v3.json",
+      "source_sha256": "747d49970cfed6042f40a1b4f723e629031bf51cd7973d750252fff7dd789fd2",
+      "fact_field": "系统回顾",
+      "fact_content": "没有发烧、咳嗽，也没有头晕、心慌，大小便都正常。",
+      "fact_polarity": "negative",
+      "fact_triggers": [
+        "发热",
+        "发烧",
+        "体温",
+        "咳嗽",
+        "咳",
+        "痰",
+        "头晕",
+        "心慌",
+        "心悸",
+        "大便",
+        "小便",
+        "尿"
+      ],
+      "fragments": [
+        {
+          "atom_id": "f_ros#a1",
+          "content": "没有发烧、咳嗽"
+        },
+        {
+          "atom_id": "f_ros#a2",
+          "content": "没有头晕、心慌"
+        },
+        {
+          "atom_id": "f_ros#a3",
+          "content": "大小便都正常"
+        }
+      ],
+      "rubric_item_ids": [
+        "f_pain_character",
+        "f_pain_radiation",
+        "f_pain_onset",
+        "ex_ecg",
+        "ex_troponin",
+        "aortic_dissection",
+        "pulmonary_embolism",
+        "stemi",
+        "aspirin",
+        "reperfusion_pathway"
+      ],
+      "fact_is_rubric_item": false,
+      "scenarios": [
+        {
+          "scenario_id": "fever_only",
+          "questions": [
+            "有没有发烧？"
+          ],
+          "turns": [
+            {
+              "question": "有没有发烧？",
+              "http_status": 200,
+              "api_answer": "没有发烧、咳嗽。",
+              "api_event_id": "21449473-a0bf-411b-ac57-0206a6988ed0",
+              "replayed": false,
+              "persisted_event_count": 1,
+              "persisted_answer": "没有发烧、咳嗽。",
+              "saved_matches_api": true,
+              "persisted_answer_atom_ids": [
+                "f_ros#a1"
+              ],
+              "persisted_matched_fact_ids": [],
+              "persisted_turn_kind": "fact",
+              "disclosed_fact_ids_after": []
+            }
+          ],
+          "first_disclosed_turn": null,
+          "final_disclosed_fact_ids": [],
+          "sealed_score_items": [
+            {
+              "item_id": "f_pain_character",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_pain_radiation",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_pain_onset",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_ecg",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_troponin",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "aortic_dissection",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "pulmonary_embolism",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "stemi",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "aspirin",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "reperfusion_pathway",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "exam_stewardship",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            }
+          ],
+          "checks": {
+            "saved_matches_api": true,
+            "fact_has_scoring_item": false,
+            "negation_preserved": true
+          }
+        },
+        {
+          "scenario_id": "fever_cough_combined",
+          "questions": [
+            "有没有发烧、咳嗽？"
+          ],
+          "turns": [
+            {
+              "question": "有没有发烧、咳嗽？",
+              "http_status": 200,
+              "api_answer": "没有发烧、咳嗽。",
+              "api_event_id": "596d1001-fda2-4d35-b997-882c0e0352b8",
+              "replayed": false,
+              "persisted_event_count": 1,
+              "persisted_answer": "没有发烧、咳嗽。",
+              "saved_matches_api": true,
+              "persisted_answer_atom_ids": [
+                "f_ros#a1"
+              ],
+              "persisted_matched_fact_ids": [],
+              "persisted_turn_kind": "fact",
+              "disclosed_fact_ids_after": []
+            }
+          ],
+          "first_disclosed_turn": null,
+          "final_disclosed_fact_ids": [],
+          "sealed_score_items": [
+            {
+              "item_id": "f_pain_character",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_pain_radiation",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_pain_onset",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_ecg",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_troponin",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "aortic_dissection",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "pulmonary_embolism",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "stemi",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "aspirin",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "reperfusion_pathway",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "exam_stewardship",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            }
+          ],
+          "checks": {
+            "saved_matches_api": true,
+            "fact_has_scoring_item": false,
+            "negation_preserved": true
+          }
+        },
+        {
+          "scenario_id": "fever_then_cough",
+          "questions": [
+            "有没有发烧？",
+            "有没有咳嗽？"
+          ],
+          "turns": [
+            {
+              "question": "有没有发烧？",
+              "http_status": 200,
+              "api_answer": "没有发烧、咳嗽。",
+              "api_event_id": "f958d06f-154c-470a-8416-176576c46d6d",
+              "replayed": false,
+              "persisted_event_count": 1,
+              "persisted_answer": "没有发烧、咳嗽。",
+              "saved_matches_api": true,
+              "persisted_answer_atom_ids": [
+                "f_ros#a1"
+              ],
+              "persisted_matched_fact_ids": [],
+              "persisted_turn_kind": "fact",
+              "disclosed_fact_ids_after": []
+            },
+            {
+              "question": "有没有咳嗽？",
+              "http_status": 200,
+              "api_answer": "没有发烧、咳嗽。",
+              "api_event_id": "0985c4eb-c0f3-45db-bf90-8f0375150d38",
+              "replayed": false,
+              "persisted_event_count": 1,
+              "persisted_answer": "没有发烧、咳嗽。",
+              "saved_matches_api": true,
+              "persisted_answer_atom_ids": [
+                "f_ros#a1"
+              ],
+              "persisted_matched_fact_ids": [],
+              "persisted_turn_kind": "fact",
+              "disclosed_fact_ids_after": []
+            }
+          ],
+          "first_disclosed_turn": null,
+          "final_disclosed_fact_ids": [],
+          "sealed_score_items": [
+            {
+              "item_id": "f_pain_character",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_pain_radiation",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_pain_onset",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_ecg",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_troponin",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "aortic_dissection",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "pulmonary_embolism",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "stemi",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "aspirin",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "reperfusion_pathway",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "exam_stewardship",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            }
+          ],
+          "checks": {
+            "saved_matches_api": true,
+            "fact_has_scoring_item": false,
+            "negation_preserved": true
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "fact_id": "f_bowel",
+      "kind": "named_record",
+      "source_file": "cases/appendicitis_case_v2.json",
+      "source_sha256": "347ee714495612c6e0a02736f76e5a449658d4b0b9383e9136fb507e0f06c8ea",
+      "fact_field": "排便",
+      "fact_content": "排便基本正常，没有腹泻。",
+      "fact_polarity": "negative",
+      "fact_triggers": [
+        "腹泻",
+        "大便",
+        "排便",
+        "拉肚子"
+      ],
+      "fragments": [
+        {
+          "atom_id": "f_bowel#a1",
+          "content": "排便基本正常"
+        },
+        {
+          "atom_id": "f_bowel#a2",
+          "content": "没有腹泻"
+        }
+      ],
+      "rubric_item_ids": [
+        "f_pain_migration",
+        "f_onset",
+        "f_fever",
+        "f_gi",
+        "f_hx",
+        "ex_us",
+        "ex_cbc",
+        "ex_urine",
+        "ureteral_stone",
+        "gastroenteritis",
+        "acute_appendicitis",
+        "surgical_consult",
+        "fluids_antibiotics"
+      ],
+      "fact_is_rubric_item": false,
+      "scenarios": [
+        {
+          "scenario_id": "diarrhea_only",
+          "questions": [
+            "有没有腹泻？"
+          ],
+          "turns": [
+            {
+              "question": "有没有腹泻？",
+              "http_status": 200,
+              "api_answer": "排便基本正常，没有腹泻。",
+              "api_event_id": "fcfb7ced-7f9b-4258-8291-db49b5937ede",
+              "replayed": false,
+              "persisted_event_count": 1,
+              "persisted_answer": "排便基本正常，没有腹泻。",
+              "saved_matches_api": true,
+              "persisted_answer_atom_ids": [
+                "f_bowel#a1",
+                "f_bowel#a2"
+              ],
+              "persisted_matched_fact_ids": [
+                "f_bowel"
+              ],
+              "persisted_turn_kind": "fact",
+              "disclosed_fact_ids_after": [
+                "f_bowel"
+              ]
+            }
+          ],
+          "first_disclosed_turn": 1,
+          "final_disclosed_fact_ids": [
+            "f_bowel"
+          ],
+          "sealed_score_items": [
+            {
+              "item_id": "f_pain_migration",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_onset",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_fever",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_gi",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_hx",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_us",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_cbc",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_urine",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ureteral_stone",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "gastroenteritis",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "acute_appendicitis",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "surgical_consult",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "fluids_antibiotics",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "exam_stewardship",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            }
+          ],
+          "checks": {
+            "saved_matches_api": true,
+            "fact_has_scoring_item": false,
+            "negation_preserved": true
+          }
+        },
+        {
+          "scenario_id": "diarrhea_bowel_combined",
+          "questions": [
+            "排便正常吗？有没有腹泻？"
+          ],
+          "turns": [
+            {
+              "question": "排便正常吗？有没有腹泻？",
+              "http_status": 200,
+              "api_answer": "排便基本正常，没有腹泻。",
+              "api_event_id": "587a5eba-d481-47ed-b807-e259870738aa",
+              "replayed": false,
+              "persisted_event_count": 1,
+              "persisted_answer": "排便基本正常，没有腹泻。",
+              "saved_matches_api": true,
+              "persisted_answer_atom_ids": [
+                "f_bowel#a1",
+                "f_bowel#a2"
+              ],
+              "persisted_matched_fact_ids": [
+                "f_bowel"
+              ],
+              "persisted_turn_kind": "fact",
+              "disclosed_fact_ids_after": [
+                "f_bowel"
+              ]
+            }
+          ],
+          "first_disclosed_turn": 1,
+          "final_disclosed_fact_ids": [
+            "f_bowel"
+          ],
+          "sealed_score_items": [
+            {
+              "item_id": "f_pain_migration",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_onset",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_fever",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_gi",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_hx",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_us",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_cbc",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_urine",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ureteral_stone",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "gastroenteritis",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "acute_appendicitis",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "surgical_consult",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "fluids_antibiotics",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "exam_stewardship",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            }
+          ],
+          "checks": {
+            "saved_matches_api": true,
+            "fact_has_scoring_item": false,
+            "negation_preserved": true
+          }
+        },
+        {
+          "scenario_id": "diarrhea_then_bowel",
+          "questions": [
+            "有没有腹泻？",
+            "排便正常吗？"
+          ],
+          "turns": [
+            {
+              "question": "有没有腹泻？",
+              "http_status": 200,
+              "api_answer": "排便基本正常，没有腹泻。",
+              "api_event_id": "aae4fe3a-3365-455f-b31f-11dc4af82da9",
+              "replayed": false,
+              "persisted_event_count": 1,
+              "persisted_answer": "排便基本正常，没有腹泻。",
+              "saved_matches_api": true,
+              "persisted_answer_atom_ids": [
+                "f_bowel#a1",
+                "f_bowel#a2"
+              ],
+              "persisted_matched_fact_ids": [
+                "f_bowel"
+              ],
+              "persisted_turn_kind": "fact",
+              "disclosed_fact_ids_after": [
+                "f_bowel"
+              ]
+            },
+            {
+              "question": "排便正常吗？",
+              "http_status": 200,
+              "api_answer": "排便基本正常，没有腹泻。",
+              "api_event_id": "cb1eb381-c614-4b8e-b4ae-07dc66a5bc7d",
+              "replayed": false,
+              "persisted_event_count": 1,
+              "persisted_answer": "排便基本正常，没有腹泻。",
+              "saved_matches_api": true,
+              "persisted_answer_atom_ids": [
+                "f_bowel#a1",
+                "f_bowel#a2"
+              ],
+              "persisted_matched_fact_ids": [
+                "f_bowel"
+              ],
+              "persisted_turn_kind": "fact",
+              "disclosed_fact_ids_after": [
+                "f_bowel"
+              ]
+            }
+          ],
+          "first_disclosed_turn": 1,
+          "final_disclosed_fact_ids": [
+            "f_bowel"
+          ],
+          "sealed_score_items": [
+            {
+              "item_id": "f_pain_migration",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_onset",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_fever",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_gi",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_hx",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_us",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_cbc",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_urine",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ureteral_stone",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "gastroenteritis",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "acute_appendicitis",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "surgical_consult",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "fluids_antibiotics",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "exam_stewardship",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            }
+          ],
+          "checks": {
+            "saved_matches_api": true,
+            "fact_has_scoring_item": false,
+            "negation_preserved": true
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "fact_id": "f_onset",
+      "kind": "contrast_split",
+      "source_file": "cases/appendicitis_case_v2.json",
+      "source_sha256": "347ee714495612c6e0a02736f76e5a449658d4b0b9383e9136fb507e0f06c8ea",
+      "fact_field": "起病与诱因",
+      "fact_content": "大约24小时前开始的，没有受伤，也没有明显诱因。",
+      "fact_polarity": "positive",
+      "fact_triggers": [
+        "什么时候",
+        "多久",
+        "开始",
+        "诱因",
+        "时间",
+        "几天"
+      ],
+      "fragments": [
+        {
+          "atom_id": "f_onset#a1",
+          "content": "大约24小时前开始的"
+        },
+        {
+          "atom_id": "f_onset#a2",
+          "content": "没有受伤"
+        },
+        {
+          "atom_id": "f_onset#a3",
+          "content": "没有明显诱因"
+        }
+      ],
+      "rubric_item_ids": [
+        "f_pain_migration",
+        "f_onset",
+        "f_fever",
+        "f_gi",
+        "f_hx",
+        "ex_us",
+        "ex_cbc",
+        "ex_urine",
+        "ureteral_stone",
+        "gastroenteritis",
+        "acute_appendicitis",
+        "surgical_consult",
+        "fluids_antibiotics"
+      ],
+      "fact_is_rubric_item": true,
+      "scenarios": [
+        {
+          "scenario_id": "trauma_only",
+          "questions": [
+            "有没有受伤？"
+          ],
+          "turns": [
+            {
+              "question": "有没有受伤？",
+              "http_status": 200,
+              "api_answer": "没有受伤。",
+              "api_event_id": "c0fa1e17-88d1-4887-99a7-ac6a106eaeae",
+              "replayed": false,
+              "persisted_event_count": 1,
+              "persisted_answer": "没有受伤。",
+              "saved_matches_api": true,
+              "persisted_answer_atom_ids": [
+                "f_onset#a2"
+              ],
+              "persisted_matched_fact_ids": [],
+              "persisted_turn_kind": "fact",
+              "disclosed_fact_ids_after": []
+            }
+          ],
+          "first_disclosed_turn": null,
+          "final_disclosed_fact_ids": [],
+          "sealed_score_items": [
+            {
+              "item_id": "f_pain_migration",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_onset",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_fever",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_gi",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_hx",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_us",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_cbc",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_urine",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ureteral_stone",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "gastroenteritis",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "acute_appendicitis",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "surgical_consult",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "fluids_antibiotics",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "exam_stewardship",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            }
+          ],
+          "checks": {
+            "saved_matches_api": true,
+            "fact_has_scoring_item": true,
+            "negation_preserved": true
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "fact_id": "f_urine",
+      "kind": "contrast_bundled",
+      "source_file": "cases/appendicitis_case_v2.json",
+      "source_sha256": "347ee714495612c6e0a02736f76e5a449658d4b0b9383e9136fb507e0f06c8ea",
+      "fact_field": "泌尿症状",
+      "fact_content": "小便正常，没有血尿，也没有尿痛。",
+      "fact_polarity": "negative",
+      "fact_triggers": [
+        "小便",
+        "尿",
+        "血尿",
+        "尿痛"
+      ],
+      "fragments": [
+        {
+          "atom_id": "f_urine#a1",
+          "content": "小便正常"
+        },
+        {
+          "atom_id": "f_urine#a2",
+          "content": "没有血尿"
+        },
+        {
+          "atom_id": "f_urine#a3",
+          "content": "没有尿痛"
+        }
+      ],
+      "rubric_item_ids": [
+        "f_pain_migration",
+        "f_onset",
+        "f_fever",
+        "f_gi",
+        "f_hx",
+        "ex_us",
+        "ex_cbc",
+        "ex_urine",
+        "ureteral_stone",
+        "gastroenteritis",
+        "acute_appendicitis",
+        "surgical_consult",
+        "fluids_antibiotics"
+      ],
+      "fact_is_rubric_item": false,
+      "scenarios": [
+        {
+          "scenario_id": "hematuria_only",
+          "questions": [
+            "有没有血尿？"
+          ],
+          "turns": [
+            {
+              "question": "有没有血尿？",
+              "http_status": 200,
+              "api_answer": "小便正常，没有血尿，没有尿痛。",
+              "api_event_id": "c814215a-95b4-43c5-9aa8-e41e4c486cf8",
+              "replayed": false,
+              "persisted_event_count": 1,
+              "persisted_answer": "小便正常，没有血尿，没有尿痛。",
+              "saved_matches_api": true,
+              "persisted_answer_atom_ids": [
+                "f_urine#a1",
+                "f_urine#a2",
+                "f_urine#a3"
+              ],
+              "persisted_matched_fact_ids": [
+                "f_urine"
+              ],
+              "persisted_turn_kind": "fact",
+              "disclosed_fact_ids_after": [
+                "f_urine"
+              ]
+            }
+          ],
+          "first_disclosed_turn": 1,
+          "final_disclosed_fact_ids": [
+            "f_urine"
+          ],
+          "sealed_score_items": [
+            {
+              "item_id": "f_pain_migration",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_onset",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_fever",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_gi",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "f_hx",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_us",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_cbc",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ex_urine",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "ureteral_stone",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "gastroenteritis",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "acute_appendicitis",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "surgical_consult",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "fluids_antibiotics",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            },
+            {
+              "item_id": "exam_stewardship",
+              "hit": false,
+              "score": 0.0,
+              "evidence_event_ids": []
+            }
+          ],
+          "checks": {
+            "saved_matches_api": true,
+            "fact_has_scoring_item": false,
+            "negation_preserved": true
+          }
+        }
+      ]
+    }
+  ],
+  "evidence_boundary": "This report proves the engineering behaviour of the committed code on the local FastAPI student API, local auth, an isolated synthetic database and the deterministic simulator. The two named facts are not rubric items, so no sealed score is changed. Whether the patient should answer related symptoms together is a teaching/editorial decision, not an engineering fix."
+}
