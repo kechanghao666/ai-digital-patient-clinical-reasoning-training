@@ -1,7 +1,8 @@
 {
   "date": "2026-11-27",
   "title": "O10a 浏览器测量：点击发送到本轮患者回答首次可见的耗时（规则模拟器）",
-  "worktree_head": "run-time HEAD (see git_head_sha in the run)",
+  "worktree_head": "7297b5bdff2dd137872697004d88aea99cbefda2",
+  "worktree_head_note": "product code identical to f9ccf96 (the 7297b5b commit only amended two docs); measurement runs the simulator against the shipped web/dist and cases",
   "operating_system": "Windows (see run)",
   "model_policy": "zero real model calls; NEXENT_MODE=simulator (rule simulator) only",
   "case_id": "CASE-001 (synthetic teaching case)",
