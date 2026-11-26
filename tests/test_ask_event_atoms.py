@@ -245,6 +245,94 @@ def test_unasked_trauma_atom_stays_undisclosed(version, tmp_path, monkeypatch):
     assert "f_onset" not in stored.disclosed_fact_ids
 
 
+# --- APPY trauma history: single questions must not cross-route surgery vs trauma ------
+
+def _ask_full(api: Api, sid: str, question: str) -> dict:
+    response = api.client.post(
+        f"/api/sessions/{sid}/ask",
+        headers=api.headers,
+        json={"request_id": api.rid(), "question": question},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    event = api.repository.get(sid, "demo-cfg").events[-1]
+    return {
+        "answer": body["answer"],
+        "event_id": body["event"]["event_id"],
+        "answer_atom_ids": list(event.result.get("answer_atom_ids", [])),
+        "matched_fact_ids": list(event.payload.get("matched_fact_ids", [])),
+        "turn_kind": event.result.get("turn_kind"),
+    }
+
+
+def _start_v(api: Api, version: int) -> str:
+    if version == 1:
+        state = SessionState(owner_id="demo-cfg", case_id="APPY-001", case_version=1)
+        api.repository.create(state)
+        return state.session_id
+    return api.start("APPY-001")
+
+
+@pytest.mark.parametrize("version", [1, 2])
+def test_trauma_only_answers_trauma_and_keeps_onset_zero(version, tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    sid = _start_v(api, version)
+    turn = _ask_full(api, sid, "有没有受伤？")
+    assert turn["answer"] == "没有受伤。"
+    assert turn["answer_atom_ids"] == ["f_onset#a2"]
+    assert turn["matched_fact_ids"] == []  # the trauma clause alone never completes the fact
+    f_onset = score_item(api.seal_and_score(sid), "f_onset")
+    assert not f_onset["hit"] and f_onset["score"] == 0.0
+    assert f_onset["evidence_event_ids"] == []
+
+
+@pytest.mark.parametrize("version", [1, 2])
+def test_surgery_only_answers_surgery_only(version, tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    sid = _start_v(api, version)
+    turn = _ask_full(api, sid, "以前做过手术吗？")
+    assert turn["answer"] == "没有做过手术。"
+    assert turn["answer_atom_ids"] == ["f_hx#a2"]
+    assert turn["matched_fact_ids"] == []
+    assert not score_item(api.seal_and_score(sid), "f_hx")["hit"]
+
+
+@pytest.mark.parametrize("version", [1, 2])
+def test_time_trigger_then_trauma_scores_full_and_cites_first_two(version, tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    sid = _start_v(api, version)
+    time_event = api.ask(sid, "什么时候开始的？")
+    trigger_event = api.ask(sid, "有没有诱因？")
+    trauma = _ask_full(api, sid, "有没有受伤？")
+    assert trauma["answer"] == "没有受伤。"
+    assert trauma["answer_atom_ids"] == ["f_onset#a2"]
+    f_onset = score_item(api.seal_and_score(sid), "f_onset")
+    assert f_onset["hit"] and f_onset["score"] == 1.0
+    # The trauma answer is outside the rubric, so the score still traces to the first two Q&A.
+    assert f_onset["evidence_event_ids"] == [time_event, trigger_event]
+
+
+@pytest.mark.parametrize("version", [1, 2])
+def test_one_shot_time_trauma_trigger_cites_single_event(version, tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    sid = _start_v(api, version)
+    turn = _ask_full(api, sid, "什么时候开始的，有没有受伤或诱因？")
+    assert turn["answer"] == "大约24小时前开始的，没有受伤，没有明显诱因。"
+    assert turn["answer_atom_ids"] == ["f_onset#a1", "f_onset#a2", "f_onset#a3"]
+    f_onset = score_item(api.seal_and_score(sid), "f_onset")
+    assert f_onset["hit"] and f_onset["score"] == 1.0
+    assert f_onset["evidence_event_ids"] == [turn["event_id"]]
+
+
+def test_trauma_question_on_case_without_trauma_does_not_answer_injury(tmp_path, monkeypatch):
+    # DKA-001 v2 records surgery but not trauma; an injury question must not volunteer "没有受伤".
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start("DKA-001")
+    turn = _ask_full(api, sid, "有没有受过伤？")
+    assert "受伤" not in turn["answer"]
+    assert turn["answer_atom_ids"] == []
+
+
 @pytest.mark.parametrize("version", [1, 2])
 def test_cap_history_cites_smoking_condition_and_allergy_turns(version, tmp_path, monkeypatch):
     api = Api(tmp_path, monkeypatch)

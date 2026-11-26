@@ -9,6 +9,12 @@ def normalize(text: str) -> str:
     return re.sub(r"\s+", "", text.lower())
 
 
+# Surgery and trauma history share one intent, but the clauses live in different facts (the APPY
+# onset fact's "没有受伤" has no dedicated trigger). These route a question to the fact whose own
+# text records the matching history, instead of the shared "手术 外伤" canonical word list.
+_SURGERY_WORDS = re.compile(r"手术|开刀|开过刀")
+_TRAUMA_WORDS = re.compile(r"外伤|受(?:过)?伤|摔|撞")
+
 _PUNCT = re.compile(r"[，。？！、,.?!：:；;~～…\"'“”‘’（）()\[\]【】]")
 
 # An opening question requests the chief complaint, not the whole history. It is recognised when
@@ -369,6 +375,23 @@ def _continue_turn(state: SessionState, visible: list[Fact], facts: list[Fact]) 
     return [], "clarify_done"
 
 
+def _mentions_surgery_or_trauma(fact: Fact, asks_surgery: bool, asks_trauma: bool) -> bool:
+    """Whether a fact's own text records the surgery/trauma history the question asks about.
+
+    Surgery and trauma share the ``surgery`` intent, but the clauses live in different facts — the
+    APPY onset fact's "没有受伤" has no dedicated trigger, while the past-history fact mentions only
+    surgery. Matching the fact's text keeps a trauma-only question on the trauma clause and a
+    surgery-only question on the surgery clause, and never answers "没有受伤" for a case that does
+    not record trauma.
+    """
+    content = normalize(fact.content)
+    if asks_surgery and _SURGERY_WORDS.search(content):
+        return True
+    if asks_trauma and _TRAUMA_WORDS.search(content):
+        return True
+    return False
+
+
 def classify_turn(state: SessionState, question: str, facts: list[Fact]) -> tuple[list[Fact], str]:
     """Authorize facts for one student question and label the turn.
 
@@ -431,8 +454,24 @@ def classify_turn(state: SessionState, question: str, facts: list[Fact]) -> tupl
     # A pure continuation follows up on what was just disclosed; only when nothing clinical was asked.
     if not intents and social is None and _is_continuation(query):
         return _continue_turn(state, visible, facts)
-    general = [word for name, words in by_intent.items() if name != "named_disease" for word in words]
+    asks_surgery = bool(_SURGERY_WORDS.search(query))
+    asks_trauma = bool(_TRAUMA_WORDS.search(query))
+    # Surgery and trauma history share one intent but must not cross-route: the "手术 外伤" canonical
+    # word list would match a surgery fact for a trauma-only question (and vice versa), and it never
+    # reaches the onset fact's triggerless "没有受伤" clause. Route them by the fact's own text.
+    general = [
+        word
+        for name, words in by_intent.items()
+        if name not in ("named_disease", "surgery")
+        for word in words
+    ]
     matched = {fact.fact_id for fact in visible if hits(fact, general)}
+    if "surgery" in by_intent:
+        matched.update(
+            fact.fact_id
+            for fact in visible
+            if _mentions_surgery_or_trauma(fact, asks_surgery, asks_trauma)
+        )
     if "named_disease" in by_intent and not matched:
         # "血压高吗" -> facts naming that disease; only then the general past-history fact,
         # so asking about one disease does not disclose unrelated ones.
