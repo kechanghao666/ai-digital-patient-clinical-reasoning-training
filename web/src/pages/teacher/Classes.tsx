@@ -6,11 +6,16 @@ import { downloadCsv, Loading, Msg, Panel, pct, useAction, useLoad } from "../..
 
 interface ClassRow { id: string; name: string; students: number; assignments: number; archived: boolean; created_at: number; }
 interface Member { id: string; username: string; display_name: string; disabled: boolean; must_change_password: boolean; trainings: number; sealed: number; average_ratio: number | null; }
+interface GroupRow { id: string; name: string; member_ids: string[]; }
 interface Progress { status: string; best_ratio: number | null; attempts: number; latest_sealed_session_id: string | null; needs_review: boolean; }
-interface Task { id: string; title: string; case_public_id: string; due_date: string | null; note: string; case: { title: string; available: boolean };
+interface Task { id: string; title: string; case_public_id: string; due_date: string | null; note: string; group_id: string | null; group: string | null;
+  case: { title: string; available: boolean };
   progress: Record<string, Progress>; completed: number; in_progress: number; average_ratio: number | null; }
-interface Detail extends Omit<ClassRow, "assignments" | "students"> { members: Member[]; assignments: Task[]; }
+interface Detail extends Omit<ClassRow, "assignments" | "students"> { members: Member[]; groups: GroupRow[]; assignments: Task[]; }
 interface Issued { username: string; display_name?: string; status: string; temporary_password: string | null; message?: string; }
+interface TemplateRow { id: string; name: string; case_public_id: string; title: string; note: string;
+  case: { title: string; available: boolean; unavailable_reason: string | null }; }
+interface BatchRow { class_id?: string; class_name?: string; case_public_id?: string; status: string; assignment_id?: string; count?: number; message?: string; }
 
 export function Classes({ classId }: { classId?: string }) {
   return classId ? <ClassDetail classId={classId} /> : <ClassList />;
@@ -49,16 +54,31 @@ function parseRoster(text: string) {
     .map(([username, display_name = ""]) => ({ username, display_name }));
 }
 
+function summarize(rows: BatchRow[]): string {
+  const created = rows.filter((r) => r.status === "created").length;
+  const exists = rows.filter((r) => r.status === "exists").length;
+  const skipped = rows.filter((r) => r.status === "skipped_group_scoped").reduce((n, r) => n + (r.count || 0), 0);
+  const parts = [created ? `新建 ${created} 项` : "", exists ? `跳过已有 ${exists} 项` : "", skipped ? `分组任务未复制 ${skipped} 项` : ""].filter(Boolean);
+  return parts.join("；") || "无变更";
+}
+
 function ClassDetail({ classId }: { classId: string }) {
   const { data, error, reload } = useLoad(() => get<Detail>(`/api/teacher/classes/${enc(classId)}`), [classId]);
   const { data: cases } = useLoad(() => get<CaseSummary[]>("/api/cases"), []);
+  const { data: allClasses } = useLoad(() => get<ClassRow[]>("/api/teacher/classes"), []);
+  const { data: templates, reload: reloadTemplates } = useLoad(() => get<TemplateRow[]>("/api/teacher/task-templates"), []);
   const [tab, setTab] = useState<"tasks" | "students">("tasks");
   const [roster, setRoster] = useState("");
   const [issued, setIssued] = useState<Issued[] | null>(null);
-  const [task, setTask] = useState({ case_public_id: "", due_date: "", note: "" });
+  const [task, setTask] = useState({ case_public_id: "", due_date: "", note: "", group_id: "" });
+  const [newGroup, setNewGroup] = useState("");
+  const [batch, setBatch] = useState<{ templateId: string; targets: string[]; due: string }>({ templateId: "", targets: [], due: "" });
+  const [copy, setCopy] = useState<{ targets: string[]; due: string }>({ targets: [], due: "" });
+  const [batchReport, setBatchReport] = useState<string | null>(null);
   const { busy, run } = useAction();
   if (!data) return <Loading error={error} onRetry={reload} />;
   const parsed = parseRoster(roster);
+  const groupOfMember = new Map(data.groups.flatMap((g) => g.member_ids.map((id) => [id, g.name] as const)));
   const exportIssued = (rows: Issued[]) => downloadCsv(`${data.name}-初始密码.csv`,
     [["账号", "姓名", "初始密码", "结果"], ...rows.map((r) => [r.username, r.display_name, r.temporary_password, r.status === "created" ? "新建" : r.status === "enrolled" ? "已有账号，已加入" : r.message || "未处理"])]);
   const addStudents = () => run("add", async () => {
@@ -73,26 +93,63 @@ function ClassDetail({ classId }: { classId: string }) {
   const remove = (m: Member) => window.confirm(`将 ${m.display_name} 移出本班？账号和训练记录保留。`) && run("remove", async () => { await request("DELETE", `/api/teacher/classes/${enc(classId)}/students/${enc(m.id)}`); await reload(); });
   const assign = (e: FormEvent) => {
     e.preventDefault();
-    run("assign", async () => { await request("POST", `/api/teacher/classes/${enc(classId)}/assignments`, { ...task, due_date: task.due_date || null }); setTask({ case_public_id: "", due_date: "", note: "" }); await reload(); }, "任务已布置");
+    run("assign", async () => {
+      await request("POST", `/api/teacher/classes/${enc(classId)}/assignments`,
+        { case_public_id: task.case_public_id, due_date: task.due_date || null, note: task.note, group_id: task.group_id || null });
+      setTask({ case_public_id: "", due_date: "", note: "", group_id: "" }); await reload();
+    }, "任务已布置");
   };
+  const saveTemplate = () => {
+    const name = window.prompt("模板名称", task.case_public_id ? `${task.case_public_id} 标准任务` : "");
+    if (!name || !task.case_public_id) return;
+    run("saveTemplate", async () => {
+      await request("POST", "/api/teacher/task-templates", { name, case_public_id: task.case_public_id, note: task.note });
+      reloadTemplates();
+    }, "模板已保存，可在任务模板中布置到多个班级");
+  };
+  const createGroup = () => run("createGroup", async () => { await request("POST", `/api/teacher/classes/${enc(classId)}/groups`, { name: newGroup }); setNewGroup(""); await reload(); }, "分组已创建");
+  const deleteGroup = (g: GroupRow) => window.confirm(`删除分组“${g.name}”？组内学生回到未分组。`) && run("deleteGroup", async () => { await request("DELETE", `/api/teacher/classes/${enc(classId)}/groups/${enc(g.id)}`); await reload(); }, "分组已删除");
+  const setMemberGroup = (m: Member, groupId: string) => run("setGroup", async () => {
+    if (groupId) await request("PUT", `/api/teacher/classes/${enc(classId)}/groups/${enc(groupId)}/students/${enc(m.id)}`);
+    else {
+      const current = data.groups.find((g) => g.member_ids.includes(m.id));
+      if (current) await request("DELETE", `/api/teacher/classes/${enc(classId)}/groups/${enc(current.id)}/students/${enc(m.id)}`);
+    }
+    await reload();
+  });
+  const runBatch = () => run("batch", async () => {
+    const r = await request<{ results: BatchRow[] }>("POST", `/api/teacher/task-templates/${enc(batch.templateId)}/assign`,
+      { class_ids: batch.targets, due_date: batch.due || null });
+    setBatchReport(`按模板布置：${summarize(r.results)}`); setBatch({ templateId: "", targets: [], due: "" });
+    await reload();
+  });
+  const runCopy = () => run("copy", async () => {
+    const r = await request<{ results: BatchRow[] }>("POST", `/api/teacher/classes/${enc(classId)}/copy-assignments`,
+      { target_class_ids: copy.targets, due_date: copy.due || null });
+    setBatchReport(`复制到其他班：${summarize(r.results)}`); setCopy({ targets: [], due: "" });
+    await reload();
+  });
   const archiveTask = (t: Task) => window.confirm(`撤回任务“${t.title}”？已完成的训练记录保留。`) && run("archive", async () => { await request("DELETE", `/api/teacher/assignments/${enc(t.id)}`); await reload(); });
+  const otherClasses = (allClasses || []).filter((c) => c.id !== classId && !c.archived);
   const exportProgress = () => downloadCsv(`${data.name}-任务完成情况.csv`, [
-    ["账号", "姓名", ...data.assignments.map((t) => `${t.title}(${t.case_public_id})`)],
-    ...data.members.map((m) => [m.username, m.display_name, ...data.assignments.map((t) => {
+    ["账号", "姓名", "分组", ...data.assignments.map((t) => `${t.title}(${t.case_public_id})${t.group ? `[${t.group}]` : ""}`)],
+    ...data.members.map((m) => [m.username, m.display_name, groupOfMember.get(m.id) || "未分组", ...data.assignments.map((t) => {
       const p = t.progress[m.id];
-      return !p || p.status === "not_started" ? "未开始" : p.status === "in_progress" ? "进行中" : pct(p.best_ratio);
+      if (!p) return t.group_id ? "不适用" : "未开始";
+      return p.status === "not_started" ? "未开始" : p.status === "in_progress" ? "进行中" : pct(p.best_ratio);
     })])]);
 
   return (
     <div className="stack-lg">
       <div className="page-title">
         <div className="row"><button className="btn" onClick={() => navigate("/teacher/classes")}>返回</button><h1>{data.name}</h1>
-          <span className="faint">{data.members.length} 名学生　{data.assignments.length} 项任务</span></div>
+          <span className="faint">{data.members.length} 名学生　{data.groups.length} 个分组　{data.assignments.length} 项任务</span></div>
         <div className="row">
           <button className="btn" onClick={() => navigate(`/teacher/dashboard?class_id=${enc(classId)}`)}>本班学情</button>
           <button className="btn" disabled={!data.members.length} onClick={exportProgress}>导出完成情况</button>
         </div>
       </div>
+      {batchReport && <Msg tone="ok"><span>{batchReport}</span><button className="btn-link btn" style={{ marginLeft: 12 }} onClick={() => setBatchReport(null)}>关闭</button></Msg>}
       {issued && issued.length > 0 && (
         <Msg tone="warn"><div className="stack" style={{ gap: 6, width: "100%" }}>
           <div className="spread"><b>以下密码只显示这一次，请导出后发给学生（首次登录须修改）</b>
@@ -115,23 +172,83 @@ function ClassDetail({ classId }: { classId: string }) {
                 <option value="">选择病例</option>
                 {(cases || []).sort((a, b) => a.public_id.localeCompare(b.public_id)).map((c) => <option key={c.public_id} value={c.public_id}>{c.public_id} {c.chief_complaint}（{c.specialty}）</option>)}
               </select></label>
+            {data.groups.length > 0 && <label className="field"><span>分组</span>
+              <select className="select" value={task.group_id} onChange={(e) => setTask({ ...task, group_id: e.target.value })} aria-label="任务分组">
+                <option value="">全班</option>{data.groups.map((g) => <option key={g.id} value={g.id}>{g.name}（{g.member_ids.length}人）</option>)}
+              </select></label>}
             <label className="field"><span>截止日期</span><input className="input" type="date" value={task.due_date} onChange={(e) => setTask({ ...task, due_date: e.target.value })} /></label>
             <label className="field grow"><span>要求（选填）</span><input className="input" maxLength={500} value={task.note} onChange={(e) => setTask({ ...task, note: e.target.value })} placeholder="如：重点完成鉴别诊断" /></label>
+            <button className="btn" type="button" disabled={!task.case_public_id || busy !== null} onClick={saveTemplate}>保存为模板</button>
             <button className="btn btn-primary" disabled={!task.case_public_id || busy !== null}>布置</button>
           </form>
+        </Panel>
+        <Panel title="任务模板（可布置到多个班级）" flush>
+          {(templates || []).length === 0 ? <div className="empty">暂无模板。在上方布置表单中选择病例后“保存为模板”。</div> : (
+            <div className="table-wrap"><table className="table">
+              <thead><tr><th>模板</th><th>病例</th><th>要求</th><th /></tr></thead>
+              <tbody>{(templates || []).map((t) => (
+                <tr key={t.id}>
+                  <td style={{ fontWeight: 600 }}>{t.name}</td>
+                  <td>{t.case_public_id}<div className="faint">{t.case.title}{t.case.available ? "" : "（病例当前不可布置）"}</div></td>
+                  <td className="faint">{t.note || "—"}</td>
+                  <td className="num" style={{ whiteSpace: "nowrap" }}>
+                    <button className="btn" disabled={!t.case.available || otherClasses.length === 0} onClick={() => setBatch({ templateId: batch.templateId === t.id ? "" : t.id, targets: batch.templateId === t.id ? batch.targets : [], due: "" })}>
+                      布置到多班</button>{" "}
+                    <button className="btn btn-danger" onClick={() => window.confirm(`删除模板“${t.name}”？`) && run("delTpl", async () => { await request("DELETE", `/api/teacher/task-templates/${enc(t.id)}`); reloadTemplates(); }, "模板已删除")}>删除</button>
+                  </td>
+                </tr>))}</tbody></table></div>
+          )}
+          {batch.templateId && (
+            <div className="panel-body stack" style={{ borderTop: "1px solid var(--line)" }}>
+              <div className="row" style={{ flexWrap: "wrap" }}>
+                <span className="faint">目标班级（可多选）：</span>
+                {otherClasses.map((c) => (
+                  <label className="check" key={c.id}>
+                    <input type="checkbox" checked={batch.targets.includes(c.id)}
+                      onChange={(e) => setBatch({ ...batch, targets: e.target.checked ? [...batch.targets, c.id] : batch.targets.filter((id) => id !== c.id) })} />
+                    {c.name}
+                  </label>))}
+              </div>
+              {otherClasses.length === 0 && <span className="faint">还没有其他班级可布置。</span>}
+              <div className="row">
+                <label className="field"><span>截止日期（全部目标班）</span><input className="input" type="date" value={batch.due} onChange={(e) => setBatch({ ...batch, due: e.target.value })} /></label>
+                <button className="btn btn-primary" disabled={!batch.targets.length || busy !== null} onClick={runBatch}>按模板布置（{batch.targets.length} 个班）</button>
+              </div>
+              <span className="faint">逐班校验归属后布置；目标班已有同病例进行中任务时跳过，不重复布置。</span>
+            </div>
+          )}
+        </Panel>
+        <Panel title="复制本班任务到其他班" flush>
+          <div className="panel-body stack">
+            <div className="row" style={{ flexWrap: "wrap" }}>
+              <span className="faint">目标班级（可多选）：</span>
+              {otherClasses.map((c) => (
+                <label className="check" key={c.id}>
+                  <input type="checkbox" checked={copy.targets.includes(c.id)}
+                    onChange={(e) => setCopy({ ...copy, targets: e.target.checked ? [...copy.targets, c.id] : copy.targets.filter((id) => id !== c.id) })} />
+                  {c.name}
+                </label>))}
+            </div>
+            <div className="row">
+              <label className="field"><span>新截止日期（选填，留空沿用原值）</span><input className="input" type="date" value={copy.due} onChange={(e) => setCopy({ ...copy, due: e.target.value })} /></label>
+              <button className="btn btn-primary" disabled={!copy.targets.length || !data.assignments.length || busy !== null} onClick={runCopy}>复制（{copy.targets.length} 个班）</button>
+            </div>
+            <span className="faint">复制整班任务；分组任务不跨班复制，目标班已有同病例任务时跳过。</span>
+          </div>
         </Panel>
         <Panel title="完成情况" flush>
           {data.assignments.length === 0 ? <div className="empty">尚未布置任务</div> : (
             <div className="table-wrap"><table className="table">
               <thead><tr><th>学生</th>{data.assignments.map((t) => (
                 <th key={t.id} style={{ whiteSpace: "normal", minWidth: 130 }}>{t.case_public_id} {t.title}
-                  <div className="faint" style={{ fontWeight: 400 }}>截止 {t.due_date || "不限"}　完成 {t.completed}/{data.members.length}　均分 {pct(t.average_ratio)}</div>
+                  <div className="faint" style={{ fontWeight: 400 }}>{t.group ? `分组 ${t.group}　` : ""}截止 {t.due_date || "不限"}　完成 {t.completed}/{t.group_id ? (data.groups.find((g) => g.id === t.group_id)?.member_ids.length || 0) : data.members.length}　均分 {pct(t.average_ratio)}</div>
                   <button className="btn-link btn small" onClick={() => archiveTask(t)}>撤回</button></th>))}</tr></thead>
               <tbody>{data.members.map((m) => (
                 <tr key={m.id}><td>{m.display_name}<div className="faint mono">{m.username}</div></td>
                   {data.assignments.map((t) => {
                     const p = t.progress[m.id];
-                    if (!p || p.status === "not_started") return <td key={t.id}><span className="status">未开始</span></td>;
+                    if (!p) return <td key={t.id}><span className="faint">—</span></td>;
+                    if (p.status === "not_started") return <td key={t.id}><span className="status">未开始</span></td>;
                     if (p.status === "in_progress") return <td key={t.id}><span className="status info">进行中</span></td>;
                     return <td key={t.id}><span className={`status ${p.best_ratio != null && p.best_ratio >= 0.6 ? "ok" : "warn"}`}>{pct(p.best_ratio)}</span>
                       {p.needs_review && <span className="faint"> 待复核</span>}
@@ -143,6 +260,23 @@ function ClassDetail({ classId }: { classId: string }) {
       </>}
 
       {tab === "students" && <>
+        <Panel title="分组">
+          <div className="stack">
+            <div className="row">
+              <input className="input" style={{ width: 200 }} placeholder="新分组名称，如 第一组" value={newGroup} maxLength={60} aria-label="分组名称"
+                onChange={(e) => setNewGroup(e.target.value)} />
+              <button className="btn btn-primary" disabled={!newGroup.trim() || busy !== null} onClick={createGroup}>新建分组</button>
+            </div>
+            {data.groups.length > 0 && (
+              <div className="row" style={{ flexWrap: "wrap" }}>
+                {data.groups.map((g) => (
+                  <span className="status info" key={g.id}>{g.name}（{g.member_ids.length}人）
+                    <button className="btn-link btn small" style={{ marginLeft: 6 }} onClick={() => deleteGroup(g)}>删除</button></span>))}
+              </div>
+            )}
+            <span className="faint">每名学生最多属于一个分组；分组任务只对组内学生可见，按科室给不同分组布置不同病例。</span>
+          </div>
+        </Panel>
         <Panel title="导入学生">
           <div className="stack">
             <textarea className="textarea mono" value={roster} onChange={(e) => setRoster(e.target.value)} placeholder={"每行一名学生：账号,姓名\n2024001,张三\n2024002,李四"} aria-label="学生名单" />
@@ -153,9 +287,14 @@ function ClassDetail({ classId }: { classId: string }) {
         <Panel title={`学生名单（${data.members.length}）`} flush>
           {data.members.length === 0 ? <div className="empty">暂无学生</div> : (
             <div className="table-wrap"><table className="table">
-              <thead><tr><th>账号</th><th>姓名</th><th>账号状态</th><th className="num">训练次数</th><th className="num">已完成</th><th className="num">平均得分率</th><th /></tr></thead>
+              <thead><tr><th>账号</th><th>姓名</th><th>分组</th><th>账号状态</th><th className="num">训练次数</th><th className="num">已完成</th><th className="num">平均得分率</th><th /></tr></thead>
               <tbody>{data.members.map((m) => (
                 <tr key={m.id}><td className="mono">{m.username}</td><td>{m.display_name}</td>
+                  <td><select className="select" value={data.groups.find((g) => g.member_ids.includes(m.id))?.id || ""}
+                    aria-label={`${m.display_name} 的分组`} disabled={data.groups.length === 0}
+                    onChange={(e) => setMemberGroup(m, e.target.value)}>
+                    <option value="">未分组</option>{data.groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select></td>
                   <td>{m.disabled ? <span className="status bad">已停用</span> : m.must_change_password ? <span className="status warn">待首次登录</span> : <span className="status ok">正常</span>}</td>
                   <td className="num">{m.trainings}</td><td className="num">{m.sealed}</td><td className="num">{pct(m.average_ratio)}</td>
                   <td className="num" style={{ whiteSpace: "nowrap" }}>

@@ -86,7 +86,9 @@ def serve(data):
         assert response.status_code == 200, response.text
     klass = client.post("/api/teacher/classes", headers=headers, json={"name": "面板班"}).json()
     client.post(f"/api/teacher/classes/{klass['id']}/students", headers=headers,
-                json={"students": [{"username": "tpanel_student", "display_name": "面板学生"}]})
+                json={"students": [{"username": "tpanel_student", "display_name": "面板学生"},
+                                   {"username": "tpanel_student2", "display_name": "面板学生二"}]})
+    client.post("/api/teacher/classes", headers=headers, json={"name": "面板班二"})
     student_id = app_main.ACCOUNTS.find("tpanel_student")["id"]
 
     case = app_main.CASE_STORE.get_by_public_id("CASE-001")
