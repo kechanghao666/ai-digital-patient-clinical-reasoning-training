@@ -191,7 +191,7 @@ def test_cli_audit_read_on_missing_database_creates_nothing(tmp_path, monkeypatc
 
 # --- backup / restore consistency ---------------------------------------------
 
-def test_backup_restore_carries_sensitive_access_audit(tmp_path):
+def test_backup_restore_carries_sensitive_access_audit_and_budget(tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
     app_db = data_dir / "app.db"
@@ -202,8 +202,10 @@ def test_backup_restore_carries_sensitive_access_audit(tmp_path):
     audit.append("retention_preview", "local-ops", {"day": 30}, "success")
 
     from app.integration.turns import TurnStore
+    from app.turn_budget import read_budget, write_budget
 
     TurnStore(integration_db)  # create the required integration store with its schema
+    write_budget(accounts_db, 42)
 
     # The backup whitelist must accept the stores exactly as the application lays them out.
     backup_dir = tmp_path / "backup"
@@ -212,4 +214,5 @@ def test_backup_restore_carries_sensitive_access_audit(tmp_path):
     restore_backup(backup_dir, restore_dir, confirm_services_stopped=True)
 
     restored = SensitiveAccessAudit(restore_dir / "accounts.db").recent()
-    assert [row["action"] for row in restored] == ["retention_preview"]
+    assert [row["action"] for row in restored] == ["retention_preview", "turn_budget_updated"]
+    assert read_budget(restore_dir / "accounts.db")["daily_turn_limit"] == 42

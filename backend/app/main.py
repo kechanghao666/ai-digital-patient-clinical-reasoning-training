@@ -33,6 +33,7 @@ from .integration.nexent_client import NexentError
 from .integration.runtime import IntegrationRuntime
 from .integration.tools import validate_feedback_record
 from .integration.turns import read_stats
+from .turn_budget import read_budget as read_turn_budget
 from .models import (
     ActionKind,
     ActionRequest,
@@ -137,7 +138,10 @@ app.include_router(build_score_review_router(lambda: REPOSITORY, lambda: CASE_ST
                                             lambda: roster_for(ACCOUNTS)))
 app.include_router(build_dashboard_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: ACCOUNTS, current_teacher,
                                           lambda: roster_for(ACCOUNTS),
-                                          lambda owner_ids: read_stats(RUNTIME.settings.integration_db_path, owner_ids)))
+                                          lambda owner_ids, case_ids=None, date_from=None, date_to=None:
+                                          read_stats(RUNTIME.settings.integration_db_path, owner_ids,
+                                                     case_ids, date_from, date_to),
+                                          lambda: read_turn_budget(ACCOUNTS.path)))
 app.include_router(build_export_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: roster_for(ACCOUNTS),
                                        current_teacher, lambda: EXPORT_AUDIT))
 app.include_router(build_roster_router(lambda: roster_for(ACCOUNTS), lambda: ACCOUNTS, lambda: REPOSITORY, lambda: CASE_STORE,

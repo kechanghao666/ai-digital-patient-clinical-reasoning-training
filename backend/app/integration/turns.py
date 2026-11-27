@@ -3,16 +3,20 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import math
 import secrets
 import sqlite3
 import statistics
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from threading import RLock
 from typing import Any, Iterable, Iterator
 from uuid import uuid4
+
+from ..sensitive_access import parse_iso_date
 
 PATIENT = "patient"
 FEEDBACK = "feedback"
@@ -129,6 +133,15 @@ def _round_ms(value: float | None) -> int | None:
     return None if value is None else round(value * 1000)
 
 
+def _p95(values: list[float]) -> float | None:
+    """Nearest-rank 95th percentile (ceil(0.95*n) as a 1-based rank) — no interpolation claims."""
+    if not values:
+        return None
+    ordered = sorted(values)
+    rank = max(1, math.ceil(0.95 * len(ordered)))
+    return ordered[rank - 1]
+
+
 def _aggregate(turn_rows: list[sqlite3.Row], call_rows: list[sqlite3.Row]) -> dict[str, Any]:
     """Shared aggregation used by the in-process ``TurnStore.stats`` and the read-only ``read_stats``.
 
@@ -139,20 +152,27 @@ def _aggregate(turn_rows: list[sqlite3.Row], call_rows: list[sqlite3.Row]) -> di
       configured, NOT that a real vendor was called — a local fake Nexent uses the same mode).
     - ``tool_calls_failure_rate`` is a tool-call failure rate, not a model-request failure rate.
     - ``turn_completion`` is the wall-clock interval created_at -> finalized_at of one turn; it is
-      not first-word, model-inference or browser end-to-end latency.
+      not first-word, model-inference or browser end-to-end latency. ``p95`` is the nearest-rank
+      percentile over the same recorded intervals.
     - Negative intervals (wall clock moved backwards) are counted separately, never clamped to zero.
+    - ``by_case`` counts by the internal case id recorded at issue time; no case titles live here.
+    - ``turns_today`` counts turns issued since the server-local calendar-day boundary.
     - token usage and cost stay "unknown"; nothing is invented.
     """
     turns_total = len(turn_rows)
     by_kind: dict[str, int] = {}
     by_mode: dict[str, int] = {}
     by_status: dict[str, int] = {}
+    by_case: dict[str, int] = {}
     durations: list[float] = []
     negative_count = 0
     for row in turn_rows:
         by_kind[row["kind"]] = by_kind.get(row["kind"], 0) + 1
         by_mode[row["mode"]] = by_mode.get(row["mode"], 0) + 1
         by_status[row["status"]] = by_status.get(row["status"], 0) + 1
+        case_id = row["case_id"]
+        if case_id:
+            by_case[case_id] = by_case.get(case_id, 0) + 1
         if row["finalized_at"] is not None and row["created_at"] is not None:
             duration = row["finalized_at"] - row["created_at"]
             if duration < 0:
@@ -161,15 +181,21 @@ def _aggregate(turn_rows: list[sqlite3.Row], call_rows: list[sqlite3.Row]) -> di
                 durations.append(duration)
     calls_total = len(call_rows)
     calls_failed = sum(1 for row in call_rows if not row["ok"])
+    local_midnight = datetime.now().astimezone().replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+    turns_today = sum(1 for row in turn_rows if row["created_at"] is not None
+                      and row["created_at"] >= local_midnight)
     return {
         "coverage": "recorded trusted turns only (Nexent adapter path); the simulator path returns a "
                     "selection directly and never issues a turn",
         "adapter_mode_semantics": "nexent means the Nexent adapter was configured, not that a real "
                                   "vendor was called; a local fake Nexent uses the same mode",
         "turns_total": turns_total,
+        "turns_today": turns_today,
+        "turns_today_boundary": "server-local calendar day",
         "by_kind": by_kind,
         "by_adapter_mode": by_mode,
         "by_status": by_status,
+        "by_case": by_case,
         "tool_calls_total": calls_total,
         "tool_calls_failed": calls_failed,
         "tool_calls_failure_rate": round(calls_failed / calls_total, 4) if calls_total else None,
@@ -178,7 +204,9 @@ def _aggregate(turn_rows: list[sqlite3.Row], call_rows: list[sqlite3.Row]) -> di
             "negative_count": negative_count,
             "min_ms": _round_ms(min(durations)) if durations else None,
             "median_ms": _round_ms(statistics.median(durations)) if durations else None,
+            "p95_ms": _round_ms(_p95(durations)),
             "max_ms": _round_ms(max(durations)) if durations else None,
+            "p95_method": "nearest-rank",
         },
         "token_usage": "unknown",
         "cost": "unknown",
@@ -351,14 +379,18 @@ class TurnStore:
             ).fetchall()
         return [{"tool": r["tool"], "ok": bool(r["ok"]), "detail": r["detail"], "at": r["at"]} for r in rows]
 
-    def stats(self, owner_ids: Iterable[str] | None = None) -> dict[str, Any]:
+    def stats(self, owner_ids: Iterable[str] | None = None, case_ids: Iterable[str] | None = None,
+              date_from: str | None = None, date_to: str | None = None) -> dict[str, Any]:
         """Observability aggregate over recorded turns and tool calls (see ``_aggregate``).
 
         ``owner_ids`` restricts both the turn rows and the tool-call rows to the same set of owners,
-        so a scoped aggregate never mixes per-turn counts with full-store tool counts.
+        so a scoped aggregate never mixes per-turn counts with full-store tool counts. ``case_ids``
+        and the UTC ``date_from``/``date_to`` day range (inclusive) filter the same rows; the
+        tool-call rows always follow the turns that remain.
         """
+        filters = _validate_filters(case_ids, date_from, date_to)
         with self.lock, self._connect() as connection:
-            turn_rows, call_rows = _query_filtered(connection, owner_ids, "mode", "finalized_at")
+            turn_rows, call_rows = _query_filtered(connection, owner_ids, "mode", "finalized_at", *filters)
         return _aggregate(turn_rows, call_rows)
 
 
@@ -367,45 +399,84 @@ def empty_stats() -> dict[str, Any]:
     return _aggregate([], [])
 
 
+def _validate_filters(case_ids: Iterable[str] | None, date_from: str | None,
+                      date_to: str | None) -> tuple[list[str] | None, float | None, float | None]:
+    """Normalise case ids and the UTC day range into (case_ids, from_ts, to_ts).
+
+    ``date_from`` is inclusive and ``date_to`` inclusive as calendar days (the SQL bound for
+    ``date_to`` is the start of the following UTC day). Invalid values raise ``ValueError`` with a
+    client-safe message.
+    """
+    normalised_cases: list[str] | None = None
+    if case_ids is not None:
+        normalised_cases = [str(value) for value in dict.fromkeys(case_ids)]
+        if not normalised_cases or any(not value.strip() or len(value) > 128 for value in normalised_cases):
+            raise ValueError("病例筛选无效")
+    from_ts = to_ts = None
+    if date_from is not None:
+        from_ts = datetime.combine(parse_iso_date(date_from, "date_from"),
+                                   datetime.min.time(), tzinfo=timezone.utc).timestamp()
+    if date_to is not None:
+        to_ts = datetime.combine(parse_iso_date(date_to, "date_to") + timedelta(days=1),
+                                 datetime.min.time(), tzinfo=timezone.utc).timestamp()
+    if from_ts is not None and to_ts is not None and from_ts >= to_ts:
+        raise ValueError("日期范围无效：date_from 必须早于 date_to")
+    return normalised_cases, from_ts, to_ts
+
+
 def _query_filtered(connection: sqlite3.Connection, owner_ids: Iterable[str] | None,
-                    mode_expr: str, finalized_expr: str) -> tuple[list[sqlite3.Row], list[sqlite3.Row]]:
-    """Return (turn_rows, call_rows) with an optional owner filter; tool calls follow the same turns."""
+                    mode_expr: str, finalized_expr: str,
+                    case_ids: list[str] | None = None, from_ts: float | None = None,
+                    to_ts: float | None = None) -> tuple[list[sqlite3.Row], list[sqlite3.Row]]:
+    """Return (turn_rows, call_rows) with optional owner/case/day filters; tool calls follow the turns."""
     ids = None if owner_ids is None else list(dict.fromkeys(owner_ids))
-    if ids is None:
-        turn_rows = connection.execute(
-            f"SELECT kind, {mode_expr} AS mode, status, created_at, {finalized_expr} AS finalized_at FROM turns"
-        ).fetchall()
-        call_rows = connection.execute("SELECT ok FROM turn_calls").fetchall()
-    elif not ids:
-        return [], []
-    else:
-        placeholders = ",".join("?" * len(ids))
-        turn_rows = connection.execute(
-            f"SELECT kind, {mode_expr} AS mode, status, created_at, {finalized_expr} AS finalized_at "
-            f"FROM turns WHERE owner_id IN ({placeholders})", ids
-        ).fetchall()
-        call_rows = connection.execute(
-            f"SELECT ok FROM turn_calls WHERE turn_id IN "
-            f"(SELECT turn_id FROM turns WHERE owner_id IN ({placeholders}))", ids
-        ).fetchall()
+    conditions: list[str] = []
+    params: list[Any] = []
+    if ids is not None:
+        if not ids:
+            return [], []
+        conditions.append(f"owner_id IN ({','.join('?' * len(ids))})")
+        params.extend(ids)
+    if case_ids is not None:
+        if not case_ids:
+            return [], []
+        conditions.append(f"case_id IN ({','.join('?' * len(case_ids))})")
+        params.extend(case_ids)
+    if from_ts is not None:
+        conditions.append("created_at >= ?")
+        params.append(from_ts)
+    if to_ts is not None:
+        conditions.append("created_at < ?")
+        params.append(to_ts)
+    where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
+    turn_rows = connection.execute(
+        f"SELECT kind, case_id, {mode_expr} AS mode, status, created_at, {finalized_expr} AS finalized_at "
+        f"FROM turns{where}", params
+    ).fetchall()
+    call_rows = connection.execute(
+        f"SELECT ok FROM turn_calls WHERE turn_id IN (SELECT turn_id FROM turns{where})", params
+    ).fetchall()
     return turn_rows, call_rows
 
 
-def read_stats(path: str | Path, owner_ids: Iterable[str] | None = None) -> dict[str, Any]:
+def read_stats(path: str | Path, owner_ids: Iterable[str] | None = None,
+               case_ids: Iterable[str] | None = None, date_from: str | None = None,
+               date_to: str | None = None) -> dict[str, Any]:
     """Read-only aggregate over an *existing* turn store.
 
     Never creates the file, never initialises tables, never switches journal mode and never
-    migrates. ``owner_ids`` scopes both turn and tool-call rows to the same owners. Every failure
-    mode is reported with a short, client-safe ``reason``/``error`` that carries no filesystem path
-    or SQL detail (diagnostics stay server-side): a missing path, a non-SQLite file, a store without
-    the ``turns`` table, a store missing ``turn_calls``, and a store predating the observability
-    columns.
+    migrates. ``owner_ids`` scopes both turn and tool-call rows to the same owners; ``case_ids``
+    and the UTC ``date_from``/``date_to`` day range filter the same rows. Every failure mode is
+    reported with a short, client-safe ``reason``/``error`` that carries no filesystem path or SQL
+    detail (diagnostics stay server-side): a missing path, a non-SQLite file, a store without the
+    ``turns`` table, a store missing ``turn_calls``, and a store predating the observability columns.
 
     Returns ``{"ok": True, "stats": {...}}`` or ``{"ok": False, "reason": ..., "error": ...}``.
     """
     path = str(path)
     if not Path(path).is_file():
         return {"ok": False, "reason": "not_found", "error": "turn store not found"}
+    filters = _validate_filters(case_ids, date_from, date_to)
     connection = None
     try:
         connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
@@ -423,7 +494,7 @@ def read_stats(path: str | Path, owner_ids: Iterable[str] | None = None) -> dict
         mode_expr = "mode" if "mode" in columns else "'unknown'"
         finalized_expr = "finalized_at" if "finalized_at" in columns else "NULL"
         try:
-            turn_rows, call_rows = _query_filtered(connection, owner_ids, mode_expr, finalized_expr)
+            turn_rows, call_rows = _query_filtered(connection, owner_ids, mode_expr, finalized_expr, *filters)
         except sqlite3.OperationalError:
             return {"ok": False, "reason": "incomplete", "error": "turn store is missing a required table"}
     finally:

@@ -109,7 +109,8 @@ def build_dashboard(states, case_lookup, people) -> dict:
 
 
 def build_router(get_repository: Callable, get_cases: Callable, get_accounts: Callable, current_teacher: Callable,
-                 get_roster: Callable | None = None, get_turn_stats: Callable | None = None):
+                 get_roster: Callable | None = None, get_turn_stats: Callable | None = None,
+                 get_turn_budget: Callable | None = None):
     router = APIRouter(prefix="/api/teacher")
 
     @router.get("/dashboard")
@@ -120,10 +121,12 @@ def build_router(get_repository: Callable, get_cases: Callable, get_accounts: Ca
         return build_dashboard(states, get_cases().get, people)
 
     @router.get("/observability")
-    def observability(teacher_id: str = Depends(current_teacher)) -> dict:
+    def observability(teacher_id: str = Depends(current_teacher), case_id: str | None = None,
+                      date_from: str | None = None, date_to: str | None = None) -> dict:
         # Read-only, teacher-only observability over the trusted turn/call store. A teacher sees
         # only the trusted turns of the students enrolled in their own classes (the existing
-        # class-ownership relationship); tool-call stats follow the same scoped turns. Distinguish
+        # class-ownership relationship); tool-call stats follow the same scoped turns. Optional
+        # case/date filters narrow the same scoped rows — they never widen the scope. Distinguish
         # "no data yet" (store absent / no turns table) from "statistics unavailable" (corrupted
         # or incomplete store): the former is a legitimate empty state, the latter is an error.
         if get_turn_stats is None:
@@ -135,14 +138,44 @@ def build_router(get_repository: Callable, get_cases: Callable, get_accounts: Ca
             # diagnostic server-side. Never fall back to the full library here.
             logger.warning("observability roster lookup failed for teacher=%s: %s", teacher_id, type(exc).__name__)
             raise HTTPException(503, "统计暂不可用") from exc
-        result = get_turn_stats(owner_ids)
-        if result.get("ok"):
-            return {"ok": True, "stats": result["stats"]}
-        if result.get("reason") in ("not_found", "not_initialized"):
-            return {"ok": True, "stats": empty_stats(), "store_note": result.get("error")}
-        raise HTTPException(503, result.get("error", "统计暂不可用"))
+        case_ids = [case_id] if case_id else None
+        try:
+            result = get_turn_stats(owner_ids, case_ids, date_from, date_to)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        except Exception as exc:
+            logger.warning("observability stats failed for teacher=%s: %s", teacher_id, type(exc).__name__)
+            raise HTTPException(503, "统计暂不可用") from exc
+        if not result.get("ok") and result.get("reason") not in ("not_found", "not_initialized"):
+            raise HTTPException(503, result.get("error", "统计暂不可用"))
+        stats = result["stats"] if result.get("ok") else empty_stats()
+        body: dict = {"ok": True, "stats": stats}
+        if not result.get("ok"):
+            body["store_note"] = result.get("error")
+        budget, budget_note = _budget(get_turn_budget, stats.get("turns_today"))
+        if budget_note:
+            body["budget_note"] = budget_note
+        if budget is not None or get_turn_budget is not None:
+            body["budget"] = budget
+        return body
 
     return router
+
+
+def _budget(get_turn_budget: Callable | None, turns_today: int | None) -> tuple[dict | None, str | None]:
+    """Load the configured budget and merge today's count; failures degrade to a note, never a claim."""
+    from .turn_budget import budget_status
+
+    if get_turn_budget is None:
+        return None, None
+    try:
+        config = get_turn_budget()
+    except Exception as exc:
+        logger.warning("turn budget lookup failed: %s", type(exc).__name__)
+        return None, "预算配置不可用"
+    if config is None:
+        return None, None
+    return budget_status(config, turns_today), None
 
 
 def _teacher_member_ids(get_roster: Callable | None, teacher_id: str) -> list[str]:
