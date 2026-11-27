@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "round": "2026-11-28 M3/M11 课程/任务模板复用、批量布置与分组",
+  "final_product_sha": "9dc0c6e (feature commits 2fce0be + 9dc0c6e; docs commit follows)",
+  "batches": {
+    "full_pytest": {
+      "passed": 935,
+      "failed": 1,
+      "seconds": 343.86,
+      "python": "3.11.18",
+      "command": ".venv/Scripts/python.exe -m pytest -q",
+      "failed_test": "tests/test_nexent_deadlines.py::test_total_deadline_interrupts_real_socket_waits[trickle]",
+      "flaky_note": "与既有批次同类超时偶发；单文件复跑 31/31、指定用例复跑 3/3 通过；未放宽任何时序断言",
+      "log": "local-only/full-pytest-m3m11-20261128.log"
+    },
+    "specialized": {
+      "files": [
+        "tests/test_roster.py",
+        "tests/test_roster_templates.py"
+      ],
+      "passed": 14,
+      "failed": 0
+    },
+    "engineering_samples": {
+      "samples": 12,
+      "complete": 12,
+      "engineering_pass": 12,
+      "code_sha_note": "本批在提交 9dc0c6e 前的干净工作树上运行（脚本记录 HEAD=5d7f5f5）；最终 SHA 的 CI 将再次运行",
+      "original_database_unchanged": true
+    },
+    "browser": {
+      "probe": "web/e2e/teacher-panel.mjs",
+      "checks_total": 39,
+      "passed": 39,
+      "new_m3m11_checks": 10,
+      "evidence": "docs/evidence/2026-11-28-m3m11-templates/teacher-panel-run.json",
+      "screenshot": "docs/evidence/2026-11-28-m3m11-templates/class-templates-groups.png",
+      "main_js_sha256": "见 run.json"
+    },
+    "frontend": {
+      "typecheck": "pass",
+      "build": "pass",
+      "npm_audit": "0 vulnerabilities"
+    },
+    "compileall": "pass"
+  },
+  "real_provider_calls": 0,
+  "business_database_touched": false,
+  "scope_and_limits": [
+    "模板按教师隔离；批量布置/跨班复制在创建前校验全部目标班级归属，任一非自有班级则整体 404 且不产生任何任务",
+    "重复布置按（班级，病例）幂等跳过；分组任务不跨班复制并单独报告",
+    "分组任务仅组内学生可见、进度按组分母统计；组外学生显示不适用",
+    "assignments.group_id 无外键：删除分组不被归档历史阻塞，归档任务仅丢失分组显示",
+    "学期/轮转/带教/成绩册为 M3 剩余项；本轮成绩册 CSV 已含分组列"
+  ]
+}
