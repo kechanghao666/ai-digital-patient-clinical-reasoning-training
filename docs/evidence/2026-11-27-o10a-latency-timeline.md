@@ -33,3 +33,7 @@
 先用零供应商调用的假平台/浏览器链路加入关联观测：请求进入、MCP 选择提交落库、可信完成检查、适配器 finalize、正文授权校验、会话保存、API 返回；同进程用 monotonic，同请求用 request_id，跨进程另说明时钟来源和同步误差。只记录时点/状态，不记令牌、密钥或模型原文。
 
 在提交前、提交后等待事件、校验后分别注入延迟，测量 DOM、失败无正文、保存一致及重试幂等。先定位，再决定是否需要改变唤醒机制；不得为缩短首字时间绕过授权、状态版本或保存检查。真实平台复测需新的明确调用预算。本轮没有改变线上协议、默认模型或这些保护。
+
+## 已落地的关联观测点（本轮）
+
+服务端 `/api/sessions/{id}/ask` 响应 `timing.stages` 与持久事件 `result.server_stage_ms` 现在按同一 `request_id` 记录 monotonic 毫秒：`request_entry`、`classified`、`selected`、`validated`、`saved`；持久事件快照到 `validated`，`saved` 仅在返回前补齐。适配器 `trace` 增加 `trusted_completion_ms`（本地可信提交首次被观察到）与 `finalize_ms`（回合 finalize）。以上只记时点/状态，不含令牌、密钥或模型原文，由 `tests/test_integration.py::test_ask_records_request_scoped_stage_and_trace_timestamps` 锁定。下一次真实测量浏览器记录里这些时点与 `clickT/postT/visibleT/paintT` 即可逐段拆开，替换上面的估计区间；真实平台复测仍需新的明确调用预算。

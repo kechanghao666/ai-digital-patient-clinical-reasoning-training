@@ -44,6 +44,10 @@ class NexentRun:
     total_ms: int = 0
     stopped: bool = False
     trusted_completion: bool = False
+    # Monotonic milliseconds since the run started, when the trusted local turn was first observed
+    # as submitted (the local `submit_fact_selection` landed). None when the run ended by the model
+    # stream completing instead.
+    trusted_completion_ms: int | None = None
 
 
 class NexentClient:
@@ -112,6 +116,7 @@ class NexentClient:
         failure_event: str | None = None
         failure_detail: str = ""
         completed_by_tool = False
+        trusted_completion_ms: int | None = None
         async with self._client(self.settings.first_event_timeout_s) as client:
             client_ready_ms = int((time.monotonic() - started) * 1000)
             try:
@@ -162,6 +167,7 @@ class NexentClient:
                                 if event_type in {"execution_logs", "execution_result"} and trusted_completion and trusted_completion():
                                     completed_by_tool = True
                                     final_text = ""
+                                    trusted_completion_ms = int((time.monotonic() - started) * 1000)
                                     break
                                 if event_type == "final_answer":
                                     content = event.get("content")
@@ -211,6 +217,7 @@ class NexentClient:
             first_event_ms=first_event_ms, first_final_event_ms=first_final_event_ms,
             total_ms=int((time.monotonic() - started) * 1000),
             trusted_completion=completed_by_tool,
+            trusted_completion_ms=trusted_completion_ms,
         )
 
     async def _best_effort_stop(self, client: httpx.AsyncClient, conversation_id: int | None, deadline: float) -> str:

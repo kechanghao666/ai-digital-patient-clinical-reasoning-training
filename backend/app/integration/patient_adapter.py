@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from ..adapters import PatientSelection, PatientTurnRequest
 from .config import IntegrationSettings
@@ -26,6 +27,7 @@ class NexentPatientAdapter:
         self.client = client or NexentClient(settings)
 
     def select_facts(self, request: PatientTurnRequest) -> PatientSelection:
+        started = time.monotonic()
         turn, token = self.turns.issue(
             kind=turn_states.PATIENT,
             owner_id=request.owner_id,
@@ -71,9 +73,11 @@ class NexentPatientAdapter:
             "platform_first_final_event_ms": run.first_final_event_ms,
             "total_ms": run.total_ms,
             "trusted_completion": run.trusted_completion,
+            "trusted_completion_ms": run.trusted_completion_ms,
             "tool_calls": [{"tool": c["tool"], "ok": c["ok"]} for c in calls],
         }
         if current.status == turn_states.SUBMITTED and self.turns.finalize(turn.turn_id):
+            trace["finalize_ms"] = int((time.monotonic() - started) * 1000)
             ids = list((current.submission or {}).get("fact_ids", []))
             return PatientSelection(fact_ids=ids, source="nexent", trace=trace)
         self.turns.cancel(turn.turn_id, "no_selection")

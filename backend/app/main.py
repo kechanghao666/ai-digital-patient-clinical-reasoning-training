@@ -447,9 +447,16 @@ def session_detail(session_id: str, owner_id: str = Depends(current_owner)) -> d
 @app.post("/api/sessions/{session_id}/ask")
 def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_owner)) -> dict:
     started = time.monotonic()
+    # Monotonic stage stamps for the same request; never a credential, token or model text.
+    stage_ms: dict[str, int] = {"request_entry": 0}
+
+    def mark(stage: str) -> None:
+        stage_ms[stage] = int((time.monotonic() - started) * 1000)
+
     state = get_state(session_id, owner_id)
     case = CASE_STORE.get(state.case_id, state.case_version)
     visible, turn_kind = classify_turn(state, request.question, case.facts)
+    mark("classified")
     before = state.model_copy(deep=True)
     try:
         result = MACHINE._check_request(state, request.request_id, {"action": "ask", "question": request.question})
@@ -481,6 +488,7 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
             raise HTTPException(status_code=502, detail="患者适配器暂不可用") from exc
     else:
         selection = PatientSelection(fact_ids=[], source="local_no_candidates")
+    mark("selected")
     prior_answer_atoms = {
         atom_id
         for previous_event in state.events
@@ -495,6 +503,7 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
         rendered = non_fact_reply(request.question, turn_kind) or rendered
     answer, selected_fact_ids, was_fallback = authorized_answer_or_fallback(rendered, selected, case)
     answer_validated_ms = int((time.monotonic() - started) * 1000)
+    mark("validated")
     selection.trace["answer_validated_ms"] = answer_validated_ms
     was_fallback = was_fallback or (bool(visible) and not selected)
     answer_atom_ids = [
@@ -524,6 +533,7 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
             "fallback": was_fallback,
             "turn_kind": turn_kind if answer_atom_ids or not visible else "fallback",
             "adapter": {"source": selection.source, "trace": selection.trace},
+            "server_stage_ms": stage_ms,
         },
         intent=request.question,
         fact_ids=final_fact_ids,
@@ -538,12 +548,14 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
         REPOSITORY.save(state, expected_version=before.state_version)
     except ConcurrentUpdateError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
+    mark("saved")
     return {
         "answer": answer,
         "event": safe_event(event, case),
         "disclosed_fact_count": len(final_fact_ids),
         "timing": {"replayed": False, "answer_validated_ms": answer_validated_ms,
-                   "api_ready_ms": int((time.monotonic() - started) * 1000)},
+                   "api_ready_ms": int((time.monotonic() - started) * 1000),
+                   "stages": stage_ms},
     }
 
 

@@ -219,6 +219,42 @@ def test_answer_waits_for_platform_wakeup_validation_and_save(tmp_path, monkeypa
     assert len(env.stored_events(sid)) == len(env.runs) == 1
 
 
+def test_ask_records_request_scoped_stage_and_trace_timestamps(tmp_path, monkeypatch):
+    """Ask response + persisted event carry monotonic stage stamps; no token or model text leaks."""
+
+    def agent(request, body, service):
+        token = token_of(body)
+        assert service.get_turn_context(token)["ok"]
+        assert service.submit_fact_selection(token, ["f_hx_htn"])["ok"]
+        return httpx.Response(
+            200,
+            headers={"content-type": "text/event-stream", "conversation_id": "42"},
+            content=sse({"type": "execution_result", "content": "submitted"}),
+        )
+
+    env = Env(tmp_path, monkeypatch, agent)
+    sid = env.new_session()
+    response = env.ask(sid, "有高血压吗", "r-stages")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    stages = body["timing"]["stages"]
+    for key in ("request_entry", "classified", "selected", "validated", "saved"):
+        assert isinstance(stages[key], int) and stages[key] >= 0
+    assert stages["request_entry"] == 0
+    values = [stages[k] for k in ("request_entry", "classified", "selected", "validated", "saved")]
+    assert values == sorted(values) and values[-1] <= body["timing"]["api_ready_ms"]
+    assert "turn_token" not in json.dumps(stages, ensure_ascii=False)
+    event = env.stored_events(sid)[0]
+    persisted_stages = event.result["server_stage_ms"]
+    # The persisted event snapshots the stages up to validation; "saved" is stamped after save.
+    for key in ("request_entry", "classified", "selected", "validated"):
+        assert persisted_stages[key] == stages[key]
+    assert "saved" not in persisted_stages
+    trace = event.result["adapter"]["trace"]
+    assert isinstance(trace["trusted_completion_ms"], int)
+    assert isinstance(trace["finalize_ms"], int)
+
+
 def test_questions_without_authorized_facts_do_not_call_the_model(tmp_path, monkeypatch):
     env = Env(tmp_path, monkeypatch)
     sid = env.new_session()
