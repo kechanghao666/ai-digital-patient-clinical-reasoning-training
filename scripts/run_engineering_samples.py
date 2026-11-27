@@ -140,7 +140,7 @@ for number in range(1, 13):
         coverage = main.RUNTIME.knowledge.coverage(case.case_id, case.version)
         if coverage['missing_clinical_stages']:
             report['clinical_limitations'].append('缺适用专科临床依据：' + '、'.join(coverage['missing_clinical_stages']))
-        if public_id == 'CASE-003':
+        if public_id == 'CASE-003' and case.version == 1:
             report['clinical_limitations'].append('v1主诉1小时与问诊1.5小时、09:30起病时轴未统一。')
         if public_id == 'CASE-005':
             report['clinical_limitations'].append('合并补液/胰岛素动作未充分判断安全证据与适用性。')

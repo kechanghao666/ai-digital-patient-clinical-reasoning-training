@@ -18,15 +18,9 @@ npm run watch      # 开发时监听源码，保存后自动重建；刷新浏�
 
 ## 端到端检查
 
-`e2e/smoke.mjs` 用 playwright-core 走一遍完整流程：学生登录、问诊、开单、病历、鉴别、诊断、处置、封存、复盘，再由教师查看看板、做评分复核和病例管理，并截图。运行前需先启动 API（local 账号模式），并准备学生账号和教师账号各一个：
+在项目根目录运行 `.\.venv\Scripts\python.exe web/e2e/demo.py`。启动器使用全新临时数据、随机端口、合成账号和规则模拟器，自动运行师生13步完整流程并截图，结束后停服清理。无需提供现存教师密码，不连接已有服务。用 `--record` 录制带字幕的3–8分钟演示，需本机已有 ffmpeg；显式输出目录必须全新。详情见[演示说明](../docs/demo-20261209.md)。
 
-```powershell
-$env:BASE='http://127.0.0.1:8000'; $env:OUT='shots'; $env:CHROME='C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
-$env:STUDENT_PW='…'; $env:TEACHER_PW='…'
-node e2e/smoke.mjs
-```
-
-脚本默认使用的账号名是 `student` 和 `teacher`。最近一次运行的截图和结果见 `docs/evidence/web-redesign-20261113/`。
+`e2e/smoke.mjs` 是启动器调用的内部步骤脚本，失败会以非零状态退出；不可据进程正常退出以外的信息假定通过，还须查看 `run.json` 的逐项结果。
 
 学生问诊保存回执回归：使用 Node.js 20+、项目 Python 虚拟环境和本机 Chromium 浏览器。完成 `npm ci`、`npm run build` 后，在 `web/` 下运行 `node e2e/ask-saved-answer.mjs`。脚本自行启动本机合成病例服务，不需要登录或供应商密钥。可用 `CHROME` 指定浏览器；默认在系统临时目录新建报告目录，显式 `OUT` 应指定一个尚不存在的目录。验收按事件先后，不以毫秒阈值判定模型性能。
 

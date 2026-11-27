@@ -163,6 +163,62 @@ def test_nexent_selection_subset_is_rendered_by_backend(tmp_path, monkeypatch):
     assert sid not in json.dumps(env.runs[0], ensure_ascii=False)
 
 
+@pytest.mark.parametrize("pause_at", ["before_submission", "after_submission", "after_validation"])
+def test_answer_waits_for_platform_wakeup_validation_and_save(tmp_path, monkeypatch, pause_at):
+    """A submitted selection is not yet a saved answer; no real platform or timing threshold."""
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+
+    paused, release = threading.Event(), threading.Event()
+    observed = []
+
+    def pause(stage):
+        observed.append(stage)
+        if stage == pause_at:
+            paused.set()
+            assert release.wait(5), "test did not release the controlled wait"
+
+    def agent(request, body, service):
+        class Stream(httpx.AsyncByteStream):
+            async def __aiter__(self):
+                token = token_of(body)
+                assert service.get_turn_context(token)["ok"]
+                yield sse({"type": "model_output_thinking", "content": "untrusted draft"})
+                await asyncio.to_thread(pause, "before_submission")
+                assert service.submit_fact_selection(token, ["f_hx_htn"])["ok"]
+                await asyncio.to_thread(pause, "after_submission")
+                yield sse({"type": "execution_result", "content": "submitted"})
+        return httpx.Response(200, headers={"conversation_id": "42"}, stream=Stream())
+
+    env = Env(tmp_path, monkeypatch, agent)
+    sid = env.new_session()
+    original = main.authorized_answer_or_fallback
+
+    def validate(*args, **kwargs):
+        result = original(*args, **kwargs)
+        pause("after_validation")
+        return result
+
+    monkeypatch.setattr(main, "authorized_answer_or_fallback", validate)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(env.ask, sid, "有高血压吗", "controlled-wait")
+        try:
+            assert paused.wait(5)
+            assert not future.done()
+            assert env.stored_events(sid) == []
+            if pause_at == "after_submission":
+                assert "after_validation" not in observed
+        finally:
+            release.set()
+        response = future.result(timeout=5)
+    assert response.status_code == 200, response.text
+    assert response.json()["answer"] == "有高血压10年。"
+    assert env.stored_events(sid)[0].result["answer"] == response.json()["answer"]
+    replay = env.ask(sid, "有高血压吗", "controlled-wait")
+    assert replay.json()["event"]["event_id"] == response.json()["event"]["event_id"]
+    assert len(env.stored_events(sid)) == len(env.runs) == 1
+
+
 def test_questions_without_authorized_facts_do_not_call_the_model(tmp_path, monkeypatch):
     env = Env(tmp_path, monkeypatch)
     sid = env.new_session()
