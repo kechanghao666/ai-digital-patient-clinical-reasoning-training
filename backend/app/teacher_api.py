@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+import sqlite3
 from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from .accounts import AccountStore, ReviewerQualificationError
 from .case_authoring import Issue, check_case, has_errors, schema_errors
 from .case_store import CaseStore, CaseStoreError
 from .department_catalog import catalog_for_teacher, get_parent_department, map_legacy_specialty
@@ -22,9 +24,8 @@ from .storage import ConcurrentUpdateError
 
 class PublishRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    reviewer: str
     review_date: str
-    confirm_medical_review: bool
+    confirm_medical_review: bool = Field(strict=True)
 
 
 class StopTrainingRequest(BaseModel):
@@ -62,7 +63,8 @@ def _summary(case: CaseDefinition) -> dict[str, Any]:
 
 def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[..., str],
                  get_knowledge: Callable[[], KnowledgeStore],
-                 get_training: Callable[[], CaseTrainingStore]) -> APIRouter:
+                 get_training: Callable[[], CaseTrainingStore],
+                 get_accounts: Callable[[], AccountStore]) -> APIRouter:
     router = APIRouter(prefix="/api/teacher", tags=["teacher"])
 
     def checked_issues(
@@ -103,6 +105,26 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
             issues.append(Issue("warning", "missing_clinical_basis",
                                 "缺少适用于当前病例的专科临床依据：" + "、".join(missing) + "；通用反馈规范不能替代。"))
         return issues
+
+    @router.get("/reviewer-qualifications")
+    def reviewer_qualifications(teacher_id: str = Depends(current_teacher)) -> dict[str, Any]:
+        try:
+            account = get_accounts().get(teacher_id)
+        except KeyError:
+            return {"account_linked": False, "records": [], "server_today": date.today().isoformat()}
+        except sqlite3.Error as exc:
+            raise HTTPException(status_code=503, detail="审核资质暂不可读取") from exc
+        try:
+            records = get_accounts().reviewer_qualifications_for_account(teacher_id)
+        except sqlite3.Error as exc:
+            raise HTTPException(status_code=503, detail="审核资质暂不可读取") from exc
+        return {
+            "server_today": date.today().isoformat(),
+            "account_linked": account["role"] == "teacher" and not account["disabled"],
+            "account_id": teacher_id,
+            "display_name": account["display_name"],
+            "records": records,
+        }
 
     @router.get("/department-catalog")
     def department_catalog(_: str = Depends(current_teacher)) -> dict[str, Any]:
@@ -183,7 +205,8 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
         raw = dict(raw)
         raw.setdefault("public_id", store.next_public_id())
         raw.setdefault("version", 1)
-        raw.setdefault("review_status", "draft")
+        raw.update(review_status="draft", reviewer=None, review_date=None,
+                   reviewer_account_id=None, reviewer_qualification_id=None)
         case = _parse_case(raw)
         versions = store.versions(case.case_id)
         is_new_case = not versions
@@ -244,17 +267,40 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
     def publish(case_id: str, version: int, request: PublishRequest,
                 actor_id: str = Depends(current_teacher)) -> dict[str, Any]:
         if not request.confirm_medical_review:
-            raise HTTPException(status_code=422, detail="发布须由负责人确认已完成真实的医学审核")
+            raise HTTPException(status_code=422, detail="发布须确认已完成真实的医学审核")
         try:
             reviewed_on = date.fromisoformat(request.review_date)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail="review_date 须为 YYYY-MM-DD") from exc
+        if reviewed_on.isoformat() != request.review_date:
+            raise HTTPException(status_code=422, detail="review_date 须为 YYYY-MM-DD")
         if reviewed_on > date.today():
             raise HTTPException(status_code=422, detail="审核日期不能晚于今天")
-        return _transition(
-            case_id, version, ReviewStatus.PUBLISHED, actor_id,
-            reviewer=request.reviewer, review_date=request.review_date,
-        )
+        store = get_store()
+        try:
+            case = store.get(case_id, version)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="病例版本不存在") from exc
+        if not store.is_teacher_case(case_id, version):
+            raise HTTPException(status_code=409, detail="只有教师病例副本可以发布")
+        department_code, subspecialty_code = case.department_code, case.subspecialty_code
+        if not department_code and not subspecialty_code:
+            department_code, subspecialty_code = map_legacy_specialty(case.specialty)
+        try:
+            with get_accounts().verified_reviewer_for_publication(
+                actor_id, department_code, subspecialty_code, request.review_date
+            ) as reviewer:
+                return _transition(
+                    case_id, version, ReviewStatus.PUBLISHED, actor_id,
+                    reviewer=reviewer["display_name"],
+                    review_date=request.review_date,
+                    reviewer_account_id=reviewer["account_id"],
+                    reviewer_qualification_id=reviewer["qualification_id"],
+                )
+        except ReviewerQualificationError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except sqlite3.Error as exc:
+            raise HTTPException(status_code=503, detail="审核资质暂不可校验，未执行发布") from exc
 
     @router.get("/cases/{case_id}/versions/{version}/audit")
     def case_audit(case_id: str, version: int, _: str = Depends(current_teacher)) -> list[dict[str, Any]]:

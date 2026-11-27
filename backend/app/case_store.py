@@ -232,6 +232,8 @@ class CaseStore:
         status_from: ReviewStatus | None = None,
         reviewer: str | None = None,
         review_date: str | None = None,
+        reviewer_account_id: str | None = None,
+        reviewer_qualification_id: str | None = None,
     ) -> None:
         if self.teacher_dir is None:
             raise CaseStoreError("teacher case storage is not configured")
@@ -253,6 +255,10 @@ class CaseStore:
             event["reviewer_label"] = reviewer
         if review_date is not None:
             event["review_date"] = review_date
+        if reviewer_account_id is not None:
+            event["reviewer_account_id"] = reviewer_account_id
+        if reviewer_qualification_id is not None:
+            event["reviewer_qualification_id"] = reviewer_qualification_id
         path = self.teacher_dir / "case-audit.jsonl"
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("a", encoding="utf-8") as stream:
@@ -268,6 +274,8 @@ class CaseStore:
         status_from: ReviewStatus | None = None,
         reviewer: str | None = None,
         review_date: str | None = None,
+        reviewer_account_id: str | None = None,
+        reviewer_qualification_id: str | None = None,
     ) -> None:
         key = (case.case_id, case.version)
         previous = self._cases.get(key)
@@ -281,7 +289,8 @@ class CaseStore:
             raise CaseStoreError("无法读取病例审计记录状态，未保存病例变更") from exc
         self._write(case)
         try:
-            self._append_audit(case, action, actor_id, status_from, reviewer, review_date)
+            self._append_audit(case, action, actor_id, status_from, reviewer, review_date,
+                               reviewer_account_id, reviewer_qualification_id)
         except (OSError, UnicodeError) as exc:
             rollback_errors = []
             try:
@@ -334,6 +343,8 @@ class CaseStore:
                     "review_status": ReviewStatus.DRAFT,
                     "reviewer": None,
                     "review_date": None,
+                    "reviewer_account_id": None,
+                    "reviewer_qualification_id": None,
                     "authored_by": teacher_id,
                     "source_case_id": source_case_id,
                     "source_version": source_version,
@@ -351,6 +362,8 @@ class CaseStore:
         actor_id: str,
         reviewer: str | None = None,
         review_date: str | None = None,
+        reviewer_account_id: str | None = None,
+        reviewer_qualification_id: str | None = None,
     ) -> CaseDefinition:
         with self._lock:
             if not self.is_teacher_case(case_id, version):
@@ -366,11 +379,20 @@ class CaseStore:
                 raise CaseStoreError(f"cannot change status from {case.review_status.value} to {to_status.value}")
             update: dict = {"review_status": to_status}
             if to_status == ReviewStatus.PUBLISHED:
-                if not reviewer or not reviewer.strip() or not review_date or not review_date.strip():
-                    raise CaseStoreError("publishing requires a real reviewer name and review date")
-                update.update(reviewer=reviewer.strip(), review_date=review_date.strip())
+                if (not reviewer or not reviewer.strip() or not review_date or not review_date.strip()
+                        or not reviewer_account_id or not reviewer_qualification_id):
+                    raise CaseStoreError("publishing requires a bound reviewer account and qualification")
+                update.update(
+                    reviewer=reviewer.strip(),
+                    review_date=review_date.strip(),
+                    reviewer_account_id=reviewer_account_id,
+                    reviewer_qualification_id=reviewer_qualification_id,
+                )
             if to_status == ReviewStatus.DRAFT:
-                update.update(reviewer=None, review_date=None)
+                update.update(
+                    reviewer=None, review_date=None,
+                    reviewer_account_id=None, reviewer_qualification_id=None,
+                )
             updated = CaseDefinition.model_validate(case.model_copy(update=update).model_dump())
             action = {
                 ReviewStatus.VALIDATED: "case_validated",
@@ -382,5 +404,7 @@ class CaseStore:
                 updated, action, actor_id, case.review_status,
                 reviewer if to_status == ReviewStatus.PUBLISHED else None,
                 review_date if to_status == ReviewStatus.PUBLISHED else None,
+                reviewer_account_id if to_status == ReviewStatus.PUBLISHED else None,
+                reviewer_qualification_id if to_status == ReviewStatus.PUBLISHED else None,
             )
             return updated

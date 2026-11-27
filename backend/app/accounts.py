@@ -10,11 +10,13 @@ import sqlite3
 import time
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Header, HTTPException, Request, Response
 from pydantic import BaseModel, Field, SecretStr
+
+from .department_catalog import get_parent_department, validate_department_code, validate_subspecialty_code
 
 ITERATIONS = 600_000
 SESSION_SECONDS = 8 * 60 * 60
@@ -40,6 +42,10 @@ def password_digest(password, salt):
 def check_password(password):
     if not 12 <= len(password) <= 128:
         raise ValueError("密码长度须为 12–128 个字符")
+
+
+class ReviewerQualificationError(ValueError):
+    """Publication cannot proceed without a currently verified, in-scope qualification."""
 
 
 def token_digest(token):
@@ -72,6 +78,36 @@ class AccountStore:
                     target_account_id TEXT NOT NULL,
                     actor_id TEXT NOT NULL,
                     entry TEXT NOT NULL CHECK(entry IN ('teacher_api', 'cli'))
+                );
+                CREATE TABLE IF NOT EXISTS reviewer_qualifications (
+                    qualification_id TEXT PRIMARY KEY,
+                    account_id TEXT NOT NULL REFERENCES accounts(id),
+                    department_code TEXT NOT NULL,
+                    subspecialty_code TEXT,
+                    valid_from TEXT NOT NULL,
+                    valid_until TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN (
+                        'pending_verification', 'active', 'suspended', 'revoked'
+                    )),
+                    external_verification_confirmed INTEGER NOT NULL DEFAULT 0,
+                    verified_by TEXT,
+                    verified_at TEXT,
+                    created_by TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS reviewer_qualifications_account_idx
+                    ON reviewer_qualifications(account_id, status, valid_until);
+                CREATE TABLE IF NOT EXISTS reviewer_qualification_audit (
+                    occurred_at TEXT NOT NULL,
+                    qualification_id TEXT NOT NULL REFERENCES reviewer_qualifications(qualification_id),
+                    target_account_id TEXT NOT NULL,
+                    operation TEXT NOT NULL CHECK(operation IN (
+                        'reviewer_qualification_created', 'reviewer_qualification_status_changed'
+                    )),
+                    actor_id TEXT NOT NULL CHECK(actor_id='local-ops'),
+                    entry TEXT NOT NULL CHECK(entry='cli'),
+                    status_from TEXT,
+                    status_to TEXT NOT NULL
                 );
             """)
             columns = {row["name"] for row in db.execute("PRAGMA table_info(accounts)")}
@@ -151,6 +187,200 @@ class AccountStore:
                 return []
             rows = connection.execute("""SELECT occurred_at, operation, target_account_id, actor_id, entry
                 FROM account_management_audit ORDER BY rowid DESC LIMIT ?""", (limit,)).fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            connection.close()
+
+    @staticmethod
+    def _validate_qualification_date(value, name):
+        if not isinstance(value, str):
+            raise ValueError(f"{name} 必须为 YYYY-MM-DD")
+        try:
+            parsed = date.fromisoformat(value)
+        except ValueError as exc:
+            raise ValueError(f"{name} 必须为 YYYY-MM-DD") from exc
+        if parsed.isoformat() != value:
+            raise ValueError(f"{name} 必须为 YYYY-MM-DD")
+        return parsed
+
+    @staticmethod
+    def _require_local_operator(actor_id, entry):
+        if actor_id != "local-ops" or entry != "cli":
+            raise PermissionError("审核资质只能通过本机运维 CLI 管理")
+
+    @staticmethod
+    def _append_qualification_audit(db, qualification_id, account_id, operation,
+                                    status_from, status_to, actor_id, entry):
+        AccountStore._require_local_operator(actor_id, entry)
+        occurred_at = datetime.now(timezone.utc).isoformat(timespec="microseconds")
+        db.execute("""INSERT INTO reviewer_qualification_audit
+            (occurred_at, qualification_id, target_account_id, operation, actor_id, entry,
+             status_from, status_to) VALUES (?,?,?,?,?,?,?,?)""",
+                   (occurred_at, qualification_id, account_id, operation, actor_id, entry,
+                    status_from, status_to))
+
+    def create_reviewer_qualification(self, username, department_code, subspecialty_code,
+                                      valid_from, valid_until, *, actor_id="local-ops", entry="cli"):
+        """Create an immutable-scope qualification record in pending state.
+
+        Activation is deliberately a separate operator action that requires an explicit
+        attestation that the source credential was checked outside this application.
+        """
+        self._require_local_operator(actor_id, entry)
+        start = self._validate_qualification_date(valid_from, "valid_from")
+        end = self._validate_qualification_date(valid_until, "valid_until")
+        if end < start:
+            raise ValueError("资质有效期结束日期早于开始日期")
+        if not validate_department_code(department_code):
+            raise ValueError("资质科室编码无效")
+        if subspecialty_code is not None and (
+            not validate_subspecialty_code(subspecialty_code)
+            or get_parent_department(subspecialty_code) != department_code
+        ):
+            raise ValueError("资质亚专科必须是所选科室下的受控目录项")
+
+        qualification_id = "reviewer-qualification-" + str(uuid.uuid4())
+        now = datetime.now(timezone.utc).isoformat(timespec="microseconds")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            account = db.execute("SELECT id,role FROM accounts WHERE username=?",
+                                 (normalize_username(username),)).fetchone()
+            if not account:
+                raise ValueError("审核人账号不存在")
+            if account["role"] != "teacher":
+                raise ValueError("审核资质只能绑定教师账号；教师角色本身不代表医学资质")
+            db.execute("""INSERT INTO reviewer_qualifications
+                (qualification_id, account_id, department_code, subspecialty_code, valid_from,
+                 valid_until, status, external_verification_confirmed, verified_by, verified_at,
+                 created_by, created_at) VALUES (?,?,?,?,?,?,'pending_verification',0,NULL,NULL,?,?)""",
+                       (qualification_id, account["id"], department_code, subspecialty_code,
+                        start.isoformat(), end.isoformat(), actor_id, now))
+            self._append_qualification_audit(
+                db, qualification_id, account["id"], "reviewer_qualification_created",
+                None, "pending_verification", actor_id, entry,
+            )
+        return qualification_id
+
+    def set_reviewer_qualification_status(self, qualification_id, status, *,
+                                          confirmed_external_verification=False,
+                                          actor_id="local-ops", entry="cli"):
+        self._require_local_operator(actor_id, entry)
+        statuses = {"pending_verification", "active", "suspended", "revoked"}
+        if status not in statuses:
+            raise ValueError("审核资质状态无效")
+        allowed = {
+            "pending_verification": {"active", "suspended", "revoked"},
+            "active": {"suspended", "revoked"},
+            "suspended": {"active", "revoked"},
+            "revoked": set(),
+        }
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            record = db.execute("SELECT * FROM reviewer_qualifications WHERE qualification_id=?",
+                                (qualification_id,)).fetchone()
+            if not record:
+                raise ValueError("审核资质记录不存在")
+            previous = record["status"]
+            if status == previous:
+                return False
+            if status not in allowed[previous]:
+                raise ValueError(f"审核资质不能从 {previous} 变更为 {status}")
+            now = datetime.now(timezone.utc)
+            if status == "active":
+                if not confirmed_external_verification:
+                    raise ValueError("启用资质须由运维人员明确确认已完成外部人工核验")
+                today = date.today().isoformat()
+                if not record["valid_from"] <= today <= record["valid_until"]:
+                    raise ValueError("当前日期不在资质有效期内，不能启用")
+                db.execute("""UPDATE reviewer_qualifications SET status='active',
+                    external_verification_confirmed=1, verified_by=?, verified_at=?
+                    WHERE qualification_id=?""",
+                           (actor_id, now.isoformat(timespec="microseconds"), qualification_id))
+            else:
+                db.execute("UPDATE reviewer_qualifications SET status=? WHERE qualification_id=?",
+                           (status, qualification_id))
+            self._append_qualification_audit(
+                db, qualification_id, record["account_id"],
+                "reviewer_qualification_status_changed", previous, status, actor_id, entry,
+            )
+            return True
+
+    def reviewer_qualifications_for_account(self, account_id):
+        today = date.today().isoformat()
+        with self.connect() as db:
+            rows = db.execute("""SELECT qualification_id, department_code, subspecialty_code,
+                valid_from, valid_until, status FROM reviewer_qualifications
+                WHERE account_id=? ORDER BY created_at DESC, qualification_id""", (account_id,)).fetchall()
+        result = []
+        for row in rows:
+            item = dict(row)
+            item["effective_status"] = (
+                "expired" if row["status"] == "active"
+                and not row["valid_from"] <= today <= row["valid_until"]
+                else row["status"]
+            )
+            result.append(item)
+        return result
+
+    @contextmanager
+    def verified_reviewer_for_publication(self, account_id, department_code,
+                                          subspecialty_code, review_date):
+        """Hold an accounts DB write reservation while a qualified teacher publishes.
+
+        The short-lived reservation serializes publication against CLI suspension/revocation.
+        Scope is exact: a department-only record does not implicitly cover its subspecialties.
+        """
+        review_day = self._validate_qualification_date(review_date, "review_date")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            today = date.today()
+            if review_day > today:
+                raise ReviewerQualificationError("审核日期不能晚于今天")
+            account = db.execute("SELECT id,display_name,role,disabled FROM accounts WHERE id=?",
+                                 (account_id,)).fetchone()
+            if not account or account["role"] != "teacher" or account["disabled"]:
+                raise ReviewerQualificationError("发布者必须是有效的已认证教师账号")
+            rows = db.execute("""SELECT * FROM reviewer_qualifications
+                WHERE account_id=? AND status='active' AND external_verification_confirmed=1""",
+                              (account_id,)).fetchall()
+            current = [row for row in rows if row["valid_from"] <= today.isoformat() <= row["valid_until"]]
+            if not current:
+                raise ReviewerQualificationError("当前账号没有已登记外部核验且处于有效期内的审核资质")
+            matching = [row for row in current
+                        if row["department_code"] == department_code
+                        and row["subspecialty_code"] == subspecialty_code]
+            if not matching:
+                raise ReviewerQualificationError("当前账号没有覆盖该病例科室与亚专科的有效审核资质")
+            eligible = [row for row in matching
+                        if row["valid_from"] <= review_day.isoformat() <= row["valid_until"]]
+            if not eligible:
+                raise ReviewerQualificationError("审核日期不在当前账号匹配资质的有效期内")
+            record = max(eligible, key=lambda row: (row["valid_until"], row["created_at"]))
+            yield {
+                "qualification_id": record["qualification_id"],
+                "account_id": account["id"],
+                "display_name": account["display_name"],
+                "department_code": record["department_code"],
+                "subspecialty_code": record["subspecialty_code"],
+                "valid_from": record["valid_from"],
+                "valid_until": record["valid_until"],
+            }
+
+    @staticmethod
+    def read_reviewer_qualification_audit(path, limit=100):
+        if not 1 <= limit <= 500:
+            raise ValueError("资质审计查询条数须为 1–500")
+        database = Path(path)
+        if not database.is_file():
+            return []
+        connection = sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True, timeout=10)
+        connection.row_factory = sqlite3.Row
+        try:
+            if not connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='reviewer_qualification_audit'").fetchone():
+                return []
+            rows = connection.execute("""SELECT occurred_at, qualification_id, target_account_id,
+                operation, actor_id, entry, status_from, status_to
+                FROM reviewer_qualification_audit ORDER BY rowid DESC LIMIT ?""", (limit,)).fetchall()
             return [dict(row) for row in rows]
         finally:
             connection.close()

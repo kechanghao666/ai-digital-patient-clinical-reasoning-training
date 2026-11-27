@@ -24,6 +24,7 @@ from fastapi.testclient import TestClient
 
 from app import main
 from app.accounts import AccountStore
+from reviewer_helpers import activate_synthetic_qualification
 from app.case_store import CaseStore
 from app.integration.runtime import IntegrationRuntime
 from app.state_machine import StateMachine
@@ -51,7 +52,8 @@ def install(tmp_path: Path, monkeypatch) -> tuple[TestClient, dict[str, str], di
     store = CaseStore(ROOT / "cases", tmp_path / "teacher_cases")
     configure_department_catalog(tmp_path)
     accounts = AccountStore(tmp_path / "accounts.db")
-    accounts.create(*TEACHER, "teacher", "合成教师（测试夹具）", must_change=False)
+    accounts.create(*TEACHER, "teacher", "模拟审核（测试夹具，非真实医学审核）", must_change=False)
+    activate_synthetic_qualification(accounts, TEACHER[0], "03", "03.04")
     accounts.create(*STUDENT, "student", "合成学生（测试夹具）", must_change=False)
     monkeypatch.setattr(main, "REPOSITORY", repository)
     monkeypatch.setattr(main, "CASE_STORE", store)
@@ -110,7 +112,7 @@ def test_copy_then_simulated_publish_controls_student_visibility(tmp_path, monke
     assert client.post(f"/api/sessions?case_id={copy_public_id}", headers=student).status_code == 404
 
     # Draft and validated cannot jump straight to published, even with the simulated review payload.
-    review_payload = {"reviewer": SIMULATED_REVIEWER, "review_date": date.today().isoformat(),
+    review_payload = {"review_date": date.today().isoformat(),
                       "confirm_medical_review": True}
     assert client.post("/api/teacher/cases/TEACH-COPY-TEST/versions/1/publish",
                        headers=teacher, json=review_payload).status_code == 409

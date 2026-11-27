@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-27",
+  "base_sha": "5531cf34e8e1d35c1c6160fde50885703d63ff1d",
+  "working_tree_changes": true,
+  "pytest": {
+    "passed": 896,
+    "failed": 0,
+    "seconds": 206.04
+  },
+  "first_full_run": {
+    "passed": 893,
+    "failed": 1,
+    "seconds": 338.73,
+    "reason": "legacy Streamlit test expected removed free-text reviewer input",
+    "log": "local-only/full-pytest-reviewer-20261127.log"
+  },
+  "teacher_browser": {
+    "passed": 24,
+    "failed": 0,
+    "final_build": true
+  },
+  "student_teacher_browser": {
+    "passed": 13,
+    "failed": 0,
+    "build_note": "same round before server_today input max fix; exact fingerprint in workflow-isolation.json"
+  },
+  "engineering_samples": {
+    "passed": 12,
+    "complete": 12,
+    "formal_acceptance": false
+  },
+  "typecheck": "passed",
+  "build": "passed",
+  "compileall": "passed",
+  "npm_audit_vulnerabilities": 0,
+  "python_dependency_audit": "verify final SHA CI",
+  "real_model_calls": 0,
+  "clinical_or_official_acceptance": false,
+  "official_main": "0f3403ff87215a34e8c32e16a1b86536d811e960",
+  "archive_hashes_verified": 4,
+  "source_sha256": {
+    "backend/app/accounts.py": "0a337085654610054759aec752e0b99a8295aff41bd3882d26839d24fef79742",
+    "backend/app/case_store.py": "7bb1314c4587f7fc52493ce4126d079629fca5ffbb9a5c89eb6b770e76b5076f",
+    "backend/app/main.py": "b4068ef862183cb2d337611e3b8f818300ecca4723de536282be1b72e003f079",
+    "backend/app/models.py": "87339af76ad0b2136cda91910e4c6567f0d23208f80196e736f180114bb07dcf",
+    "backend/app/teacher_api.py": "58648ff327f534015f4d6cb51fdf57afc6001e19e04319f623ea7051f4384796",
+    "frontend/teacher.py": "94faedfd4eb0fd14a61871fc27950b0fb8a8dd26f35fed55e25383b6af447c84",
+    "scripts/manage_accounts.py": "5260e7c94b0ac1020afdfe73bcc1549afbccf9dc04c0d3787126558b0b66e78f",
+    "tests/test_case_copy_publish_visibility.py": "9fe57abd18578a27224c3ee1634274d8dd4d3b7c0e2c729aabc5f88df3f4d84d",
+    "tests/test_case_training_stop.py": "45012faf964cc140970ef5064e49574f0ccd40fa52dece47d12ee01a06b1f088",
+    "tests/test_data_backup_restore.py": "c233a74af2d240c0fa604a13e4cecc916cee20448949a5f61a56fff2896d1a20",
+    "tests/test_department_catalog.py": "100107d7b8ef181bbf3cf791229075cf13cc7d8f1acab53e10c647204e9d37a6",
+    "tests/test_teacher_cases.py": "a86e1ca59590038390f9f6aa6bd0f379ce84e1cc152381269f5ef4f170b6109c",
+    "tests/test_teacher_frontend.py": "b6a0a2e316777e02a30574e194ff9452e92e2aac740c2ba26f76dc8ec23a85d4",
+    "web/dist/assets/main.js": "d0743400a69ea68caf6e5ed03fd72c246c1666cadba3ea7fcd541220f9fb5f66",
+    "web/e2e/teacher-panel.mjs": "243e37e39642fe5300bb496bc5514fdcb41b9a184dbbc441924d2b543cc211f5",
+    "web/e2e/teacher_panel_stack.py": "4ec4404f61a2a49a444f5751e507e03ce6a490e72e75b008532daaa568c15e46",
+    "web/src/pages/teacher/CaseManager.tsx": "1aafacfebd4cd33a411de0d3593c4c2324efeb2eb1db9924c4860402dbdd4a58",
+    "tests/reviewer_helpers.py": "d1d963c62c07c6a3586636e532857009436e4c8323ab44bc8e9648694b58e681",
+    "tests/test_reviewer_qualifications.py": "de676489b760d9f64f579d8d509d8f01e28292c4500bab625de7647641244e34"
+  }
+}

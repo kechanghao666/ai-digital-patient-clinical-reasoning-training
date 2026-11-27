@@ -4,7 +4,9 @@ import { REVIEW_STATUS, type DepartmentCatalog } from "../../types";
 import { Loading, Msg, Panel, useAction, useLoad } from "../../ui";
 
 interface Version { case_id: string; public_id: string; version: number; title: string; specialty: string; department_code: string | null; subspecialty_code: string | null; review_status: string; source: string; source_case_id: string | null; source_version: number | null; authored_by: string | null; reviewer: string | null; review_date: string | null; training_stopped: boolean; stopped_at: number | null; stopped_by: string | null; stop_reason: string | null; }
-interface AuditEvent { case_id: string; case_version: number; public_id: string; action: string; actor_id: string; occurred_at: string; status_from?: string | null; status_to?: string | null; reviewer_label?: string; review_date?: string; reason?: string; }
+interface AuditEvent { case_id: string; case_version: number; public_id: string; action: string; actor_id: string; occurred_at: string; status_from?: string | null; status_to?: string | null; reviewer_label?: string; reviewer_qualification_id?: string; review_date?: string; reason?: string; }
+interface Qualifications { account_linked: boolean; display_name?: string; server_today: string; records: { qualification_id: string; department_code: string; subspecialty_code: string | null; valid_from: string; valid_until: string; effective_status: string }[]; }
+const QUALIFICATION_STATUS: Record<string, string> = { pending_verification: "待外部核验", active: "有效", expired: "不在有效期", suspended: "已暂停", revoked: "已撤销" };
 interface Issue { level: string; code: string; message: string; }
 type CaseJson = Record<string, any>;
 const ADVANCED = [["facts", "症状与体征"], ["exams", "检查与回报"], ["treatments", "模拟处置"], ["differential_options", "鉴别候选"], ["rules", "病情演进规则"], ["rubric", "评分量表"]] as const;
@@ -17,7 +19,7 @@ const AUDIT_LABEL: Record<string, string> = {
 function newDraft(source: CaseJson, copiedFromCurrent = false): CaseJson {
   const data = structuredClone(source);
   Object.assign(data, { case_id: `TEACH-${Math.random().toString(16).slice(2, 10)}`, title: `${data.title}（新草稿）`, version: 1,
-    review_status: "draft", reviewer: null, review_date: null, authored_by: null,
+    review_status: "draft", reviewer: null, review_date: null, reviewer_account_id: null, reviewer_qualification_id: null, authored_by: null,
     source_case_id: copiedFromCurrent ? source.case_id : (data.source_case_id || null),
     source_version: copiedFromCurrent ? source.version : (data.source_version || null),
     department_code: data.department_code || null, subspecialty_code: data.subspecialty_code || null });
@@ -31,6 +33,7 @@ const fmtAuditTime = (value: string) => new Date(value).toLocaleString("zh-CN");
 export function CaseManager({ selected }: { selected?: string }) {
   const { data: versions, error, reload } = useLoad(() => get<Version[]>("/api/teacher/cases"), []);
   const { data: deptCatalog, error: deptCatalogError } = useLoad(() => get<DepartmentCatalog>("/api/teacher/department-catalog"), []);
+  const { data: qualifications, error: qualificationError, reload: reloadQualifications } = useLoad(() => get<Qualifications>("/api/teacher/reviewer-qualifications"), []);
   const [current, setCurrent] = useState<Version | null>(null);
   const [draft, setDraft] = useState<CaseJson | null>(null);
   const [advanced, setAdvanced] = useState(false);
@@ -38,7 +41,7 @@ export function CaseManager({ selected }: { selected?: string }) {
   const [issues, setIssues] = useState<{ valid?: boolean; issues: Issue[] } | null>(null);
   const [coverage, setCoverage] = useState<{ missing_clinical_stages: string[]; notice: string } | null>(null);
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
-  const [publish, setPublish] = useState({ reviewer: "", date: "", confirm: false });
+  const [publish, setPublish] = useState({ date: "", confirm: false });
   const [stopOpen, setStopOpen] = useState(false);
   const [stopReason, setStopReason] = useState("");
   const [stopConfirm, setStopConfirm] = useState(false);
@@ -62,7 +65,7 @@ export function CaseManager({ selected }: { selected?: string }) {
   const loadEditor = (raw: CaseJson, meta: Version | null) => {
     setDraft(raw); setCurrent(meta); setIssues(null); setAdvanced(false); setAuditEvents([]);
     setJsonText(Object.fromEntries(ADVANCED.map(([k]) => [k, JSON.stringify(raw[k] ?? [], null, 2)])));
-    setPublish({ reviewer: "", date: "", confirm: false });
+    setPublish({ date: "", confirm: false });
     setStopOpen(false); setStopReason(""); setStopConfirm(false);
   };
   const open = (v: Version) => run("open", async () => {
@@ -131,6 +134,9 @@ export function CaseManager({ selected }: { selected?: string }) {
   };
   const isTeacherCase = current?.source === "teacher";
   const status = current?.review_status;
+  const canReview = !qualificationError && qualifications?.account_linked && qualifications.records.some(q =>
+    q.effective_status === "active" && q.department_code === current?.department_code &&
+    q.subspecialty_code === current?.subspecialty_code && q.valid_from <= publish.date && publish.date <= q.valid_until);
 
   return (
     <div className="stack-lg">
@@ -147,6 +153,13 @@ export function CaseManager({ selected }: { selected?: string }) {
         <span className="small"><span className="faint">待医学审核</span> <b>{versions.filter((v) => v.review_status === "under_review").length}</b></span>
         <span className="small"><span className="faint">已发布</span> <b>{versions.filter((v) => v.review_status === "published").length}</b></span>
       </div>
+      <Panel title="当前账号的审核资质" actions={<button className="btn" onClick={() => { setPublish(p => ({ ...p, confirm: false })); void reloadQualifications(); }}>刷新资质</button>}>
+        {qualificationError ? <Msg tone="bad">资质读取失败，暂不能发布。{qualificationError}</Msg> : !qualifications ? <Loading /> : <div className="stack">
+          <p>绑定审核人：{qualifications.account_linked ? qualifications.display_name : "未绑定有效教师账号"}。资质由获授权本机操作人员登记，外部人工核验由其负责；系统不自动核验执业资格。</p>
+          {qualifications.records.length === 0 && <Msg tone="warn">暂无审核资质记录，不能发布病例。</Msg>}
+          {qualifications.records.map(q => <div key={q.qualification_id}>{QUALIFICATION_STATUS[q.effective_status] || q.effective_status} · 科室 {q.department_code}{q.subspecialty_code && ` / ${q.subspecialty_code}`} · {q.valid_from} 至 {q.valid_until}</div>)}
+        </div>}
+      </Panel>
       <div className="split">
         <section className="panel" aria-label="病例版本列表">
           <div className="panel-head"><input className="input" placeholder="搜索病例或编号" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="搜索病例" /></div>
@@ -263,12 +276,13 @@ export function CaseManager({ selected }: { selected?: string }) {
                   {status === "under_review" && <div className="stack">
                     <Msg tone="warn">仅在真实医学审核完成后填写。结构校验或程序测试不属于医学审核。</Msg>
                     <div className="form-grid">
-                      <label className="field"><span>真实医学审核人</span><input className="input" value={publish.reviewer} onChange={(e) => setPublish({ ...publish, reviewer: e.target.value })} /></label>
-                      <label className="field"><span>审核日期</span><input className="input" type="date" max={new Date().toISOString().slice(0, 10)} value={publish.date} onChange={(e) => setPublish({ ...publish, date: e.target.value })} /></label>
+                      <div className="field"><span>绑定审核人</span><b>{qualificationError ? "资质读取失败" : qualifications?.display_name || "未绑定"}</b></div>
+                      <label className="field"><span>审核日期</span><input className="input" type="date" max={qualifications?.server_today} value={publish.date} onChange={(e) => setPublish({ ...publish, date: e.target.value })} /></label>
                     </div>
                     <label className="check"><input type="checkbox" checked={publish.confirm} onChange={(e) => setPublish({ ...publish, confirm: e.target.checked })} />我确认该版本已由上述人员完成真实医学审核</label>
-                    <div><button className="btn btn-primary" disabled={!publish.confirm || !publish.reviewer.trim() || !publish.date || busy !== null}
-                      onClick={() => transition("publish", { reviewer: publish.reviewer.trim(), review_date: publish.date, confirm_medical_review: true })}>确认审核并发布</button></div>
+                    {!canReview && <Msg tone="warn">发布需要与本病例科室、亚专科匹配的有效资质，审核日期也须在有效期内。提交时服务器会再次校验。</Msg>}
+                    <div><button className="btn btn-primary" disabled={!publish.confirm || !canReview || !publish.date || busy !== null}
+                      onClick={() => transition("publish", { review_date: publish.date, confirm_medical_review: true })}>确认审核并发布</button></div>
                   </div>}
                   {status === "published" && (current.training_stopped ? (
                     <Msg tone="warn">此版本已停止接受新训练（{current.public_id} v{current.version}）：操作者 {current.stopped_by}，时间 {fmtTime(current.stopped_at)}，原因：{current.stop_reason}。已有训练与封存评分仍可按原版本回看。</Msg>
@@ -299,7 +313,7 @@ export function CaseManager({ selected }: { selected?: string }) {
                 {auditEvents.map((event, index) => <div className="spread" key={`${event.action}-${event.occurred_at}-${index}`}>
                   <div><b>{AUDIT_LABEL[event.action] || event.action}</b>
                     {event.status_from && event.status_to && <span className="faint">　{REVIEW_STATUS[event.status_from] || event.status_from} → {REVIEW_STATUS[event.status_to] || event.status_to}</span>}
-                    {event.reviewer_label && <div className="faint">审核人声明：{event.reviewer_label}（系统未核验资质）</div>}
+                    {event.reviewer_label && <div className="faint">审核人：{event.reviewer_label}（{event.reviewer_qualification_id ? "已绑定账号与外部核验登记资质" : "历史声明，未绑定资质记录"}）</div>}
                     {event.reason && <div className="faint">原因：{event.reason}</div>}
                   </div>
                   <span className="faint">{fmtAuditTime(event.occurred_at)} · {event.actor_id}</span>

@@ -19,7 +19,8 @@ def _load_editor(case, *, duplicate=False):
     data = copy.deepcopy(case)
     if duplicate:
         data.update(case_id=f"TEACH-{uuid.uuid4().hex[:8]}", title=f"{data['title']}（新草稿）",
-                    version=1, review_status="draft", reviewer=None, review_date=None, authored_by=None)
+                    version=1, review_status="draft", reviewer=None, review_date=None, authored_by=None,
+                    reviewer_account_id=None, reviewer_qualification_id=None)
         data.pop("public_id", None)
     st.session_state.teacher_case = data
     st.session_state.teacher_validation = None
@@ -210,15 +211,18 @@ def render_teacher(api, navigation):
             st.rerun()
     if status == "under_review":
         st.warning("仅在真实医学审核完成后填写。结构校验或程序测试不属于医学审核。")
+        qualifications = api("GET", "/api/teacher/reviewer-qualifications") or {}
+        st.write("绑定审核人：" + qualifications.get("display_name", "未绑定"))
+        st.caption("资质由本机运维登记外部人工核验；系统不自动核验执业资格。")
+        st.json(qualifications.get("records", []))
         with st.form("teacher_publish"):
-            reviewer = st.text_input("真实医学审核人", value="")
             reviewed = st.date_input("医学审核日期", value=None, max_value=date.today())
             confirmed = st.checkbox("我确认该版本已由上述人员完成真实医学审核")
             publish = st.form_submit_button("确认审核并发布", type="primary")
         if publish:
-            if not confirmed or not reviewer.strip() or reviewed is None:
+            if not confirmed or not qualifications.get("account_linked") or reviewed is None:
                 st.error("请完整填写真实审核信息并明确确认。未执行发布。")
-            elif api("POST", base + "/publish", json={"reviewer": reviewer.strip(), "review_date": reviewed.isoformat(),
+            elif api("POST", base + "/publish", json={"review_date": reviewed.isoformat(),
                                                        "confirm_medical_review": True}):
                 st.rerun()
     if status == "published":

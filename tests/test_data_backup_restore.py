@@ -106,6 +106,8 @@ def _seed_snapshot(tmp_path: Path) -> tuple[Path, Path, str, str, list[dict]]:
     )
     expected_account_audit = accounts.account_audit_log()
     account_id = accounts.find("synthetic_teacher")["id"]
+    from reviewer_helpers import activate_synthetic_qualification
+    activate_synthetic_qualification(accounts, "synthetic_teacher", "03", "03.04")
     with accounts.connect() as connection:
         connection.execute(
             "INSERT INTO login_sessions(token_hash, account_id, expires_at) VALUES (?, ?, ?)",
@@ -182,6 +184,10 @@ def test_offline_backup_restore_preserves_all_service_data(tmp_path):
     restored_accounts = AccountStore(restored_dir / "accounts.db")
     assert restored_accounts.find("synthetic_teacher")["display_name"] == "合成教师（测试夹具）"
     assert restored_accounts.account_audit_log() == expected_account_audit
+    source_accounts = AccountStore(data_dir / "accounts.db")
+    source_id = source_accounts.find("synthetic_teacher")["id"]
+    assert restored_accounts.reviewer_qualifications_for_account(source_id) == source_accounts.reviewer_qualifications_for_account(source_id)
+    assert restored_accounts.read_reviewer_qualification_audit(restored_accounts.path) == source_accounts.read_reviewer_qualification_audit(source_accounts.path)
     assert ExportAudit(restored_dir / "accounts.db").recent() == [export_event]
     with restored_accounts.connect() as connection:
         assert connection.execute("SELECT COUNT(*) FROM login_sessions").fetchone()[0] == 0

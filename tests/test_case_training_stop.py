@@ -20,6 +20,7 @@ from fastapi.testclient import TestClient
 
 from app import main
 from app.accounts import AccountStore
+from reviewer_helpers import activate_synthetic_qualification
 from app.case_store import CaseStore
 from app.integration.runtime import IntegrationRuntime
 from app.state_machine import StateMachine
@@ -48,7 +49,8 @@ def install(tmp_path, monkeypatch):
     store = CaseStore(ROOT / "cases", tmp_path / "teacher_cases")
     configure_department_catalog(tmp_path)
     accounts = AccountStore(tmp_path / "accounts.db")
-    teacher_id = accounts.create(*TEACHER, "teacher", "合成教师（测试夹具）", must_change=False)
+    teacher_id = accounts.create(*TEACHER, "teacher", "模拟审核（测试夹具，非真实医学审核）", must_change=False)
+    activate_synthetic_qualification(accounts, TEACHER[0], "03", "03.04")
     student_id = accounts.create(*STUDENT, "student", "合成学生（测试夹具）", must_change=False)
     # Explicit trusted seed relationship for these pre-created login fixture accounts.
     klass = RosterStore(accounts).create_class(teacher_id, "合成测试种子班")
@@ -80,7 +82,7 @@ def publish_copy(client: TestClient, teacher: dict[str, str], title_suffix: str 
         assert response.status_code == 200, response.text
     published = client.post(
         f"/api/teacher/cases/{CASE_ID}/versions/1/publish", headers=teacher,
-        json={"reviewer": REVIEWER, "review_date": date.today().isoformat(), "confirm_medical_review": True},
+        json={"review_date": date.today().isoformat(), "confirm_medical_review": True},
     )
     assert published.status_code == 200, published.text
     return published.json()
@@ -189,7 +191,7 @@ def test_stopping_an_old_version_does_not_affect_newer_or_fall_back(tmp_path, mo
         assert client.post(f"/api/teacher/cases/{CASE_ID}/versions/2/{action}", headers=teacher).status_code == 200
     published_two = client.post(
         f"/api/teacher/cases/{CASE_ID}/versions/2/publish", headers=teacher,
-        json={"reviewer": REVIEWER, "review_date": date.today().isoformat(), "confirm_medical_review": True},
+        json={"review_date": date.today().isoformat(), "confirm_medical_review": True},
     )
     assert published_two.status_code == 200, published_two.text
     assert [(c["public_id"], c["version"]) for c in client.get("/api/cases", headers=student).json()] == [(public_id, 2)]

@@ -12,6 +12,14 @@ from app.department_config import save_department_config
 
 from test_cases_config import ROOT, Api, item, load
 
+from reviewer_helpers import bind_synthetic_demo_reviewer, SYNTHETIC_REVIEWER
+
+
+@pytest.fixture(autouse=True)
+def synthetic_reviewer(tmp_path, monkeypatch):
+    return bind_synthetic_demo_reviewer(tmp_path, monkeypatch)
+
+
 TEACHER = {"X-Owner-Id": "teacher-wang"}
 
 
@@ -38,7 +46,6 @@ def step(api: Api, case_id: str, version: int, name: str, body=None):
 
 
 PUBLISH = {
-    "reviewer": "模拟审核（测试夹具，非真实医学审核）",
     "review_date": "2026-11-01",
     "confirm_medical_review": True,
 }
@@ -148,7 +155,7 @@ def test_review_and_publish_workflow_is_enforced(tmp_path, monkeypatch):
     published = step(api, "TEACH-001", 1, "publish", PUBLISH)
     assert published.status_code == 200 and published.json()["review_status"] == "published"
     case = api.client.get("/api/teacher/cases/TEACH-001/versions/1", headers=TEACHER).json()
-    assert case["reviewer"] == PUBLISH["reviewer"] and case["review_date"] == "2026-11-01"
+    assert case["reviewer"] == SYNTHETIC_REVIEWER and case["review_date"] == "2026-11-01"
     assert step(api, "TEACH-001", 1, "withdraw").status_code == 409  # published content is final
     assert step(api, "TEACH-001", 1, "validate").status_code == 409
 
@@ -275,7 +282,7 @@ def test_copy_source_is_validated_immutable_and_visible_in_audit(tmp_path, monke
     ]
     assert all(event["actor_id"] == "teacher-wang" for event in events.json())
     published = events.json()[-1]
-    assert published["reviewer_label"] == PUBLISH["reviewer"]
+    assert published["reviewer_label"] == SYNTHETIC_REVIEWER
     assert published["department_code"] == "04"
     assert published["source_case_id"] == "APPY-001" and published["source_version"] == 1
     audit_text = (tmp_path / "teacher_cases" / "case-audit.jsonl").read_text(encoding="utf-8")

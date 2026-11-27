@@ -44,6 +44,28 @@ API 使用 `APP_AUTH_MODE=local`。`APP_ENV=development` 仍控制未审核病�
 
 ## 已实现的边界
 
+### 审核人资质登记（2026-11-27）
+
+教师角色不代表医学资质。病例发布必须由当前登录教师完成，服务器绑定账号及资质记录，前端不再填写任意审核人姓名。资质要求：启用、已登记外部人工核验、当前日期和审核日期均在有效期内、科室与亚专科与病例精确匹配。仅有父科室资质不自动覆盖其亚专科。日期采用 API 所在主机的本地日，审计时间采用 UTC；部署时应保持主机时区一致。
+
+获授权的本机运维人员先在系统外核实真实人员身份、专业范围和有效期，再使用与 API 相同的数据目录登记。以下编号/日期仅说明命令格式，不能直接作为真实资质：
+
+```powershell
+# 登记后仍为 pending_verification，不能发布
+& .\.venv\Scripts\python.exe scripts/manage_accounts.py qualification-create teacher01 --department-code 04 --subspecialty-code 04.01 --valid-from 2026-01-01 --valid-until 2027-12-31
+# 使用上一步实际返回的编号；只有完成外部人工核验后才可执行启用
+& .\.venv\Scripts\python.exe scripts/manage_accounts.py qualification-status '<资质记录编号>' --status active --confirm-external-verification
+& .\.venv\Scripts\python.exe scripts/manage_accounts.py qualification-status '<资质记录编号>' --status suspended
+& .\.venv\Scripts\python.exe scripts/manage_accounts.py qualification-status '<资质记录编号>' --status revoked
+& .\.venv\Scripts\python.exe scripts/manage_accounts.py qualification-audit --limit 100
+```
+
+范围和有效期不能原地修改；纠错或续期须新建记录并撤销旧记录。暂停后恢复启用需重新确认外部核验，撤销不可恢复。账号停用或资质撤销阻止后续发布；已经发布的病例、已有训练和评分保留，要停止该病例接受新训练需使用既有“停止新训练”功能。发布期间持有账号库事务锁，使资质撤销/账号停用与发布有确定的先后顺序。
+
+资质创建/状态变更与审计同事务提交；失败回滚，重复状态不追加。`qualification-audit` 使用只读连接，缺库或旧库无资质表时不创建、不迁移。记录随 `accounts.db` 离线备份恢复。教师仅可通过 `/api/teacher/reviewer-qualifications` 查看自身记录；React 病例管理页显示状态、范围、有效期并可刷新。旧 Streamlit 发布流程也使用绑定身份。
+
+此登记不是自动执业资格认证；目前只记录本机 `local-ops` 的外部核验确认及时间，未存证件、机构回执或独立核验人的实名证明，也没有应用内管理员角色。主机账号与数据库文件权限由部署方管理。真实核验手续和证据归档仍需外部完成。旧病例没有绑定记录时继续显示为历史声明，不能自动补成“已核验”。本轮所有测试和浏览器发布均使用临时合成身份，真实医学审核数量为零。
+
 - 密码使用独立随机盐与 PBKDF2-HMAC-SHA256（600,000 次）；账号库只保存派生结果。
 - 登录令牌随机生成，数据库只保存 SHA-256 摘要；绝对有效期 8 小时。每次请求重新核对账号和会话，退出、停用、重置后旧令牌失效。
 - 登录失败按账号和来源限制频率，限制持久化；未知账号也受限制，错误提示不区分账号不存在、密码错误与停用。

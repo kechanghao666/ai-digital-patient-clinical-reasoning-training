@@ -145,6 +145,57 @@ try {
   await page.getByText("tpanel_student", { exact: true }).waitFor();
   ok("班级统计重试恢复", true);
 
+  // ---- synthetic reviewer lifecycle; control commands are fixture stdin, never a web endpoint.
+  const control = command => new Promise((resolve, reject) => {
+    let output = "";
+    const listener = chunk => { output += chunk.toString(); if (output.includes(`CONTROL ${command}`)) { clearTimeout(timer); stack.child.stdout.off("data", listener); resolve(); } };
+    const timer = setTimeout(() => { stack.child.stdout.off("data", listener); reject(new Error("fixture control timeout")); }, 10000);
+    stack.child.stdout.on("data", listener);
+    stack.child.stdin.write(command + "\n");
+  });
+  await page.goto(stack.base + "/#/teacher/cases");
+  await page.getByRole("button").filter({ hasText: "合成资质发布探针" }).click();
+  const publishButton = page.getByRole("button", { name: "确认审核并发布", exact: true });
+  await publishButton.waitFor();
+  await page.getByLabel("审核日期", { exact: true }).fill(await page.getByLabel("审核日期", { exact: true }).getAttribute("max"));
+  await page.getByRole("checkbox", { name: "我确认该版本已由上述人员完成真实医学审核" }).check();
+  ok("待核验资质不能发布", await publishButton.isDisabled());
+  await control("activate-reviewer");
+  await page.getByRole("button", { name: "刷新资质" }).click();
+  await heading("当前账号的审核资质").getByText(/^有效 · 科室/).waitFor();
+  await page.getByRole("checkbox", { name: "我确认该版本已由上述人员完成真实医学审核" }).check();
+  ok("匹配有效资质允许确认发布", await publishButton.isEnabled());
+  await context.route("**/api/teacher/reviewer-qualifications", route => route.fulfill({ status: 503, contentType: "application/json", body: '{"detail":"合成读取故障"}' }));
+  await page.getByRole("button", { name: "刷新资质" }).click();
+  await page.getByRole("alert").filter({ hasText: "资质读取失败" }).waitFor();
+  ok("读取失败时旧有效资质不能继续发布", await publishButton.isDisabled());
+  await context.unroute("**/api/teacher/reviewer-qualifications");
+  await page.getByRole("button", { name: "刷新资质" }).click();
+  await heading("当前账号的审核资质").getByText(/^有效 · 科室/).waitFor();
+  await page.getByRole("checkbox", { name: "我确认该版本已由上述人员完成真实医学审核" }).check();
+  const published = page.waitForResponse(r => r.url().endsWith("/versions/1/publish"));
+  await publishButton.click();
+  ok("合成审核发布请求成功", (await published).status() === 200);
+  await page.getByText(/已绑定账号与外部核验登记资质/).waitFor();
+  ok("发布审计展示绑定身份", true);
+  await page.getByRole("button", { name: "复制为新草稿", exact: true }).click();
+  const savedCopy = page.waitForResponse(r => r.request().method() === "PUT" && r.url().includes("/api/teacher/cases/"));
+  await page.getByRole("button", { name: "保存为新版本草稿", exact: true }).click();
+  ok("已发布病例可复制保存草稿", (await savedCopy).status() === 200);
+  await page.getByRole("button", { name: "标记结构校验通过", exact: true }).click();
+  await page.getByRole("button", { name: "提交医学审核", exact: true }).click();
+  await publishButton.waitFor();
+  await page.getByLabel("审核日期", { exact: true }).fill(await page.getByLabel("审核日期", { exact: true }).getAttribute("max"));
+  await page.getByRole("checkbox", { name: "我确认该版本已由上述人员完成真实医学审核" }).check();
+  await control("revoke-reviewer");
+  const denied = page.waitForResponse(r => r.url().endsWith("/versions/1/publish"));
+  await publishButton.click();
+  ok("页面旧资质不能绕过服务端撤销", (await denied).status() === 403);
+  await page.getByRole("button", { name: "刷新资质" }).click();
+  await heading("当前账号的审核资质").getByText(/^已撤销 · 科室/).waitFor();
+  ok("刷新后撤销状态禁止发布", await publishButton.isDisabled());
+  await page.screenshot({ path: path.join(OUT, "reviewer-qualification.png"), fullPage: true });
+
   // ---- no data (teacher with no class)
   await login("tpanel_empty", stack.teacherPw);
   await heading("模型调用观测").getByText("暂无已记录的可信回合数据").waitFor({ timeout: 15000 });

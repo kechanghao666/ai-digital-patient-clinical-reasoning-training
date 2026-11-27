@@ -67,12 +67,23 @@ def serve(data):
                            "synthetic-teacher-panel")
 
     password = secrets.token_urlsafe(24)
-    teacher_id = app_main.ACCOUNTS.create("tpanel_teacher", password, "teacher", "面板教师")
+    teacher_id = app_main.ACCOUNTS.create("tpanel_teacher", password, "teacher", "面板教师（合成身份，非真实医学审核）")
     app_main.ACCOUNTS.create("tpanel_empty", password, "teacher", "空班级教师")
 
     client = TestClient(app_main.app)
     login = client.post("/api/auth/login", json={"username": "tpanel_teacher", "password": password}).json()
     headers = {"Authorization": "Bearer " + login["token"]}
+    qualification = app_main.ACCOUNTS.create_reviewer_qualification(
+        "tpanel_teacher", "03", "03.04", "2020-01-01", "2099-12-31",
+    )
+    source = client.get("/api/teacher/cases/STEMI-001/versions/3", headers=headers).json()
+    source.update(case_id="TEACH-QUAL-PROBE", title="合成资质发布探针", source_case_id="STEMI-001", source_version=3)
+    source.pop("public_id")
+    saved = client.put("/api/teacher/cases/TEACH-QUAL-PROBE", headers=headers, json=source)
+    assert saved.status_code == 200, saved.text
+    for action in ("validate", "submit-review"):
+        response = client.post(f"/api/teacher/cases/TEACH-QUAL-PROBE/versions/1/{action}", headers=headers)
+        assert response.status_code == 200, response.text
     klass = client.post("/api/teacher/classes", headers=headers, json={"name": "面板班"}).json()
     client.post(f"/api/teacher/classes/{klass['id']}/students", headers=headers,
                 json={"students": [{"username": "tpanel_student", "display_name": "面板学生"}]})
@@ -106,7 +117,16 @@ def serve(data):
     server = LiveServer(app_main.app).start()
     print(f"READY http://127.0.0.1:{server.port} {password} {data}", flush=True)
     try:
-        sys.stdin.readline()
+        for line in sys.stdin:
+            command = line.strip()
+            if command == "stop":
+                break
+            if command in {"activate-reviewer", "revoke-reviewer"}:
+                app_main.ACCOUNTS.set_reviewer_qualification_status(
+                    qualification, "active" if command == "activate-reviewer" else "revoked",
+                    confirmed_external_verification=command == "activate-reviewer",
+                )
+                print(f"CONTROL {command}", flush=True)
     except KeyboardInterrupt:
         pass
     finally:

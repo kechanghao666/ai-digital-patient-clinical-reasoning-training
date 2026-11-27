@@ -40,8 +40,10 @@ def test_teacher_can_save_validate_and_submit_without_faking_medical_review(tmp_
     button(page, "提交医学审核").click().run()
     assert not page.exception, page.exception
     assert api.store.get("TEACH-UI-001").review_status.value == "under_review"
-    # There must never be a pre-filled reviewer, date or an implicit confirmation.
-    assert text(page, "真实医学审核人").value == ""
+    # Identity is server-bound; no editable reviewer or implicit medical confirmation.
+    assert not any(x.label == "真实医学审核人" for x in page.text_input)
+    assert any("绑定审核人：未绑定" in x.value for x in page.markdown)
+    assert not next(x for x in page.checkbox if "真实医学审核" in x.label).value
     assert page.date_input[0].value is None
     button(page, "确认审核并发布").click().run()
     assert api.store.get("TEACH-UI-001").review_status.value == "under_review"

@@ -1,0 +1,19 @@
+{
+  "mode": "simulator",
+  "auth": "local",
+  "real_model_calls": 0,
+  "isolated_data": true,
+  "temporary_data_removed": true,
+  "code_sha": "5531cf34e8e1d35c1c6160fde50885703d63ff1d",
+  "dirty_worktree": true,
+  "source_sha256": {
+    "web/e2e/demo.py": "3dd715173b77c4fa23831218c25badc6db749478ba2a1bacc77984677b5ae183",
+    "web/e2e/smoke.mjs": "ae61cb25a370a6ee98e309697026c6b4ae8328f53aa1914563920105d8f29785",
+    "web/e2e/o10a_stack.py": "e6fbfd23cbce554787cc3f90e478b79349c56b4c58468dd96dfc02eec05ca448",
+    "web/dist/index.html": "24d8f4ea079a090ba15b04b53be0eca4adb7102a45c3f17d940ca68d6ecd5773",
+    "web/dist/assets/main.js": "5ea65f7189d75b5131eb264acf4214d0e14f952b931ec47c47adfae106471586"
+  },
+  "browser_exit_code": 0,
+  "checks_passed": 13,
+  "checks_total": 13
+}

@@ -447,6 +447,8 @@ def test_synthetic_new_subspecialty_publish_visibility_and_disable_preserve_seal
         assert response.status_code == 200, response.text
         return {"Authorization": f"Bearer {response.json()['token']}"}
 
+    from reviewer_helpers import activate_synthetic_qualification
+    activate_synthetic_qualification(accounts, "synthetic-teacher", "05", "05.01")
     teacher = login("synthetic-teacher", "Synthetic-Teacher-Password-2026!")
     student = login("synthetic-student", "Synthetic-Student-Password-2026!")
 
@@ -483,7 +485,6 @@ def test_synthetic_new_subspecialty_publish_visibility_and_disable_preserve_seal
         "/api/teacher/cases/TEACH-SYN05/versions/1/publish",
         headers=teacher,
         json={
-            "reviewer": "模拟审核（自动化测试夹具，非真实医学审核）",
             "review_date": date.today().isoformat(),
             "confirm_medical_review": True,
         },

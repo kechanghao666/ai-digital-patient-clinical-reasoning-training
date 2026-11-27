@@ -130,7 +130,7 @@ def current_teacher(x_owner_id: str | None = Header(default=None), authorization
 
 app.include_router(build_auth_router(lambda: ACCOUNTS))
 app.include_router(build_teacher_router(lambda: CASE_STORE, current_teacher, lambda: RUNTIME.knowledge,
-                                        lambda: RUNTIME.case_training))
+                                        lambda: RUNTIME.case_training, lambda: ACCOUNTS))
 app.include_router(build_feedback_review_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: RUNTIME, current_teacher,
                                                lambda: roster_for(ACCOUNTS)))
 app.include_router(build_score_review_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: RUNTIME, current_teacher,

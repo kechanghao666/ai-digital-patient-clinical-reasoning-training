@@ -193,6 +193,8 @@ class CaseDefinition(BaseModel):
     review_status: ReviewStatus
     reviewer: str | None = None
     review_date: str | None = None
+    reviewer_account_id: str | None = None
+    reviewer_qualification_id: str | None = None
     sources: list[str] = Field(default_factory=list)
     source_case_id: str | None = None
     source_version: int | None = Field(default=None, ge=1)
@@ -330,6 +332,10 @@ class CaseDefinition(BaseModel):
             raise ValueError("a case cannot cite itself as its source")
         if self.review_status == ReviewStatus.PUBLISHED and (not self.reviewer or not self.review_date):
             raise ValueError("published case requires reviewer and review_date")
+        if bool(self.reviewer_account_id) != bool(self.reviewer_qualification_id):
+            raise ValueError("reviewer account and qualification bindings must be set together")
+        if self.review_status != ReviewStatus.PUBLISHED and (self.reviewer_account_id or self.reviewer_qualification_id):
+            raise ValueError("reviewer bindings are only valid on a published case version")
         return self
 
 
