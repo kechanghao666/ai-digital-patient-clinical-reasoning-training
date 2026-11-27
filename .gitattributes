@@ -14,3 +14,8 @@
 /evaluation/reports/o3_compound_*.json text eol=crlf
 /evaluation/reports/o3_atomic_semantic_replay_20261126.json text eol=crlf
 /evaluation/o3_atomic_semantic_replay_20261126.json text eol=lf
+
+# Preserve upstream source bytes for the recorded Git and SHA-256 fingerprints.
+/docs/evidence/official-20261127/*.md -text -whitespace
+/docs/evidence/official-20261127/upstream-LICENSE -text -whitespace
+/docs/evidence/official-20261127/sources.json text eol=lf
