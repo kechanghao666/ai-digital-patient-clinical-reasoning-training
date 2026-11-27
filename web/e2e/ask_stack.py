@@ -55,6 +55,15 @@ def sse(*events):
 
 def build_fake_nexent(mcp_url: str, script: dict):
     app = FastAPI()
+    # Non-serializable barrier control for the controlled-wait browser probe. ``pause_at`` is one of
+    # "before_submission" / "after_submission"; "after_validation" is wired in main() on the backend.
+    barrier = {"pause_at": None, "paused": threading.Event(), "release": threading.Event()}
+
+    async def _pause(position: str) -> None:
+        if barrier["pause_at"] == position:
+            barrier["paused"].set()
+            await asyncio.to_thread(barrier["release"].wait)
+            barrier["paused"].clear()
 
     async def drive(role: str, token: str):
         if role != "patient":
@@ -63,7 +72,9 @@ def build_fake_nexent(mcp_url: str, script: dict):
         async with Client(transport) as client:
             context = (await client.call_tool("get_turn_context", {"turn_token": token})).data
             chosen = [c["fact_id"] for c in context["candidates"][: script.get("take", 1)]]
+            await _pause("before_submission")
             await client.call_tool("submit_fact_selection", {"turn_token": token, "fact_ids": chosen})
+            await _pause("after_submission")
 
     @app.post("/nb/v1/chat/run")
     async def run(request: Request, authorization: str | None = Header(default=None)):
@@ -77,7 +88,8 @@ def build_fake_nexent(mcp_url: str, script: dict):
         return StreamingResponse(
             sse(
                 {"type": "model_output_thinking", "content": "local fake", "unit_index": 1},
-                {"type": "final_answer", "content": "untrusted free text must not be shown", "unit_index": 2},
+                {"type": "execution_result", "content": "submitted", "unit_index": 2},
+                {"type": "final_answer", "content": "untrusted free text must not be shown", "unit_index": 3},
             ),
             media_type="text/event-stream",
             headers={"conversation_id": "local-ask-regression"},
@@ -85,7 +97,8 @@ def build_fake_nexent(mcp_url: str, script: dict):
 
     @app.get("/__control")
     async def control_status():
-        return dict(script)
+        return {"hang": script.get("hang"), "take": script.get("take"), "calls": script.get("calls"),
+                "pause_at": barrier["pause_at"], "paused": barrier["paused"].is_set()}
 
     @app.post("/__control")
     async def control(request: Request):
@@ -93,9 +106,15 @@ def build_fake_nexent(mcp_url: str, script: dict):
         for key in ("hang", "take"):
             if key in patch:
                 script[key] = patch[key]
-        return dict(script)
+        if "pause_at" in patch:
+            barrier["pause_at"] = patch["pause_at"]
+            barrier["release"].clear()
+            barrier["paused"].clear()
+        if patch.get("release"):
+            barrier["release"].set()
+        return {"pause_at": barrier["pause_at"], "paused": barrier["paused"].is_set()}
 
-    return app
+    return app, barrier
 
 
 def main():
@@ -131,8 +150,23 @@ def main():
     mcp_server = LiveServer(mcp_app).start()
 
     script = {"hang": 0, "take": 1, "calls": 0}
-    fake = build_fake_nexent(f"http://127.0.0.1:{mcp_server.port}/mcp", script)
+    fake, barrier = build_fake_nexent(f"http://127.0.0.1:{mcp_server.port}/mcp", script)
     nexent_server = LiveServer(fake).start()
+
+    # Wire the "after_validation" pause into the backend's answer authorization gate. main.py
+    # imports authorized_answer_or_fallback by name, so patching main's module global is enough.
+    original = app_main.authorized_answer_or_fallback
+
+    def gated(*args, **kwargs):
+        result = original(*args, **kwargs)
+        if barrier["pause_at"] == "after_validation":
+            barrier["paused"].set()
+            barrier["release"].wait()
+            barrier["paused"].clear()
+        return result
+
+    app_main.authorized_answer_or_fallback = gated
+
     settings = IntegrationSettings(
         mode="nexent",
         nexent_base_url=f"http://127.0.0.1:{nexent_server.port}",

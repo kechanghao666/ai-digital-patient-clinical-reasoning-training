@@ -1,0 +1,56 @@
+{
+  "rows": [
+    {
+      "position": "before_submission",
+      "question": "有高血压吗？",
+      "server_stages": {
+        "request_entry": 0,
+        "classified": 16,
+        "adapter_returned": 1031,
+        "validated": 1031,
+        "saved": 1047
+      },
+      "paused_blocked_answer": true,
+      "paused_no_save": true,
+      "answer": "有高血压10年。",
+      "click_to_visible_ms": 1056.5,
+      "saved_events": 1,
+      "settled_single": true
+    },
+    {
+      "position": "after_submission",
+      "question": "有糖尿病吗？",
+      "server_stages": {
+        "request_entry": 0,
+        "classified": 0,
+        "adapter_returned": 375,
+        "validated": 375,
+        "saved": 375
+      },
+      "paused_blocked_answer": true,
+      "paused_no_save": true,
+      "answer": "有糖尿病5年。",
+      "click_to_visible_ms": 379.7,
+      "saved_events": 1,
+      "settled_single": true
+    },
+    {
+      "position": "after_validation",
+      "question": "以前做过手术吗？",
+      "server_stages": {
+        "request_entry": 0,
+        "classified": 0,
+        "adapter_returned": 311,
+        "validated": 421,
+        "saved": 452
+      },
+      "paused_blocked_answer": true,
+      "paused_no_save": true,
+      "answer": "没做过手术。",
+      "click_to_visible_ms": 455.7,
+      "saved_events": 1,
+      "settled_single": true
+    }
+  ],
+  "passed": true
+}

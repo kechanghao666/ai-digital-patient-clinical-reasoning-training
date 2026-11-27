@@ -238,21 +238,25 @@ def test_ask_records_request_scoped_stage_and_trace_timestamps(tmp_path, monkeyp
     assert response.status_code == 200, response.text
     body = response.json()
     stages = body["timing"]["stages"]
-    for key in ("request_entry", "classified", "selected", "validated", "saved"):
+    for key in ("request_entry", "classified", "adapter_returned", "validated", "saved"):
         assert isinstance(stages[key], int) and stages[key] >= 0
     assert stages["request_entry"] == 0
-    values = [stages[k] for k in ("request_entry", "classified", "selected", "validated", "saved")]
+    values = [stages[k] for k in ("request_entry", "classified", "adapter_returned", "validated", "saved")]
     assert values == sorted(values) and values[-1] <= body["timing"]["api_ready_ms"]
     assert "turn_token" not in json.dumps(stages, ensure_ascii=False)
     event = env.stored_events(sid)[0]
     persisted_stages = event.result["server_stage_ms"]
     # The persisted event snapshots the stages up to validation; "saved" is stamped after save.
-    for key in ("request_entry", "classified", "selected", "validated"):
+    for key in ("request_entry", "classified", "adapter_returned", "validated"):
         assert persisted_stages[key] == stages[key]
     assert "saved" not in persisted_stages
     trace = event.result["adapter"]["trace"]
     assert isinstance(trace["trusted_completion_ms"], int)
     assert isinstance(trace["finalize_ms"], int)
+    # The submit-fact landing itself is wall-clock turn_calls.at, not these monotonic stages.
+    calls = env.runtime.turns.calls(trace["turn_id"])
+    assert {c["tool"] for c in calls} == {"get_turn_context", "submit_fact_selection"}
+    assert all(isinstance(c["at"], float) for c in calls)
 
 
 def test_questions_without_authorized_facts_do_not_call_the_model(tmp_path, monkeypatch):

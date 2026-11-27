@@ -447,7 +447,12 @@ def session_detail(session_id: str, owner_id: str = Depends(current_owner)) -> d
 @app.post("/api/sessions/{session_id}/ask")
 def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_owner)) -> dict:
     started = time.monotonic()
-    # Monotonic stage stamps for the same request; never a credential, token or model text.
+    # Monotonic stage stamps for this request, all in the API process on one clock. These mark when
+    # this handler reached a point, not when an upstream event happened: "adapter_returned" is when
+    # the patient adapter returned (after the model run and turn finalize), NOT when the model's
+    # submit_fact_selection landed in the turn store — that landing is wall-clock `turn_calls.at` in
+    # the (separate) MCP process and cannot be subtracted from these values. Never a credential,
+    # token or model text.
     stage_ms: dict[str, int] = {"request_entry": 0}
 
     def mark(stage: str) -> None:
@@ -488,7 +493,7 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
             raise HTTPException(status_code=502, detail="患者适配器暂不可用") from exc
     else:
         selection = PatientSelection(fact_ids=[], source="local_no_candidates")
-    mark("selected")
+    mark("adapter_returned")
     prior_answer_atoms = {
         atom_id
         for previous_event in state.events

@@ -34,6 +34,22 @@
 
 在提交前、提交后等待事件、校验后分别注入延迟，测量 DOM、失败无正文、保存一致及重试幂等。先定位，再决定是否需要改变唤醒机制；不得为缩短首字时间绕过授权、状态版本或保存检查。真实平台复测需新的明确调用预算。本轮没有改变线上协议、默认模型或这些保护。
 
-## 已落地的关联观测点（本轮）
+## 已落地的关联观测点（本轮，语义已更正）
 
-服务端 `/api/sessions/{id}/ask` 响应 `timing.stages` 与持久事件 `result.server_stage_ms` 现在按同一 `request_id` 记录 monotonic 毫秒：`request_entry`、`classified`、`selected`、`validated`、`saved`；持久事件快照到 `validated`，`saved` 仅在返回前补齐。适配器 `trace` 增加 `trusted_completion_ms`（本地可信提交首次被观察到）与 `finalize_ms`（回合 finalize）。以上只记时点/状态，不含令牌、密钥或模型原文，由 `tests/test_integration.py::test_ask_records_request_scoped_stage_and_trace_timestamps` 锁定。下一次真实测量浏览器记录里这些时点与 `clickT/postT/visibleT/paintT` 即可逐段拆开，替换上面的估计区间；真实平台复测仍需新的明确调用预算。
+服务端 `/api/sessions/{id}/ask` 响应 `timing.stages` 与持久事件 `result.server_stage_ms` 按同一 `request_id` 记录 API 进程内的 monotonic 毫秒：`request_entry`（处理器开始）、`classified`（分类完成）、`adapter_returned`（患者适配器返回，即模型运行与回合 finalize 结束）、`validated`（正文授权校验完成）、`saved`（会话保存完成）。持久事件只快照到 `validated`，`saved` 仅在返回前补齐。适配器 `trace` 另有 `trusted_completion_ms`（本进程**首次观察到**本地回合已提交的时刻）与 `finalize_ms`（finalize 完成）。以上只记时点/状态，不含令牌、密钥或模型原文，由 `tests/test_integration.py::test_ask_records_request_scoped_stage_and_trace_timestamps` 锁定。
+
+**边界（撤回过强表述）**：这些字段不能支撑「提交落库到绘制全链路逐段拆开」。
+
+- `adapter_returned` 是适配器返回，不是模型 `submit_fact_selection` 落库；落库发生在独立 MCP 进程，其时间是 `turn_calls.at`（墙钟 `time.time()`），与 API 进程的 monotonic 不在同一时钟、不能相减。
+- `trusted_completion_ms` 是「首次观察到提交」的检测时刻，同样不是实际落库时刻。
+- `saved` 是保存完成；实际响应发出、浏览器收到响应头、DOM 更新、双 rAF 分别是不同口径，浏览器端由 `postT/visibleT/paintT` 记录，双 rAF 仍是显示时点估算而非物理绘制实测。
+- 服务器单调时点与浏览器时间起点不同，不能直接相减定位单向网络耗时。
+
+因此本轮只补齐了 API 进程内的阶段观测与「首次观察到提交」的检测时刻；真实平台复测仍需新预算，并在 MCP 进程补 `submit_fact_selection` 落库的单调/墙钟时点后才能逐段拆解提交之后的链路。
+
+## 浏览器端到端可控等待（本轮已完成，零模型调用）
+
+`web/e2e/controlled-wait.mjs` + `web/e2e/ask_stack.py` 用假 Nexent/真实后端/MCP/临时库 + 真实浏览器，在三个位置注入事件屏障：提交前（`before_submission`）、提交后尚未发完成事件（`after_submission`）、正文授权校验后（`after_validation`）。结果见 [2026-11-27-controlled-wait.json](2026-11-27-controlled-wait.json)，三项均 `paused_blocked_answer=true`、`paused_no_save=true`、释放后 `saved_events=1`、`settled_single=true`。
+
+结论：三处暂停期间学生都看不到任何正文、服务端都不保存事件；答案只在「模型运行 + 回合 finalize + 正文校验 + 会话保存 + 响应返回」全部完成后才出现。即链路里**没有可单独去除的人工等待**，8–10 秒等待来自模型流程自身（平台步骤时长已占 7.3–7.9 秒），缩短首字只能换更快模型或改协议，不能靠绕过授权/校验/保存来「提前显示」。
+
