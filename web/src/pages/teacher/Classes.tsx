@@ -32,8 +32,8 @@ function ClassList() {
   const [name, setName] = useState("");
   const [term, setTerm] = useState({ name: "", start: "", end: "" });
   const [course, setCourse] = useState({ name: "", semester_id: "" });
-  const [reuse, setReuse] = useState<{ courseId: string; source: string; targets: string[]; due: string }>(
-    { courseId: "", source: "", targets: [], due: "" });
+  const [reuse, setReuse] = useState<{ courseId: string; targetCourseId: string; source: string; targets: string[]; due: string }>(
+    { courseId: "", targetCourseId: "", source: "", targets: [], due: "" });
   const [courseReport, setCourseReport] = useState<string | null>(null);
   const { busy, run } = useAction();
   if (error || !data) return <Loading error={error} onRetry={reload} />;
@@ -53,11 +53,12 @@ function ClassList() {
   const deleteCourse = (c: CourseRow) => window.confirm(`删除课程“${c.name}”？`) && run("delCourse", async () => { await request("DELETE", `/api/teacher/courses/${enc(c.id)}`); reloadCourses(); reload(); }, "课程已删除");
   const runReuse = () => run("reuse", async () => {
     const r = await request<{ results: BatchRow[] }>("POST", `/api/teacher/courses/${enc(reuse.courseId)}/reuse`,
-      { source_class_id: reuse.source, target_class_ids: reuse.targets, due_date: reuse.due || null });
-    setCourseReport(`课程复用：${summarize(r.results)}`); setReuse({ courseId: "", source: "", targets: [], due: "" });
+      { source_class_id: reuse.source, target_course_id: reuse.targetCourseId, target_class_ids: reuse.targets, due_date: reuse.due || null });
+    setCourseReport(`课程复用：${summarize(r.results)}`); setReuse({ courseId: "", targetCourseId: "", source: "", targets: [], due: "" });
     reloadCourses(); reload();
   });
   const reuseCourse = reuse.courseId ? (courses || []).find((c) => c.id === reuse.courseId) : null;
+  const targetCourse = courses?.find((c) => c.id === reuse.targetCourseId);
   return (
     <div className="stack-lg">
       <div className="page-title"><h1>班级与任务</h1>
@@ -98,7 +99,7 @@ function ClassList() {
                   <td className="faint">{c.semester_name || "—"}</td>
                   <td>{c.classes.length === 0 ? <span className="faint">未关联</span> : c.classes.map((cl) => `${cl.name}（${cl.students}人/${cl.assignments}任务）`).join("、")}</td>
                   <td className="num" style={{ whiteSpace: "nowrap" }}>
-                    {c.classes.length >= 2 && <button className="btn" onClick={() => setReuse(reuse.courseId === c.id ? { courseId: "", source: "", targets: [], due: "" } : { courseId: c.id, source: "", targets: [], due: "" })}>
+                    {c.classes.length > 0 && <button className="btn" onClick={() => setReuse(reuse.courseId === c.id ? { courseId: "", targetCourseId: "", source: "", targets: [], due: "" } : { courseId: c.id, targetCourseId: c.id, source: "", targets: [], due: "" })}>
                       {reuse.courseId === c.id ? "收起复用" : "跨学期复用"}</button>}{" "}
                     <button className="btn btn-danger" onClick={() => deleteCourse(c)}>删除</button>
                   </td>
@@ -112,11 +113,15 @@ function ClassList() {
                     <option value="">选择源班级</option>
                     {reuseCourse.classes.map((cl) => <option key={cl.id} value={cl.id}>{cl.name}（{cl.assignments}个进行中任务）</option>)}
                   </select></label>
+                <label className="field"><span>目标课程与学期</span>
+                  <select className="select" value={reuse.targetCourseId} onChange={(e) => setReuse({ ...reuse, targetCourseId: e.target.value, targets: [] })}>
+                    {(courses || []).filter((c) => c.classes.length > 0).map((c) => <option key={c.id} value={c.id}>{c.name}（{c.semester_name || "未归属学期"}）</option>)}
+                  </select></label>
                 <label className="field"><span>新截止日期（选填，留空沿用原值）</span><input className="input" type="date" value={reuse.due} aria-label="课程复用截止日期" onChange={(e) => setReuse({ ...reuse, due: e.target.value })} /></label>
               </div>
               <div className="row" style={{ flexWrap: "wrap" }}>
-                <span className="faint">目标班级（须已关联本课程）：</span>
-                {reuseCourse.classes.filter((cl) => cl.id !== reuse.source).map((cl) => (
+                <span className="faint">目标课程的班级：</span>
+                {targetCourse?.classes.filter((cl) => cl.id !== reuse.source).map((cl) => (
                   <label className="check" key={cl.id}>
                     <input type="checkbox" checked={reuse.targets.includes(cl.id)}
                       onChange={(e) => setReuse({ ...reuse, targets: e.target.checked ? [...reuse.targets, cl.id] : reuse.targets.filter((id) => id !== cl.id) })} />

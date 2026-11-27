@@ -245,3 +245,81 @@ def test_course_reuse_rechecks_case_availability(env):
     reused = api.client.post(f"/api/teacher/courses/{course['id']}/reuse", headers=teacher,
                              json={"source_class_id": source["id"], "target_class_ids": [target["id"]]}).json()
     assert [r["status"] for r in reused["results"]] == ["created"]
+
+
+def test_reuse_between_two_semesters(env):
+    api, _ = env
+    teacher = login(api, "teacher", PASSWORD)
+    other = login(api, "other", PASSWORD)
+    classes = []
+    courses = []
+    for term in ("春季", "秋季"):
+        semester = api.client.post("/api/teacher/semesters", headers=teacher, json={"name": term}).json()
+        course = api.client.post("/api/teacher/courses", headers=teacher,
+                                 json={"name": "诊断学", "semester_id": semester["id"]}).json()
+        klass = make_class(api, teacher, term + "一班", students=("spring_student",) if term == "春季" else ())
+        assert api.client.put(f"/api/teacher/classes/{klass['id']}/course", headers=teacher,
+                              json={"course_id": course["id"]}).status_code == 200
+        courses.append(course)
+        classes.append(klass["id"])
+    assert courses[0]["semester_id"] != courses[1]["semester_id"]
+    source, target = classes
+    task = {"case_public_id": "CASE-002", "note": "回顾问诊记录", "due_date": "2026-10-01"}
+    assert api.client.post(f"/api/teacher/classes/{source}/assignments", headers=teacher, json=task).status_code == 200
+    url = f"/api/teacher/courses/{courses[0]['id']}/reuse"
+    body = {"source_class_id": source, "target_course_id": courses[1]["id"], "target_class_ids": [target]}
+    assert api.client.post(url, headers=teacher, json={**body, "target_class_ids": [target, source]}).status_code == 422
+    foreign = api.client.post("/api/teacher/courses", headers=other, json={"name": "他人课程"}).json()
+    assert api.client.post(url, headers=teacher, json={**body, "target_course_id": foreign["id"]}).status_code == 404
+    assert api.client.get(f"/api/teacher/classes/{target}", headers=teacher).json()["assignments"] == []
+    for expected in ("created", "exists"):
+        res = api.client.post(url, headers=teacher, json=body)
+        assert res.status_code == 200, res.text
+        assert [r["status"] for r in res.json()["results"]] == [expected]
+    detail = api.client.get(f"/api/teacher/classes/{target}", headers=teacher).json()
+    assert detail["members"] == [] and detail["groups"] == []
+    copied, = detail["assignments"]
+    assert {k: copied[k] for k in task} == task
+
+
+@pytest.mark.parametrize("change", ["delete_course", "rebind_target"])
+def test_course_writes_recheck_after_waiting_for_another_writer(env, monkeypatch, change):
+    from concurrent.futures import ThreadPoolExecutor
+    from contextlib import contextmanager
+    from threading import Event
+    from app.roster import RosterStore
+
+    _, accounts = env
+    teacher = accounts.find("teacher")["id"]
+    roster = RosterStore(accounts)
+    source, target = [roster.create_class(teacher, name)["id"] for name in ("春班", "秋班")]
+    spring, fall = [roster.create_course(teacher, name, None)["id"] for name in ("春课", "秋课")]
+    roster.set_class_course(source, teacher, spring)
+    roster.create_assignment(source, teacher, "CASE-001", "问诊", "", None)
+    if change == "rebind_target":
+        roster.set_class_course(target, teacher, fall)
+    waiting = Event()
+    connect = accounts.connect
+
+    @contextmanager
+    def observe_writer():
+        with connect() as db:
+            db.set_trace_callback(lambda sql: waiting.set() if sql == "BEGIN IMMEDIATE" else None)
+            yield db
+
+    monkeypatch.setattr(accounts, "connect", observe_writer)
+    with ThreadPoolExecutor(1) as pool:
+        with connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if change == "delete_course":
+                db.execute("DELETE FROM courses WHERE id=?", (fall,))
+                pending = pool.submit(roster.set_class_course, target, teacher, fall)
+            else:
+                db.execute("UPDATE classes SET course_id=NULL WHERE id=?", (target,))
+                pending = pool.submit(roster.distribute, teacher, [target], None, lambda _: None,
+                                      source_class_id=source, source_course_id=spring, target_course_id=fall)
+            assert waiting.wait(5)
+        with pytest.raises(KeyError if change == "delete_course" else ValueError):
+            pending.result(timeout=5)
+    assert roster.owned_class(target, teacher)["course_id"] is None
+    assert roster.class_assignments(target) == []

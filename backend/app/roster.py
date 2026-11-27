@@ -214,20 +214,20 @@ class RosterStore:
         with self.accounts.connect() as db:
             db.execute("INSERT INTO semesters VALUES (?,?,?,?,?,?)",
                        (semester_id, teacher_id, name.strip(), start_date, end_date, time.time()))
-        return self._semester(semester_id, teacher_id)
+            return self._semester(db, semester_id, teacher_id)
 
-    def _semester(self, semester_id: str, teacher_id: str) -> dict:
-        with self.accounts.connect() as db:
-            row = db.execute("""SELECT s.*, (SELECT COUNT(*) FROM courses co WHERE co.semester_id=s.id) AS courses
-                FROM semesters s WHERE s.id=? AND s.teacher_id=?""", (semester_id, teacher_id)).fetchone()
+    @staticmethod
+    def _semester(db, semester_id: str, teacher_id: str) -> dict:
+        row = db.execute("""SELECT s.*, (SELECT COUNT(*) FROM courses co WHERE co.semester_id=s.id) AS courses
+            FROM semesters s WHERE s.id=? AND s.teacher_id=?""", (semester_id, teacher_id)).fetchone()
         if not row:
             raise KeyError(semester_id)
         return dict(row)
 
     def delete_semester(self, semester_id: str, teacher_id: str) -> None:
-        self._semester(semester_id, teacher_id)
         with self.accounts.connect() as db:
             db.execute("BEGIN IMMEDIATE")
+            self._semester(db, semester_id, teacher_id)
             if db.execute("SELECT 1 FROM courses WHERE semester_id=?", (semester_id,)).fetchone():
                 raise ValueError("该学期仍有课程；先删除课程或换绑后再删除学期")
             db.execute("DELETE FROM semesters WHERE id=?", (semester_id,))
@@ -248,64 +248,43 @@ class RosterStore:
                 {"id": row["id"], "name": row["name"], "students": row["students"], "assignments": row["assignments"]})
         return [dict(row) | {"classes": by_course.get(row["id"], [])} for row in rows]
 
-    def _course(self, course_id: str, teacher_id: str) -> dict:
-        with self.accounts.connect() as db:
-            row = db.execute("""SELECT co.*, s.name AS semester_name FROM courses co
-                LEFT JOIN semesters s ON s.id=co.semester_id WHERE co.id=? AND co.teacher_id=?""",
-                             (course_id, teacher_id)).fetchone()
+    @staticmethod
+    def _course(db, course_id: str, teacher_id: str) -> dict:
+        row = db.execute("""SELECT co.*, s.name AS semester_name FROM courses co
+            LEFT JOIN semesters s ON s.id=co.semester_id WHERE co.id=? AND co.teacher_id=?""",
+                         (course_id, teacher_id)).fetchone()
         if not row:
             raise KeyError(course_id)
         return dict(row)
 
     def create_course(self, teacher_id: str, name: str, semester_id: str | None) -> dict:
-        if semester_id is not None:
-            self._semester(semester_id, teacher_id)  # a course can only bind a semester of the same teacher
         course_id = "course-" + uuid.uuid4().hex[:12]
         with self.accounts.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if semester_id is not None:
+                self._semester(db, semester_id, teacher_id)
             db.execute("INSERT INTO courses VALUES (?,?,?,?,?)", (course_id, teacher_id, semester_id, name.strip(), time.time()))
-        return self._course(course_id, teacher_id)
+            return self._course(db, course_id, teacher_id)
 
     def delete_course(self, course_id: str, teacher_id: str) -> None:
-        self._course(course_id, teacher_id)
         with self.accounts.connect() as db:
             db.execute("BEGIN IMMEDIATE")
+            self._course(db, course_id, teacher_id)
             if db.execute("SELECT 1 FROM classes WHERE course_id=?", (course_id,)).fetchone():
                 raise ValueError("该课程仍关联班级；先解除关联后再删除课程")
             db.execute("DELETE FROM courses WHERE id=?", (course_id,))
 
     def set_class_course(self, class_id: str, teacher_id: str, course_id: str | None) -> None:
         """Link or unlink a class to a course; setting the same value is a no-op."""
-        self.owned_class(class_id, teacher_id)
-        if course_id is not None:
-            self._course(course_id, teacher_id)
         with self.accounts.connect() as db:
             db.execute("BEGIN IMMEDIATE")
-            if db.execute("SELECT course_id FROM classes WHERE id=?", (class_id,)).fetchone()["course_id"] == course_id:
-                return
-            db.execute("UPDATE classes SET course_id=? WHERE id=?", (course_id, class_id))
-
-    def course_class_ids(self, course_id: str) -> list[str]:
-        with self.accounts.connect() as db:
-            return [row[0] for row in db.execute(
-                "SELECT id FROM classes WHERE course_id=? ORDER BY created_at", (course_id,))]
-
-    def reuse_course(self, teacher_id: str, course_id: str, source_class_id: str,
-                     target_class_ids: list[str], due_date: str | None, require_case: Callable) -> list[dict]:
-        """Copy one class's whole-course assignments to other classes of the SAME course.
-
-        Students, group structures, training records and scores belong to the original class and
-        are never copied; group-scoped tasks are reported as skipped by ``distribute``. The
-        same-course precondition is checked here; ownership and duplicates are re-checked inside
-        the atomic ``distribute`` write.
-        """
-        self._course(course_id, teacher_id)
-        linked = set(self.course_class_ids(course_id))
-        if source_class_id not in linked:
-            raise ValueError("源班级不在该课程中")
-        outside = [class_id for class_id in target_class_ids if class_id not in linked]
-        if outside:
-            raise ValueError("目标班级必须已关联该课程；请先关联后再复用")
-        return self.distribute(teacher_id, target_class_ids, due_date, require_case, source_class_id=source_class_id)
+            row = db.execute("SELECT course_id FROM classes WHERE id=? AND teacher_id=?", (class_id, teacher_id)).fetchone()
+            if row is None:
+                raise KeyError(class_id)
+            if course_id is not None:
+                self._course(db, course_id, teacher_id)
+            if row["course_id"] != course_id:
+                db.execute("UPDATE classes SET course_id=? WHERE id=?", (course_id, class_id))
 
     # -------------------------------------------------------------- groups
     def groups(self, class_id: str) -> list[dict]:
@@ -410,13 +389,20 @@ class RosterStore:
 
     def distribute(self, teacher_id: str, class_ids: list[str], due_date: str | None,
                    require_case: Callable, *, template_id: str | None = None,
-                   source_class_id: str | None = None) -> list[dict]:
+                   source_class_id: str | None = None, source_course_id: str | None = None,
+                   target_course_id: str | None = None) -> list[dict]:
         """Validate and distribute one batch under the same write lock, including duplicate checks."""
         with self.accounts.connect() as db:
             db.execute("BEGIN IMMEDIATE")
+            if source_course_id is not None:
+                target_course_id = target_course_id or source_course_id
+                for course_id in {source_course_id, target_course_id}:
+                    self._course(db, course_id, teacher_id)
             names = {}
             for class_id in dict.fromkeys(class_ids):
-                row = db.execute("SELECT name FROM classes WHERE id=? AND teacher_id=?", (class_id, teacher_id)).fetchone()
+                row = db.execute("SELECT name, course_id FROM classes WHERE id=? AND teacher_id=?", (class_id, teacher_id)).fetchone()
+                if target_course_id and (row is None or row["course_id"] != target_course_id):
+                    raise ValueError("目标班级必须已关联选定的目标课程")
                 if row is None:
                     raise KeyError(class_id)
                 names[class_id] = row["name"]
@@ -428,8 +414,11 @@ class RosterStore:
                     raise KeyError(template_id)
                 tasks = [task]
             else:
-                if not db.execute("SELECT 1 FROM classes WHERE id=? AND teacher_id=?",
-                                  (source_class_id, teacher_id)).fetchone():
+                source = db.execute("SELECT course_id FROM classes WHERE id=? AND teacher_id=?",
+                                    (source_class_id, teacher_id)).fetchone()
+                if source_course_id and (source is None or source["course_id"] != source_course_id):
+                    raise ValueError("源班级不在所选源课程中")
+                if source is None:
                     raise KeyError(source_class_id)
                 tasks = db.execute("SELECT * FROM assignments WHERE class_id=? AND archived=0 ORDER BY created_at DESC",
                                    (source_class_id,)).fetchall()
@@ -591,6 +580,7 @@ class ClassCourseBody(BaseModel):
 
 class CourseReuseBody(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    target_course_id: str | None = Field(default=None, min_length=1, max_length=64)
     source_class_id: str = Field(min_length=1, max_length=64)
     target_class_ids: list[str] = Field(min_length=1, max_length=50)
     due_date: str | None = Field(default=None, max_length=10)
@@ -750,7 +740,9 @@ def build_router(get_roster: Callable[[], RosterStore], get_accounts: Callable[[
         if not course_id:
             return None
         try:
-            return roster()._course(course_id, teacher_id)["name"]
+            store = roster()
+            with store.accounts.connect() as db:
+                return store._course(db, course_id, teacher_id)["name"]
         except KeyError:
             return None
 
@@ -917,8 +909,9 @@ def build_router(get_roster: Callable[[], RosterStore], get_accounts: Callable[[
         store = roster()
         due_date = validated_due_date(body.due_date)
         try:
-            results = store.reuse_course(teacher_id, course_id, body.source_class_id,
-                                         body.target_class_ids, due_date, require_case)
+            results = store.distribute(teacher_id, body.target_class_ids, due_date, require_case,
+                                       source_class_id=body.source_class_id, source_course_id=course_id,
+                                       target_course_id=body.target_course_id)
         except KeyError as exc:
             raise HTTPException(404, "课程或班级不存在或不属于当前教师") from exc
         except ValueError as exc:

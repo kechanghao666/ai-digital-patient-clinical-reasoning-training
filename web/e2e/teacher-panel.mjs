@@ -333,11 +333,34 @@ try {
   await page.getByLabel(/面板班二/).check();
   await page.getByRole("button", { name: /复用（1 个班）/ }).click();
   await page.getByText(/课程复用：跳过已有 1 项/).waitFor();
-  ok("课程跨学期复用对已有同病例任务幂等跳过", true);
+  ok("同一课程复用对已有同病例任务幂等跳过", true);
   page.once("dialog", (dialog) => dialog.accept());
   await courseRow.getByRole("button", { name: "删除", exact: true }).click();
   await page.getByText(/该课程仍关联班级/).waitFor();
   ok("仍关联班级的课程不能删除", true);
+  await page.getByLabel("学期名称").fill("2026 秋季学期");
+  await page.getByRole("button", { name: "新建学期" }).click();
+  await page.getByLabel("课程名称").fill("临床诊断学秋季班");
+  await page.getByLabel("课程所属学期").selectOption({ label: "2026 秋季学期" });
+  await page.getByRole("button", { name: "新建课程" }).click();
+  const fallRow = page.locator("tr", { has: page.getByText("临床诊断学秋季班", { exact: true }) });
+  await fallRow.getByText("未关联").waitFor();
+  await page.getByLabel("班级名称", { exact: true }).fill("秋季新班");
+  await page.getByRole("button", { name: "新建班级" }).click();
+  await page.getByLabel("关联课程").selectOption({ label: "临床诊断学秋季班（2026 秋季学期）" });
+  await page.getByText("已关联课程").waitFor();
+  await page.getByRole("button", { name: "返回" }).click();
+  await fallRow.getByText("秋季新班（0人/0任务）").waitFor();
+  for (const expected of ["新建 1 项", "跳过已有 1 项"]) {
+    await courseRow.getByRole("button", { name: "跨学期复用" }).click();
+    await page.getByLabel("课程复用源班级").selectOption({ label: "面板班（1个进行中任务）" });
+    await page.getByLabel("目标课程与学期").selectOption({ label: "临床诊断学秋季班（2026 秋季学期）" });
+    await page.getByLabel("秋季新班", { exact: true }).check();
+    await page.getByRole("button", { name: "复用（1 个班）" }).click();
+    await page.getByText(`课程复用：${expected}`, { exact: false }).waitFor();
+    await fallRow.getByText("秋季新班（0人/1任务）").waitFor();
+    ok(`春季课程复用到秋季空班：${expected}`, true);
+  }
   await page.screenshot({ path: path.join(OUT, "course-semesters.png"), fullPage: true });
 
   // ---- no data (teacher with no class)
