@@ -12,6 +12,7 @@ from .integration.tools import _event_digest
 from .models import ScoreSnapshot
 from .scoring import student_score_snapshot
 from .storage import ConcurrentUpdateError, SessionRepository
+from .teacher_scope import require_teacher_student
 
 
 def _model_stage_comments(runtime: IntegrationRuntime, session_id: str, owner_id: str) -> dict[str, str]:
@@ -63,10 +64,12 @@ def reviewed_snapshot(original: ScoreSnapshot, request: ScoreReviewRequest, even
 
 
 def build_router(get_repository: Callable[[], SessionRepository], get_cases: Callable[[], CaseStore],
-                 get_runtime: Callable[[], IntegrationRuntime], current_teacher: Callable[..., str]) -> APIRouter:
+                 get_runtime: Callable[[], IntegrationRuntime], current_teacher: Callable[..., str],
+                 get_roster: Callable | None = None) -> APIRouter:
     router = APIRouter(prefix="/api/teacher/scores", tags=["teacher"])
 
-    def context(session_id: str, owner_id: str):
+    def context(session_id: str, owner_id: str, teacher_id: str):
+        require_teacher_student(get_roster, teacher_id, owner_id)
         try:
             state = get_repository().get(session_id, owner_id)
         except KeyError as exc:
@@ -81,8 +84,8 @@ def build_router(get_repository: Callable[[], SessionRepository], get_cases: Cal
 
     @router.get("/{session_id}")
     def read(session_id: str, owner_id: str = Query(min_length=1, max_length=200),
-             _: str = Depends(current_teacher)) -> dict:
-        state, case = context(session_id, owner_id)
+             teacher_id: str = Depends(current_teacher)) -> dict:
+        state, case = context(session_id, owner_id, teacher_id)
         reviews = get_runtime().score_reviews.list(session_id, owner_id)
         model_comments = _model_stage_comments(get_runtime(), session_id, owner_id)
         return {"session_id": session_id, "owner_id": owner_id,
@@ -100,7 +103,7 @@ def build_router(get_repository: Callable[[], SessionRepository], get_cases: Cal
 
     @router.post("/{session_id}")
     def save(session_id: str, request: ScoreReviewRequest, teacher_id: str = Depends(current_teacher)) -> dict:
-        state, case = context(session_id, request.owner_id)
+        state, case = context(session_id, request.owner_id, teacher_id)
         if not request.confirmed:
             raise HTTPException(status_code=422, detail="须明确确认已逐项核对分数、事件和量表")
         try:

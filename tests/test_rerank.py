@@ -19,6 +19,7 @@ from app.state_machine import StateMachine
 from app.storage import SessionRepository
 from test_basis_search import OWNER, STUDENT, TEACHER, seal_session
 from test_integration import settings_for
+from teacher_scope_helpers import bind_demo_class
 
 RERANK_PATH = "/api/teacher/feedback/basis/rerank"
 QUERY = "怀疑急性冠脉综合征的病人要优先做心电图"
@@ -46,6 +47,7 @@ def make_runtime(tmp_path, configured=True) -> IntegrationRuntime:
 
 
 def install_rerank(tmp_path, monkeypatch, configured=True):
+    bind_demo_class(tmp_path, monkeypatch, [TEACHER["X-Owner-Id"]], [OWNER])
     monkeypatch.setenv("APP_ENV", "development")
     monkeypatch.delenv("APP_AUTH_MODE", raising=False)
     repository = SessionRepository(tmp_path / "app.db")

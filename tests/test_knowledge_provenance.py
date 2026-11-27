@@ -14,6 +14,12 @@ from test_feedback_contract import sealed
 from test_feedback_reviews import payload, read, save
 from test_integration import Env, ROOT, feedback_agent, select, _play_and_seal
 from test_cases_config import configure_department_catalog
+from teacher_scope_helpers import bind_demo_class
+
+
+@pytest.fixture(autouse=True)
+def teacher_memberships(tmp_path, monkeypatch):
+    bind_demo_class(tmp_path, monkeypatch, ["teacher-reviewer"], ["demo-integration"])
 
 
 def library_copy(tmp_path):

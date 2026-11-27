@@ -109,7 +109,7 @@ class RosterStore:
                 WHERE c.teacher_id=? AND m.account_id=?""", (teacher_id, account_id)).fetchone() is not None
 
     def add_students(self, class_id: str, teacher_id: str, students: list[dict]) -> list[dict]:
-        """Create missing student accounts (with a one-time password) and enrol everyone listed."""
+        """Create new students, or reuse only students already taught by this teacher."""
         self.owned_class(class_id, teacher_id)
         results = []
         for item in students:
@@ -123,10 +123,16 @@ class RosterStore:
             password = None
             if existing is None:
                 password = temporary_password()
-                account_id = self.accounts.create(
-                    username, password, "student", display, must_change=True,
-                    actor_id=teacher_id, entry="teacher_api",
-                )
+                try:
+                    account_id = self.accounts.create(
+                        username, password, "student", display, must_change=True,
+                        actor_id=teacher_id, entry="teacher_api",
+                    )
+                except ValueError as exc:
+                    # Another request may create this username after find(). Never adopt that
+                    # account or return this request's unused generated password to the caller.
+                    results.append({"username": username, "status": "rejected", "message": str(exc)})
+                    continue
                 status = "created"
             elif existing["role"] != "student":
                 results.append({"username": username, "status": "rejected", "message": "该账号不是学生账号"})
@@ -135,6 +141,13 @@ class RosterStore:
                 account_id = existing["id"]
                 status = "enrolled"
             with self.accounts.connect() as db:
+                db.execute("BEGIN IMMEDIATE")
+                if existing is not None and not db.execute("""SELECT 1 FROM class_members m
+                        JOIN classes c ON c.id=m.class_id WHERE c.teacher_id=? AND m.account_id=?""",
+                        (teacher_id, account_id)).fetchone():
+                    results.append({"username": username, "status": "rejected",
+                                    "message": "该已有学生账号不属于当前教师，不能加入班级"})
+                    continue
                 db.execute("INSERT OR IGNORE INTO class_members VALUES (?,?,?)", (class_id, account_id, time.time()))
             results.append({"username": username, "display_name": display, "status": status,
                             "temporary_password": password})

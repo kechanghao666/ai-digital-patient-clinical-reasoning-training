@@ -142,7 +142,9 @@ def _seed_snapshot(tmp_path: Path) -> tuple[Path, Path, str, str, list[dict]]:
 
 
 def test_offline_backup_restore_preserves_all_service_data(tmp_path):
+    from app.export import ExportAudit
     data_dir, external_db, session_id, case_id, expected_account_audit = _seed_snapshot(tmp_path)
+    export_event = ExportAudit(data_dir / "accounts.db").append("synthetic-teacher", {}, 1, "success")
     expected_state = SessionRepository(data_dir / "app.db").get(session_id, "synthetic-student")
     expected_case_store = CaseStore(ROOT / "cases", data_dir / "teacher_cases")
     expected_case = expected_case_store.get(case_id, 1)
@@ -180,6 +182,7 @@ def test_offline_backup_restore_preserves_all_service_data(tmp_path):
     restored_accounts = AccountStore(restored_dir / "accounts.db")
     assert restored_accounts.find("synthetic_teacher")["display_name"] == "合成教师（测试夹具）"
     assert restored_accounts.account_audit_log() == expected_account_audit
+    assert ExportAudit(restored_dir / "accounts.db").recent() == [export_event]
     with restored_accounts.connect() as connection:
         assert connection.execute("SELECT COUNT(*) FROM login_sessions").fetchone()[0] == 0
     assert CaseTrainingStore(restored_dir / "integration.db").get(case_id, 1)["request_id"] == "synthetic-stop-request"

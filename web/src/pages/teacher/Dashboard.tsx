@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { enc, get, getIdentity } from "../../api";
+import { useEffect, useRef, useState } from "react";
+import { ApiError, enc, get, getIdentity, request } from "../../api";
 import { navigate } from "../../App";
 import { STAGES } from "../../types";
-import { Bar, Loading, Panel, pct, toneFor, useLoad } from "../../ui";
+import { Bar, Loading, Msg, Panel, pct, toneFor, useLoad } from "../../ui";
 
 interface Training {
   session_id: string; summary_id: string; owner_id: string; username: string; display_name: string;
@@ -23,6 +23,9 @@ interface Observability {
     token_usage: string; cost: string;
   } | null;
 }
+interface ExportResult {
+  ok: boolean; scope: string; record_count: number; records: unknown[]; notice: string;
+}
 const STATUS: Record<string, [string, string]> = { complete: ["已评分", "ok"], needs_review: ["待复核", "warn"], failed: ["评分失败", "bad"] };
 const heat = (r: number | null | undefined) => r == null ? {} : { background: r >= 0.8 ? "var(--ok-soft)" : r >= 0.5 ? "var(--warn-soft)" : "var(--bad-soft)", color: r >= 0.8 ? "var(--ok)" : r >= 0.5 ? "var(--warn)" : "var(--bad)" };
 
@@ -30,11 +33,40 @@ export function Dashboard({ params }: { params: URLSearchParams }) {
   const classId = params.get("class_id") || "";
   const local = getIdentity()?.mode === "local";
   const { data: classes } = useLoad(() => local ? get<{ id: string; name: string }[]>("/api/teacher/classes") : Promise.resolve([]), [local]);
-  const { data, error, reload } = useLoad(() => get<Data>(`/api/teacher/dashboard${classId ? `?class_id=${enc(classId)}` : ""}`), [classId]);
-  const { data: obs, error: obsError } = useLoad(() => get<Observability>("/api/teacher/observability"), []);
+  const { data: loaded, error, reload } = useLoad(async () => ({ classId,
+    value: await get<Data>(`/api/teacher/dashboard${classId ? `?class_id=${enc(classId)}` : ""}`) }), [classId]);
+  const data = loaded?.classId === classId ? loaded.value : null;
+  const { data: obs, error: obsError, reload: reloadObs } = useLoad(() => get<Observability>("/api/teacher/observability"), []);
   const [caseFilter, setCaseFilter] = useState("");
   const [reviewOnly, setReviewOnly] = useState(false);
-  if (!data) return <Loading error={error} onRetry={reload} />;
+  const [exporting, setExporting] = useState(false);
+  const [exportResult, setExportResult] = useState<ExportResult | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const exportVersion = useRef(0);
+  useEffect(() => {
+    exportVersion.current++;
+    setExportResult(null); setExportError(null); setExporting(false);
+  }, [classId]);
+  async function runExport() {
+    const version = ++exportVersion.current;
+    setExporting(true); setExportError(null); setExportResult(null);
+    try {
+      const data = await request<ExportResult>("POST", "/api/teacher/export", { class_id: classId || undefined });
+      if (version === exportVersion.current) setExportResult(data);
+    } catch (e) {
+      if (version === exportVersion.current) setExportError(e instanceof ApiError ? e.message : "导出失败");
+    } finally { if (version === exportVersion.current) setExporting(false); }
+  }
+  function downloadExport() {
+    if (!exportResult) return;
+    const blob = new Blob([JSON.stringify({ format: "teaching-deidentified-v1", notice: exportResult.notice,
+      records: exportResult.records }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "deidentified-export.json"; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  if (!data || error) return <Loading error={error} onRetry={reload} />;
   const o = data.overview;
   const rows = data.trainings.filter((t) => (!caseFilter || t.public_id === caseFilter) && (!reviewOnly || t.score_status === "needs_review"));
   const lost = data.cases.flatMap((c) => c.frequently_lost.map((i) => ({ ...i, public_id: c.public_id }))).sort((a, b) => b.loss_rate - a.loss_rate || b.lost - a.lost).slice(0, 8);
@@ -45,8 +77,8 @@ export function Dashboard({ params }: { params: URLSearchParams }) {
         <div className="row">
           {local && <select className="select" style={{ width: 200 }} value={classId} aria-label="班级"
             onChange={(e) => navigate(`/teacher/dashboard${e.target.value ? `?class_id=${enc(e.target.value)}` : ""}`)}>
-            <option value="">全部学生</option>{(classes || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>}
-          <button className="btn" onClick={reload}>刷新</button>
+            <option value="">全部自有班级</option>{(classes || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>}
+          <button className="btn" onClick={() => { reload(); reloadObs(); }}>刷新</button>
         </div>
       </div>
       <section className="panel"><div className="panel-body" style={{ display: "flex", gap: 36, flexWrap: "wrap" }}>
@@ -54,7 +86,7 @@ export function Dashboard({ params }: { params: URLSearchParams }) {
           <div key={k}><div className="faint">{k}</div><div style={{ fontSize: 20, fontWeight: 600 }} className="num">{v}</div></div>)}
       </div></section>
       <Panel title="模型调用观测" flush>
-        {obsError ? <div className="empty">统计暂不可用</div>
+        {obsError ? <div className="empty">统计暂不可用　<button className="btn-link btn" onClick={reloadObs}>重试</button></div>
           : !obs || !obs.stats ? <div className="empty">统计加载中…</div>
           : obs.stats.turns_total === 0 ? <div className="empty">暂无已记录的可信回合数据{obs.store_note ? `（${obs.store_note}）` : ""}</div>
           : <div className="panel-body" style={{ display: "flex", gap: 36, flexWrap: "wrap" }}>
@@ -64,6 +96,23 @@ export function Dashboard({ params }: { params: URLSearchParams }) {
               <div><div className="faint">费用</div><div className="num" style={{ fontSize: 20, fontWeight: 600 }}>{obs.stats.cost === "unknown" ? "未知" : obs.stats.cost}</div></div>
             </div>}
         <p className="faint" style={{ margin: "10px 16px 0" }}>仅统计当前教师班级内学生已记录的可信回合（Nexent 适配器路径）；适配器模式不代表真实供应商调用，token 用量与费用未知时显式标注。</p>
+      </Panel>
+      <Panel title="数据导出（去标识化）" flush>
+        <div className="panel-body" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+          <button className="btn btn-primary" disabled={exporting} onClick={runExport}>{exporting ? "导出中…" : (exportResult ? "重新导出" : "预览导出")}</button>
+          {exportResult && <button className="btn" onClick={downloadExport}>下载 JSON</button>}
+          <span className="faint">{local ? `范围：${classId ? "当前班级" : "全部自有班级"}` : "范围：全部自有班级"}</span>
+        </div>
+        {exportError && <div style={{ padding: "0 16px" }}><Msg tone="bad">{exportError}</Msg></div>}
+        {exportResult && (
+          <div style={{ padding: "0 16px 12px" }}>
+            <p className="faint">已生成 {exportResult.record_count} 条去标识化记录。{exportResult.notice}</p>
+            <p className="faint">保留字段：包内病例编号及版本、训练状态、相对事件顺序、模拟时间与原始工程评分。审计记录文件生成，不代表浏览器已保存下载。</p>
+            <details><summary>查看字段与记录预览（最多 3 条）</summary>
+              <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify(exportResult.records.slice(0, 3), null, 2)}</pre>
+            </details>
+          </div>
+        )}
       </Panel>
       {data.trainings.length === 0 ? <section className="panel"><div className="empty">暂无训练数据</div></section> : <>
         <div className="work">

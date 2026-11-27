@@ -743,6 +743,124 @@ def test_teacher_observability_scopes_to_own_class_members(tmp_path, monkeypatch
     assert b["stats"]["tool_calls_total"] == 4
 
 
+def test_observability_roster_failure_is_unavailable_not_empty(tmp_path, monkeypatch):
+    from app.accounts import AccountStore
+
+    env = Env(tmp_path, monkeypatch, select("f_hx_htn"))
+    monkeypatch.setenv("APP_AUTH_MODE", "local")
+    accounts = AccountStore(tmp_path / "accounts.db")
+    monkeypatch.setattr(main, "ACCOUNTS", accounts)
+    accounts.create("teachera", "Ta-Pass-2026", "teacher", "老师甲")
+
+    class BrokenRoster:
+        def classes(self, teacher_id):
+            raise RuntimeError("roster store corrupted")
+
+    # A broken roster must be reported as "statistics unavailable", not silently as "no class".
+    monkeypatch.setattr(main, "roster_for", lambda accounts: BrokenRoster())
+    login = env.client.post("/api/auth/login", json={"username": "teachera", "password": "Ta-Pass-2026"})
+    headers = {"Authorization": "Bearer " + login.json()["token"]}
+    res = env.client.get("/api/teacher/observability", headers=headers)
+    assert res.status_code == 503
+
+
+def test_teacher_export_is_scoped_and_deidentified(tmp_path, monkeypatch):
+    import json as _json
+
+    from app.accounts import AccountStore
+    from app.export import ExportAudit
+    from app.models import ActionKind, Event, ScoreItem, ScoreSnapshot, SessionState
+    from app.roster import RosterStore
+
+    env = Env(tmp_path, monkeypatch, select("f_hx_htn"))
+    monkeypatch.setenv("APP_AUTH_MODE", "local")
+    accounts = AccountStore(tmp_path / "accounts.db")
+    monkeypatch.setattr(main, "ACCOUNTS", accounts)
+    audit = ExportAudit(tmp_path / "accounts.db")
+    monkeypatch.setattr(main, "EXPORT_AUDIT", audit)
+
+    ta = accounts.create("teachera", "Ta-Pass-2026", "teacher", "老师甲")
+    tb = accounts.create("teacherb", "Tb-Pass-2026", "teacher", "老师乙")
+    roster = RosterStore(accounts)
+    ca = roster.create_class(ta, "甲班")
+    cb = roster.create_class(tb, "乙班")
+    student_created = roster.add_students(ca["id"], ta, [{"username": "s001", "display_name": "学生一"}])[0]
+    roster.add_students(cb["id"], tb, [{"username": "s002", "display_name": "学生二"}])
+    s1 = accounts.find("s001")["id"]
+    s2 = accounts.find("s002")["id"]
+
+    case = main.CASE_STORE.get_by_public_id("CASE-001")
+    case_id, case_version = case.case_id, case.version
+
+    def save_state(owner_id, mark):
+        env.repository.create(SessionState(
+            session_id=f"sid-{owner_id}",
+            owner_id=owner_id,
+            case_id=case_id,
+            case_version=case_version,
+            events=[Event(request_id="req-internal", seq=1, actor="student", action=ActionKind.ASK,
+                          intent=f"我的手机号 13800001111 {mark}", payload={},
+                          result={"answer": "有高血压10年。", "fact_ids": ["f_hx_htn"]},
+                          sim_time=0, state_before={}, state_after={})],
+            case_notes=f"姓名张三 {mark}",
+            score_snapshot=ScoreSnapshot(session_id=f"sid-{owner_id}", seal_seq=1, total_score=1.0,
+                                         max_score=5.0, status="complete",
+                                         items=[ScoreItem(item_id="i1", stage="病史采集", hit=True,
+                                                          score=1.0, max_score=1.0,
+                                                          evidence_event_ids=[], reason="命中")]),
+        ))
+
+    save_state(s1, "AAA")
+    save_state(s2, "BBB")
+
+    def login(u, p):
+        r = env.client.post("/api/auth/login", json={"username": u, "password": p})
+        assert r.status_code == 200, r.text
+        return {"Authorization": "Bearer " + r.json()["token"]}
+
+    # Student and anonymous callers are rejected.
+    first_login = login("s001", student_created["temporary_password"])
+    changed = env.client.post("/api/auth/password", headers=first_login,
+                              json={"current_password": student_created["temporary_password"],
+                                    "new_password": "S001-Pass-2026"})
+    assert changed.status_code == 200
+    student_headers = {"Authorization": "Bearer " + changed.json()["token"]}
+    assert env.client.post("/api/teacher/export", headers=student_headers, json={}).status_code == 403
+    assert env.client.post("/api/teacher/export", headers={}, json={}).status_code in (401, 403)
+
+    ta_headers = login("teachera", "Ta-Pass-2026")
+    tb_headers = login("teacherb", "Tb-Pass-2026")
+
+    # Teacher A exports their own class (no class_id -> all owned) -> only s001's record.
+    a = env.client.post("/api/teacher/export", headers=ta_headers, json={}).json()
+    assert a["ok"] is True and a["record_count"] == 1
+    blob = _json.dumps(a["records"], ensure_ascii=False)
+    for forbidden in ("s001", "s002", "sid-", "req-internal", "13800001111", "张三", "有高血压", "我的手机号", "AAA", "BBB"):
+        assert forbidden not in blob, forbidden
+    rec = a["records"][0]
+    assert rec["export_index"] == 1
+    assert rec["events"][0]["action"] == "ask"
+    assert rec["score"]["items"][0]["stage"] == "病史采集"
+
+    # Teacher B sees only their own student's record.
+    b = env.client.post("/api/teacher/export", headers=tb_headers, json={}).json()
+    assert b["ok"] is True and b["record_count"] == 1
+
+    # Tampered class id (B's class requested by A) is rejected, not leaked.
+    assert env.client.post("/api/teacher/export", headers=ta_headers, json={"class_id": cb["id"]}).status_code == 404
+
+    # Audit records success and rejection, and never stores the removed identity strings.
+    audit_rows = audit.recent()
+    assert any(r["result"] == "success" and r["record_count"] == 1 for r in audit_rows)
+    assert any(r["result"] == "rejected" for r in audit_rows)
+    audit_blob = _json.dumps(audit_rows, ensure_ascii=False)
+    assert "13800001111" not in audit_blob and "张三" not in audit_blob and "sid-" not in audit_blob
+
+    # Original trainings are unchanged (the export is read-only).
+    assert env.repository.get(f"sid-{s1}", s1).case_notes == "姓名张三 AAA"
+    assert env.repository.get(f"sid-{s2}", s2).case_notes == "姓名张三 BBB"
+
+
 def test_tokens_are_bound_and_unforgeable(tmp_path, monkeypatch):
     env = Env(tmp_path, monkeypatch)
     sid = env.new_session()

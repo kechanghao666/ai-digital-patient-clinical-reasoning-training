@@ -13,8 +13,14 @@ from app.storage import ConcurrentUpdateError
 from test_feedback_contract import sealed
 from test_frontend_smoke import _route_requests
 from test_integration import Env, ROOT
+from teacher_scope_helpers import bind_demo_class
 
 TEACHER = {"X-Owner-Id": "teacher-reviewer"}
+
+
+@pytest.fixture(autouse=True)
+def teacher_memberships(tmp_path, monkeypatch):
+    bind_demo_class(tmp_path, monkeypatch, ["teacher-reviewer", "teacher-demo"], ["demo-integration"])
 
 
 def payload(state, items, **changes):

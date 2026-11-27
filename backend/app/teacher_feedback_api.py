@@ -14,6 +14,7 @@ from .integration.runtime import IntegrationRuntime
 from .integration.tools import _event_digest, validate_feedback_items, validate_feedback_record
 from .models import CaseDefinition, SessionState
 from .storage import ConcurrentUpdateError, SessionRepository
+from .teacher_scope import require_teacher_student
 
 # Cosine-similarity floor below which a teaching-basis entry is not offered as a semantic match.
 _BASIS_MIN_SCORE = 0.45
@@ -69,10 +70,12 @@ def _entry_summary(entry) -> dict[str, Any]:
 def build_router(
     get_repository: Callable[[], SessionRepository], get_cases: Callable[[], CaseStore],
     get_runtime: Callable[[], IntegrationRuntime], current_teacher: Callable[..., str],
+    get_roster: Callable | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/teacher/feedback", tags=["teacher"])
 
-    def context(session_id: str, owner_id: str) -> tuple[SessionState, CaseDefinition]:
+    def context(session_id: str, owner_id: str, teacher_id: str) -> tuple[SessionState, CaseDefinition]:
+        require_teacher_student(get_roster, teacher_id, owner_id)
         try:
             state = get_repository().get(session_id, owner_id)
         except KeyError as exc:
@@ -87,8 +90,8 @@ def build_router(
 
     @router.get("/{session_id}")
     def read(session_id: str, owner_id: str = Query(min_length=1, max_length=200),
-             _: str = Depends(current_teacher)) -> dict[str, Any]:
-        state, case = context(session_id, owner_id)
+             teacher_id: str = Depends(current_teacher)) -> dict[str, Any]:
+        state, case = context(session_id, owner_id, teacher_id)
         runtime = get_runtime()
         original = runtime.feedback_store.get(session_id, owner_id)
         reviews = runtime.feedback_store.reviews(session_id, owner_id)
@@ -122,7 +125,7 @@ def build_router(
     @router.post("/{session_id}")
     def review(session_id: str, request: FeedbackReviewRequest,
                teacher_id: str = Depends(current_teacher)) -> dict[str, Any]:
-        state, case = context(session_id, request.owner_id)
+        state, case = context(session_id, request.owner_id, teacher_id)
         runtime = get_runtime()
         request_hash = SessionRepository.hash_payload({"teacher_id": teacher_id, **request.model_dump(exclude={"owner_id", "request_id"})})
         try:
@@ -150,7 +153,7 @@ def build_router(
                 "notice": "已保存反馈复核版本，原始反馈、轨迹和封存分数保持不变。"}
 
     @router.post("/basis/search")
-    def search_basis(request: BasisSearchRequest, _: str = Depends(current_teacher)) -> dict[str, Any]:
+    def search_basis(request: BasisSearchRequest, teacher_id: str = Depends(current_teacher)) -> dict[str, Any]:
         # Read-only helper: rank the teaching-basis entries that apply to the sealed training's
         # case/version and to the feedback stage the teacher picked, so the semantic shortlist can
         # never surface another specialty's material. Candidates are narrowed BEFORE any similarity
@@ -159,7 +162,7 @@ def build_router(
         # training records, and it never auto-cites a result.
         if request.stage is not None and request.stage not in STAGES:
             raise HTTPException(status_code=422, detail="环节不在反馈环节范围内")
-        _state, case = context(request.session_id, request.owner_id)
+        _state, case = context(request.session_id, request.owner_id, teacher_id)
         runtime = get_runtime()
         applies = runtime.knowledge.for_case(case.case_id, case.version)
         candidates = [
@@ -192,7 +195,7 @@ def build_router(
                 "notice": _BASIS_DRAFT_NOTICE, "scope": scope, "results": results}
 
     @router.post("/basis/rerank")
-    def rerank_basis(request: BasisRerankRequest, _: str = Depends(current_teacher)) -> dict[str, Any]:
+    def rerank_basis(request: BasisRerankRequest, teacher_id: str = Depends(current_teacher)) -> dict[str, Any]:
         # Read-only rerank of the already-narrowed candidates for the sealed training's case/version
         # and the teacher's stage. No embedding call is made here: the candidate list comes from the
         # scope filter alone. The documents are submitted in the given fixed order; the response
@@ -201,7 +204,7 @@ def build_router(
         # never look like a successful model output. Read-only: never writes feedback or scores.
         if request.stage is not None and request.stage not in STAGES:
             raise HTTPException(status_code=422, detail="环节不在反馈环节范围内")
-        _state, case = context(request.session_id, request.owner_id)
+        _state, case = context(request.session_id, request.owner_id, teacher_id)
         runtime = get_runtime()
         candidates = [
             entry for entry in runtime.knowledge.for_case(case.case_id, case.version)

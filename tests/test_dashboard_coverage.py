@@ -1,13 +1,20 @@
 """History-structure progress (student) and class dashboard (teacher)."""
 from streamlit.testing.v1 import AppTest
+import pytest
 
 from app.accounts import AccountStore
 from app.history_coverage import history_coverage
 from app.models import ActionKind, Event
 from test_cases_config import ROOT, Api
 from test_frontend_smoke import _route_requests
+from teacher_scope_helpers import bind_demo_class
 
 TEACHER = {"X-Owner-Id": "teacher-dash"}
+
+
+@pytest.fixture(autouse=True)
+def teacher_memberships(tmp_path, monkeypatch):
+    bind_demo_class(tmp_path, monkeypatch, ["teacher-dash", "teacher-demo"], ["demo-cfg"])
 
 
 def _ask_event(question, seq=0):

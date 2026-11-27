@@ -5,6 +5,7 @@ Scores are engineering rule results on unreviewed draft cases, not formal grades
 """
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from typing import Callable
 
@@ -12,6 +13,9 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from .history_coverage import history_coverage
 from .integration.turns import empty_stats
+from .teacher_scope import teacher_member_ids
+
+logger = logging.getLogger(__name__)
 
 STAGES = ("病史采集", "检查选择", "鉴别诊断", "诊断", "治疗")
 
@@ -110,15 +114,8 @@ def build_router(get_repository: Callable, get_cases: Callable, get_accounts: Ca
 
     @router.get("/dashboard")
     def dashboard(class_id: str | None = None, teacher_id: str = Depends(current_teacher)) -> dict:
-        states = get_repository().list_all()
-        if class_id:
-            # Restrict to one of the teacher's own classes.
-            try:
-                get_roster().owned_class(class_id, teacher_id)
-            except (KeyError, AttributeError) as exc:
-                raise HTTPException(404, "班级不存在或不属于当前教师") from exc
-            members = set(get_roster().member_ids(class_id))
-            states = [state for state in states if state.owner_id in members]
+        members = set(teacher_member_ids(get_roster, teacher_id, class_id))
+        states = [state for state in get_repository().list_all() if state.owner_id in members]
         people = get_accounts().directory(state.owner_id for state in states)
         return build_dashboard(states, get_cases().get, people)
 
@@ -131,7 +128,13 @@ def build_router(get_repository: Callable, get_cases: Callable, get_accounts: Ca
         # or incomplete store): the former is a legitimate empty state, the latter is an error.
         if get_turn_stats is None:
             raise HTTPException(404, "可观测统计未启用")
-        owner_ids = _teacher_member_ids(get_roster, teacher_id)
+        try:
+            owner_ids = _teacher_member_ids(get_roster, teacher_id)
+        except Exception as exc:
+            # A roster/query failure is not "no class": refuse to serve statistics and keep the
+            # diagnostic server-side. Never fall back to the full library here.
+            logger.warning("observability roster lookup failed for teacher=%s: %s", teacher_id, type(exc).__name__)
+            raise HTTPException(503, "统计暂不可用") from exc
         result = get_turn_stats(owner_ids)
         if result.get("ok"):
             return {"ok": True, "stats": result["stats"]}
@@ -143,17 +146,9 @@ def build_router(get_repository: Callable, get_cases: Callable, get_accounts: Ca
 
 
 def _teacher_member_ids(get_roster: Callable | None, teacher_id: str) -> list[str]:
-    """The student account ids across all classes owned by ``teacher_id`` (empty when none)."""
-    if get_roster is None:
-        return []
-    try:
-        roster = get_roster()
-    except Exception:
-        return []
-    members: list[str] = []
-    try:
-        for cls in roster.classes(teacher_id):
-            members.extend(roster.member_ids(cls["id"]))
-    except Exception:
-        return []
-    return list(dict.fromkeys(members))
+    """The student account ids across all classes owned by ``teacher_id``.
+
+    Returns an empty list only for a genuinely empty roster; a lookup/query failure raises so the
+    caller can report "statistics unavailable" rather than silently treating it as "no data".
+    """
+    return teacher_member_ids(get_roster, teacher_id)

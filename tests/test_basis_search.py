@@ -18,6 +18,7 @@ from app.integration.runtime import IntegrationRuntime
 from app.state_machine import StateMachine
 from app.storage import SessionRepository
 from test_integration import settings_for
+from teacher_scope_helpers import bind_demo_class
 
 TEACHER = {"X-Owner-Id": "teacher-basis"}
 STUDENT = {"X-Owner-Id": "student-basis"}
@@ -28,6 +29,11 @@ PATH = "/api/teacher/feedback/basis/search"
 # Deterministic bag-of-keywords vectors make similarity controllable offline without the network.
 KEYWORDS = ("心电图", "肌钙蛋白", "胸痛", "再灌注", "阿司匹林", "夹层", "肺栓塞", "反馈", "病史")
 STEMI_QUERY = "心电图 肌钙蛋白 胸痛 再灌注 阿司匹林"
+
+
+@pytest.fixture(autouse=True)
+def teacher_memberships(tmp_path, monkeypatch):
+    bind_demo_class(tmp_path, monkeypatch, [TEACHER["X-Owner-Id"]], [OWNER])
 
 
 def vector(text: str) -> list[float]:

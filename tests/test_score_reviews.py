@@ -10,8 +10,14 @@ from app.integration.score_reviews import ScoreReviewStore
 from app.storage import ConcurrentUpdateError
 from test_integration import Env, ROOT
 from test_frontend_smoke import _route_requests
+from teacher_scope_helpers import bind_demo_class
 
 TEACHER = {"X-Owner-Id": "teacher-score"}
+
+
+@pytest.fixture(autouse=True)
+def teacher_memberships(tmp_path, monkeypatch):
+    bind_demo_class(tmp_path, monkeypatch, ["teacher-score", "teacher-demo"], ["demo-integration"])
 
 
 def needs_review_env(tmp_path, monkeypatch):

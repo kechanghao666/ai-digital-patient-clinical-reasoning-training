@@ -24,6 +24,7 @@ from app.case_store import CaseStore
 from app.integration.runtime import IntegrationRuntime
 from app.state_machine import StateMachine
 from app.storage import SessionRepository
+from app.roster import RosterStore
 from test_integration import ROOT, settings_for
 from test_cases_config import configure_department_catalog
 
@@ -47,8 +48,12 @@ def install(tmp_path, monkeypatch):
     store = CaseStore(ROOT / "cases", tmp_path / "teacher_cases")
     configure_department_catalog(tmp_path)
     accounts = AccountStore(tmp_path / "accounts.db")
-    accounts.create(*TEACHER, "teacher", "合成教师（测试夹具）", must_change=False)
-    accounts.create(*STUDENT, "student", "合成学生（测试夹具）", must_change=False)
+    teacher_id = accounts.create(*TEACHER, "teacher", "合成教师（测试夹具）", must_change=False)
+    student_id = accounts.create(*STUDENT, "student", "合成学生（测试夹具）", must_change=False)
+    # Explicit trusted seed relationship for these pre-created login fixture accounts.
+    klass = RosterStore(accounts).create_class(teacher_id, "合成测试种子班")
+    with accounts.connect() as db:
+        db.execute("INSERT INTO class_members VALUES (?,?,0)", (klass["id"], student_id))
     runtime = IntegrationRuntime(settings_for(tmp_path, mode="simulator"))
     monkeypatch.setattr(main, "REPOSITORY", repository)
     monkeypatch.setattr(main, "CASE_STORE", store)

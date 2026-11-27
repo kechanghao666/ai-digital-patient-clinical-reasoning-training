@@ -50,6 +50,8 @@ from .teacher_api import build_router as build_teacher_router
 from .teacher_feedback_api import build_router as build_feedback_review_router
 from .teacher_score_api import build_router as build_score_review_router
 from .teacher_dashboard_api import build_router as build_dashboard_router
+from .teacher_export_api import build_router as build_export_router
+from .export import ExportAudit
 from .roster import build_router as build_roster_router, roster_for
 from .state_machine import StateMachine
 from .storage import ConcurrentUpdateError, SessionRepository
@@ -60,6 +62,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CASE_STORE = CaseStore(ROOT / "cases", data_directory() / "teacher_cases")
 REPOSITORY = SessionRepository(data_directory() / "app.db")
 ACCOUNTS = AccountStore(data_directory() / "accounts.db")
+EXPORT_AUDIT = ExportAudit(data_directory() / "accounts.db")
 MACHINE = StateMachine(CASE_STORE, REPOSITORY)
 RUNTIME = IntegrationRuntime()
 app = FastAPI(title="AI数字病人临床思维训练", version="0.1.0")
@@ -128,11 +131,15 @@ def current_teacher(x_owner_id: str | None = Header(default=None), authorization
 app.include_router(build_auth_router(lambda: ACCOUNTS))
 app.include_router(build_teacher_router(lambda: CASE_STORE, current_teacher, lambda: RUNTIME.knowledge,
                                         lambda: RUNTIME.case_training))
-app.include_router(build_feedback_review_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: RUNTIME, current_teacher))
-app.include_router(build_score_review_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: RUNTIME, current_teacher))
+app.include_router(build_feedback_review_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: RUNTIME, current_teacher,
+                                               lambda: roster_for(ACCOUNTS)))
+app.include_router(build_score_review_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: RUNTIME, current_teacher,
+                                            lambda: roster_for(ACCOUNTS)))
 app.include_router(build_dashboard_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: ACCOUNTS, current_teacher,
                                           lambda: roster_for(ACCOUNTS),
                                           lambda owner_ids: read_stats(RUNTIME.settings.integration_db_path, owner_ids)))
+app.include_router(build_export_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: roster_for(ACCOUNTS),
+                                       current_teacher, lambda: EXPORT_AUDIT))
 app.include_router(build_roster_router(lambda: roster_for(ACCOUNTS), lambda: ACCOUNTS, lambda: REPOSITORY, lambda: CASE_STORE,
                                        current_teacher, current_owner, _development,
                                        lambda case_id, version: RUNTIME.case_training.is_stopped(case_id, version),

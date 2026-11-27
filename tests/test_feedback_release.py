@@ -8,6 +8,12 @@ from test_feedback_contract import sealed
 from test_feedback_reviews import payload, read, save
 from test_frontend_smoke import _route_requests
 from test_integration import ROOT
+from teacher_scope_helpers import bind_demo_class
+
+
+@pytest.fixture(autouse=True)
+def teacher_memberships(tmp_path, monkeypatch):
+    bind_demo_class(tmp_path, monkeypatch, ["teacher-reviewer"], ["demo-integration"])
 
 
 @pytest.mark.parametrize("legacy", [False, True])

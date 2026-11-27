@@ -1,8 +1,11 @@
 """Classes, rosters, assignments and self-service passwords in local account mode."""
 import pytest
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 
 from app import main
 from app.accounts import AccountStore
+from app.roster import RosterStore
 from test_cases_config import Api
 
 PASSWORD = "Teacher-Pass-2026"
@@ -185,3 +188,66 @@ def test_roster_requires_local_accounts(tmp_path, monkeypatch):
     monkeypatch.setenv("APP_AUTH_MODE", "demo")
     assert api.client.get("/api/teacher/classes", headers={"X-Owner-Id": "teacher-x"}).status_code == 409
     assert api.client.get("/api/assignments", headers=api.headers).json() == []
+
+
+def test_unowned_existing_student_cannot_be_claimed_or_reclaimed(env):
+    api, store = env
+    teacher, _ = login(api, "teacher", PASSWORD)
+    klass = api.client.post("/api/teacher/classes", headers=teacher, json={"name": "受限入班"}).json()
+    account_id = store.create("unowned-student", "Unowned-Student-2026", "student", "未分班学生")
+    response = api.client.post(f"/api/teacher/classes/{klass['id']}/students", headers=teacher,
+                               json={"students": [{"username": "unowned-student"}]})
+    assert response.status_code == 200
+    assert response.json()["results"][0]["status"] == "rejected"
+    assert "temporary_password" not in response.json()["results"][0]
+    assert api.client.post(f"/api/teacher/students/{account_id}/reset-password", headers=teacher).status_code == 404
+    assert store.account_audit_log() == []
+
+    added = api.client.post(f"/api/teacher/classes/{klass['id']}/students", headers=teacher,
+                            json={"students": [{"username": "new-owned-student"}]}).json()["results"][0]
+    assert added["status"] == "created" and added["temporary_password"]
+    new_id = store.find("new-owned-student")["id"]
+    second = api.client.post("/api/teacher/classes", headers=teacher, json={"name": "跨班复用"}).json()
+    reused = api.client.post(f"/api/teacher/classes/{second['id']}/students", headers=teacher,
+                             json={"students": [{"username": "new-owned-student"}]}).json()["results"][0]
+    assert reused["status"] == "enrolled" and reused["temporary_password"] is None
+    for class_id in (klass["id"], second["id"]):
+        assert api.client.delete(f"/api/teacher/classes/{class_id}/students/{new_id}", headers=teacher).status_code == 200
+    reclaimed = api.client.post(f"/api/teacher/classes/{klass['id']}/students", headers=teacher,
+                                json={"students": [{"username": "new-owned-student"}]}).json()["results"][0]
+    assert reclaimed["status"] == "rejected" and "temporary_password" not in reclaimed
+
+
+def test_concurrent_same_username_creation_never_grants_the_losing_teacher_access(env, monkeypatch):
+    api, store = env
+    roster = RosterStore(store)
+    teacher_ids = [store.find(name)["id"] for name in ("teacher", "other")]
+    classes = [roster.create_class(teacher_id, "同名竞争测试班") for teacher_id in teacher_ids]
+    barrier = Barrier(2)
+    original_find = store.find
+
+    def find_before_either_create(username):
+        found = original_find(username)
+        if username == "race-student":
+            assert found is None
+            barrier.wait(timeout=10)
+        return found
+
+    monkeypatch.setattr(store, "find", find_before_either_create)
+
+    def enroll(index):
+        return roster.add_students(classes[index]["id"], teacher_ids[index],
+                                   [{"username": "race-student"}])[0]
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(enroll, (0, 1)))
+    winner = next(index for index, result in enumerate(results) if result["status"] == "created")
+    loser = 1 - winner
+    assert results[loser]["status"] == "rejected" and "temporary_password" not in results[loser]
+    account_id = original_find("race-student")["id"]
+    assert roster.teaches(teacher_ids[winner], account_id)
+    assert not roster.teaches(teacher_ids[loser], account_id)
+    assert roster.member_ids(classes[loser]["id"]) == []
+    assert len(store.account_audit_log()) == 1
+    losing_headers, _ = login(api, ("teacher", "other")[loser], PASSWORD)
+    assert api.client.post(f"/api/teacher/students/{account_id}/reset-password", headers=losing_headers).status_code == 404

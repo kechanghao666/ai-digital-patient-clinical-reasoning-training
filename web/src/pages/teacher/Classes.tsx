@@ -146,7 +146,7 @@ function ClassDetail({ classId }: { classId: string }) {
         <Panel title="导入学生">
           <div className="stack">
             <textarea className="textarea mono" value={roster} onChange={(e) => setRoster(e.target.value)} placeholder={"每行一名学生：账号,姓名\n2024001,张三\n2024002,李四"} aria-label="学生名单" />
-            <div className="spread"><span className="faint">识别到 {parsed.length} 名。新账号自动生成初始密码；已有学生账号直接加入本班。也可从 Excel 复制两列粘贴。</span>
+            <div className="spread"><span className="faint">识别到 {parsed.length} 名。新账号自动生成初始密码；已有学生仅限本人已任教的账号，其他已有账号拒绝加入。也可从 Excel 复制两列粘贴。</span>
               <button className="btn btn-primary" disabled={!parsed.length || busy !== null} onClick={addStudents}>导入</button></div>
           </div>
         </Panel>
