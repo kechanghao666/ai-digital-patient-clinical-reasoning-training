@@ -248,3 +248,80 @@ def test_assignment_with_a_foreign_group_is_rejected(env):
                                json={"case_public_id": "CASE-002", "group_id": group_b["id"]})
     assert response.status_code == 422
     assert api.client.get(f"/api/teacher/classes/{klass_a['id']}", headers=teacher).json()["assignments"] == []
+
+
+def test_distribution_rechecks_cases_and_rolls_back_later_unavailable_case(env, monkeypatch):
+    api, _ = env
+    teacher = login(api, "teacher", PASSWORD)
+    source = make_class(api, teacher, "来源")["id"]
+    target = make_class(api, teacher, "目标")["id"]
+    template = api.client.post("/api/teacher/task-templates", headers=teacher,
+                               json={"name": "模板", "case_public_id": "CASE-001"}).json()
+    for case in ("CASE-001", "CASE-002"):
+        assert api.client.post(f"/api/teacher/classes/{source}/assignments", headers=teacher,
+                               json={"case_public_id": case}).status_code == 200
+    resolve = main.CASE_STORE.resolve_for_student
+    def unavailable(public_id, **kwargs):
+        if public_id == "CASE-001":
+            raise KeyError(public_id)
+        return resolve(public_id, **kwargs)
+    monkeypatch.setattr(main.CASE_STORE, "resolve_for_student", unavailable)
+    assert api.client.post(f"/api/teacher/task-templates/{template['id']}/assign", headers=teacher,
+                           json={"class_ids": [target]}).status_code == 422
+    assert api.client.post(f"/api/teacher/classes/{source}/copy-assignments", headers=teacher,
+                           json={"target_class_ids": [target]}).status_code == 422
+    assert api.client.get(f"/api/teacher/classes/{target}", headers=teacher).json()["assignments"] == []
+
+
+def test_concurrent_distribution_and_mid_batch_write_failure(env):
+    import sqlite3
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    from app.roster import RosterStore
+
+    _, accounts = env
+    store = RosterStore(accounts)
+    teacher = accounts.find("teacher")["id"]
+    targets = [store.create_class(teacher, name)["id"] for name in ("甲", "乙")]
+    template = store.create_template(teacher, "模板", "CASE-001", "任务", "")["id"]
+    def distribute():
+        return store.distribute(teacher, targets, None, lambda _: None, template_id=template)
+    with accounts.connect() as db:
+        db.execute(f"CREATE TRIGGER reject_second BEFORE INSERT ON assignments WHEN NEW.class_id='{targets[1]}' "
+                   "BEGIN SELECT RAISE(ABORT, 'synthetic write failure'); END")
+    with pytest.raises(sqlite3.IntegrityError):
+        distribute()
+    assert all(not store.class_assignments(cid) for cid in targets)
+    with accounts.connect() as db:
+        db.execute("DROP TRIGGER reject_second")
+    gate = Barrier(4)
+    def worker(_):
+        gate.wait(timeout=10)
+        return [item['status'] for item in distribute()]
+    with ThreadPoolExecutor(4) as pool:
+        results = list(pool.map(worker, range(4)))
+    assert results.count(['created', 'created']) == 1
+    assert results.count(['exists', 'exists']) == 3
+
+
+def test_removed_member_is_unassigned_on_reenrolment_including_legacy_rows(env):
+    from app.roster import RosterStore
+
+    api, accounts = env
+    auth = login(api, "teacher", PASSWORD)
+    cid = make_class(api, auth, "当前班", students=("trainee",))["id"]
+    other = make_class(api, auth, "同教师另一个班")["id"]
+    teacher, student = (accounts.find(k)["id"] for k in ("teacher", "trainee"))
+    store = RosterStore(accounts)
+    store.add_students(other, teacher, [{"username": "trainee"}])
+    group = store.create_group(cid, teacher, "组")["id"]
+    store.set_group_member(cid, teacher, group, student, True)
+    store.create_assignment(cid, teacher, "CASE-001", "任务", "", None, group)
+    store.remove_student(cid, teacher, student)
+    with accounts.connect() as db:
+        assert db.execute("SELECT COUNT(*) FROM class_group_members").fetchone()[0] == 0
+        db.execute("INSERT INTO class_group_members VALUES (?,?,0)", (group, student))
+    assert store.groups(cid)[0]["member_ids"] == []
+    store.add_students(cid, teacher, [{"username": "trainee"}])
+    assert store.groups(cid)[0]["member_ids"] == []
+    assert store.student_assignments(student) == []

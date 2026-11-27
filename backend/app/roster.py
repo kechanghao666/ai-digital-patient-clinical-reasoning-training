@@ -72,6 +72,7 @@ class RosterStore:
                     archived INTEGER NOT NULL DEFAULT 0
                 );
             """)
+            db.execute("BEGIN IMMEDIATE")
             columns = {row["name"] for row in db.execute("PRAGMA table_info(assignments)")}
             if "group_id" not in columns:
                 # Group-scoped assignments are optional; existing rows stay whole-class. Deliberately
@@ -168,7 +169,11 @@ class RosterStore:
                     results.append({"username": username, "status": "rejected",
                                     "message": "该已有学生账号不属于当前教师，不能加入班级"})
                     continue
-                db.execute("INSERT OR IGNORE INTO class_members VALUES (?,?,?)", (class_id, account_id, time.time()))
+                inserted = db.execute("INSERT OR IGNORE INTO class_members VALUES (?,?,?)", (class_id, account_id, time.time()))
+                if inserted.rowcount:
+                    # Older stores may retain a group from a previous enrolment.
+                    db.execute("""DELETE FROM class_group_members WHERE account_id=? AND group_id IN
+                        (SELECT id FROM class_groups WHERE class_id=?)""", (account_id, class_id))
             results.append({"username": username, "display_name": display, "status": status,
                             "temporary_password": password})
         return results
@@ -176,6 +181,8 @@ class RosterStore:
     def remove_student(self, class_id: str, teacher_id: str, account_id: str) -> None:
         self.owned_class(class_id, teacher_id)
         with self.accounts.connect() as db:
+            db.execute("""DELETE FROM class_group_members WHERE account_id=? AND group_id IN
+                (SELECT id FROM class_groups WHERE class_id=?)""", (account_id, class_id))
             db.execute("DELETE FROM class_members WHERE class_id=? AND account_id=?", (class_id, account_id))
 
     # -------------------------------------------------------------- groups
@@ -183,18 +190,13 @@ class RosterStore:
         with self.accounts.connect() as db:
             rows = db.execute("SELECT * FROM class_groups WHERE class_id=? ORDER BY created_at", (class_id,)).fetchall()
             members = db.execute("""SELECT m.group_id, m.account_id FROM class_group_members m
-                JOIN class_groups g ON g.id=m.group_id WHERE g.class_id=? ORDER BY m.added_at""", (class_id,)).fetchall()
+                JOIN class_groups g ON g.id=m.group_id JOIN class_members c ON c.class_id=g.class_id
+                AND c.account_id=m.account_id WHERE g.class_id=? ORDER BY m.added_at""", (class_id,)).fetchall()
         by_group: dict[str, list[str]] = {}
         for row in members:
             by_group.setdefault(row["group_id"], []).append(row["account_id"])
         return [{"id": row["id"], "name": row["name"], "member_ids": by_group.get(row["id"], [])}
                 for row in rows]
-
-    def group_of(self, class_id: str, group_id: str) -> dict | None:
-        for group in self.groups(class_id):
-            if group["id"] == group_id:
-                return group
-        return None
 
     def create_group(self, class_id: str, teacher_id: str, name: str) -> dict:
         self.owned_class(class_id, teacher_id)
@@ -205,9 +207,10 @@ class RosterStore:
 
     def delete_group(self, class_id: str, teacher_id: str, group_id: str) -> None:
         self.owned_class(class_id, teacher_id)
-        if self.group_of(class_id, group_id) is None:
-            raise KeyError(group_id)
         with self.accounts.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if not db.execute("SELECT 1 FROM class_groups WHERE id=? AND class_id=?", (group_id, class_id)).fetchone():
+                raise KeyError(group_id)
             active = db.execute("SELECT COUNT(*) FROM assignments WHERE group_id=? AND archived=0", (group_id,)).fetchone()[0]
             if active:
                 raise ValueError("该分组仍有进行中的任务；先撤回任务或换成分组后再删除")
@@ -217,9 +220,10 @@ class RosterStore:
     def set_group_member(self, class_id: str, teacher_id: str, group_id: str, account_id: str, member: bool) -> None:
         """Add or remove one student in a group; a student belongs to at most one group per class."""
         self.owned_class(class_id, teacher_id)
-        if self.group_of(class_id, group_id) is None:
-            raise KeyError(group_id)
         with self.accounts.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if not db.execute("SELECT 1 FROM class_groups WHERE id=? AND class_id=?", (group_id, class_id)).fetchone():
+                raise KeyError(group_id)
             if member:
                 if not db.execute("SELECT 1 FROM class_members WHERE class_id=? AND account_id=?",
                                   (class_id, account_id)).fetchone():
@@ -262,69 +266,74 @@ class RosterStore:
     def create_assignment(self, class_id: str, teacher_id: str, case_public_id: str, title: str,
                           note: str, due_date: str | None, group_id: str | None = None) -> dict:
         self.owned_class(class_id, teacher_id)
-        assignment_id = "task-" + uuid.uuid4().hex[:12]
         with self.accounts.connect() as db:
-            db.execute("INSERT INTO assignments (id, class_id, case_public_id, title, note, due_date, "
-                       "created_by, created_at, archived, group_id) VALUES (?,?,?,?,?,?,?,?,0,?)",
-                       (assignment_id, class_id, case_public_id, title.strip(), note.strip(), due_date,
-                        teacher_id, time.time(), group_id))
+            db.execute("BEGIN IMMEDIATE")
+            if group_id is not None and not db.execute(
+                "SELECT 1 FROM class_groups WHERE id=? AND class_id=?", (group_id, class_id)
+            ).fetchone():
+                raise ValueError("分组不存在或不属于该班级")
+            assignment_id = self._insert_assignment(db, class_id, teacher_id, case_public_id, title,
+                                                    note, due_date, group_id)
         return self.assignment(assignment_id)
 
-    def _active_case_exists(self, class_id: str, case_public_id: str) -> bool:
+    @staticmethod
+    def _insert_assignment(db, class_id, teacher_id, case_public_id, title, note, due_date, group_id=None):
+        assignment_id = "task-" + uuid.uuid4().hex[:12]
+        db.execute("""INSERT INTO assignments
+            (id,class_id,case_public_id,title,note,due_date,created_by,created_at,archived,group_id)
+            VALUES (?,?,?,?,?,?,?,?,0,?)""",
+            (assignment_id, class_id, case_public_id, title.strip(), note.strip(), due_date,
+             teacher_id, time.time(), group_id))
+        return assignment_id
+
+    def distribute(self, teacher_id: str, class_ids: list[str], due_date: str | None,
+                   require_case: Callable, *, template_id: str | None = None,
+                   source_class_id: str | None = None) -> list[dict]:
+        """Validate and distribute one batch under the same write lock, including duplicate checks."""
         with self.accounts.connect() as db:
-            return db.execute("SELECT 1 FROM assignments WHERE class_id=? AND case_public_id=? AND archived=0",
-                              (class_id, case_public_id)).fetchone() is not None
-
-    def assign_template(self, template_id: str, teacher_id: str, class_ids: list[str],
-                        due_date: str | None) -> list[dict]:
-        """Assign one template to several own classes; every class is validated before any insert.
-
-        A class that already has an active assignment for the same case is reported as "exists"
-        instead of being duplicated, so re-running a batch never creates copy storms.
-        """
-        template = self.template(template_id, teacher_id)
-        for class_id in class_ids:
-            self.owned_class(class_id, teacher_id)  # raises KeyError before anything is created
-        results = []
-        for class_id in class_ids:
-            if self._active_case_exists(class_id, template["case_public_id"]):
-                results.append({"class_id": class_id, "status": "exists",
-                                "message": "该班已有此病例的进行中任务，未重复布置"})
-                continue
-            task = self.create_assignment(class_id, teacher_id, template["case_public_id"],
-                                          template["title"] or template["name"], template["note"], due_date)
-            results.append({"class_id": class_id, "status": "created", "assignment_id": task["id"]})
-        return results
-
-    def copy_class_assignments(self, source_class_id: str, teacher_id: str, target_class_ids: list[str],
-                               due_date: str | None) -> list[dict]:
-        """Copy the whole-class assignments of one own class into other own classes.
-
-        Group-scoped assignments are deliberately not copied: group membership is per class and a
-        silent copy would point at groups that do not exist in the target. They are reported back
-        as skipped instead. Every target class is validated before any insert.
-        """
-        self.owned_class(source_class_id, teacher_id)
-        for class_id in target_class_ids:
-            self.owned_class(class_id, teacher_id)
-        results = []
-        skipped_grouped = 0
-        for task in self.class_assignments(source_class_id):
-            if task.get("group_id"):
-                skipped_grouped += 1
-                continue
-            for class_id in target_class_ids:
-                if self._active_case_exists(class_id, task["case_public_id"]):
-                    results.append({"class_id": class_id, "case_public_id": task["case_public_id"],
-                                    "status": "exists", "message": "该班已有此病例的进行中任务，未重复布置"})
+            db.execute("BEGIN IMMEDIATE")
+            names = {}
+            for class_id in dict.fromkeys(class_ids):
+                row = db.execute("SELECT name FROM classes WHERE id=? AND teacher_id=?", (class_id, teacher_id)).fetchone()
+                if row is None:
+                    raise KeyError(class_id)
+                names[class_id] = row["name"]
+            if template_id is not None:
+                task = db.execute("""SELECT case_public_id, COALESCE(NULLIF(title,''),name) AS title,
+                    note, NULL AS due_date, NULL AS group_id FROM task_templates
+                    WHERE id=? AND teacher_id=? AND archived=0""", (template_id, teacher_id)).fetchone()
+                if task is None:
+                    raise KeyError(template_id)
+                tasks = [task]
+            else:
+                if not db.execute("SELECT 1 FROM classes WHERE id=? AND teacher_id=?",
+                                  (source_class_id, teacher_id)).fetchone():
+                    raise KeyError(source_class_id)
+                tasks = db.execute("SELECT * FROM assignments WHERE class_id=? AND archived=0 ORDER BY created_at DESC",
+                                   (source_class_id,)).fetchall()
+            results = []
+            skipped = 0
+            for task in tasks:
+                if task["group_id"]:
+                    skipped += 1
                     continue
-                created = self.create_assignment(class_id, teacher_id, task["case_public_id"], task["title"],
-                                                 task["note"], due_date if due_date is not None else task["due_date"])
-                results.append({"class_id": class_id, "case_public_id": task["case_public_id"],
-                                "status": "created", "assignment_id": created["id"]})
-        if skipped_grouped:
-            results.append({"status": "skipped_group_scoped", "count": skipped_grouped,
-                            "message": f"{skipped_grouped} 项分组任务未复制（分组按班级独立，不能跨班复制）"})
+                case = task["case_public_id"]
+                require_case(case)
+                for class_id in class_ids:
+                    result = {"class_id": class_id, "class_name": names[class_id]}
+                    if source_class_id is not None:
+                        result["case_public_id"] = case
+                    if db.execute("SELECT 1 FROM assignments WHERE class_id=? AND case_public_id=? AND archived=0",
+                                  (class_id, case)).fetchone():
+                        result.update(status="exists", message="该班已有此病例的进行中任务，未重复布置")
+                    else:
+                        task_id = self._insert_assignment(db, class_id, teacher_id, case, task["title"],
+                                                          task["note"], due_date or task["due_date"])
+                        result.update(status="created", assignment_id=task_id)
+                    results.append(result)
+            if skipped:
+                results.append({"status": "skipped_group_scoped", "count": skipped,
+                                "message": f"{skipped} 项分组任务未复制（分组按班级独立，不能跨班复制）"})
         return results
 
     def assignment(self, assignment_id: str) -> dict:
@@ -582,23 +591,22 @@ def build_router(get_roster: Callable[[], RosterStore], get_accounts: Callable[[
             raise HTTPException(422, "截止日期无效") from exc
         return due_date
 
-    def require_group(class_id: str, group_id: str | None) -> str | None:
-        if not group_id:
-            return None
-        if roster().group_of(class_id, group_id) is None:
-            raise HTTPException(422, "分组不存在或不属于该班级")
-        return group_id
+    def require_case(public_id: str) -> dict:
+        case = case_title(public_id)
+        if not case["available"]:
+            raise HTTPException(422, "病例不存在或当前不可用于训练")
+        return case
 
     @router.post("/teacher/classes/{class_id}/assignments")
     def create_assignment(class_id: str, body: AssignmentBody, teacher_id: str = Depends(current_teacher)) -> dict:
         owned(class_id, teacher_id)
-        case = case_title(body.case_public_id)
-        if not case["available"]:
-            raise HTTPException(422, "病例不存在或当前不可用于训练")
-        group_id = require_group(class_id, body.group_id)
+        case = require_case(body.case_public_id)
         due_date = validated_due_date(body.due_date)
-        return roster().create_assignment(class_id, teacher_id, body.case_public_id,
-                                          body.title or case["title"], body.note, due_date, group_id)
+        try:
+            return roster().create_assignment(class_id, teacher_id, body.case_public_id,
+                                              body.title or case["title"], body.note, due_date, body.group_id or None)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
     @router.delete("/teacher/assignments/{assignment_id}")
     def archive_assignment(assignment_id: str, teacher_id: str = Depends(current_teacher)) -> dict:
@@ -655,9 +663,7 @@ def build_router(get_roster: Callable[[], RosterStore], get_accounts: Callable[[
 
     @router.post("/teacher/task-templates")
     def create_template(body: TemplateBody, teacher_id: str = Depends(current_teacher)) -> dict:
-        case = case_title(body.case_public_id)
-        if not case["available"]:
-            raise HTTPException(422, "病例不存在或当前不可用于训练")
+        case = require_case(body.case_public_id)
         return {**roster().create_template(teacher_id, body.name, body.case_public_id,
                                            body.title or case["title"], body.note),
                 "case": case}
@@ -675,15 +681,10 @@ def build_router(get_roster: Callable[[], RosterStore], get_accounts: Callable[[
                         teacher_id: str = Depends(current_teacher)) -> dict:
         store = roster()
         due_date = validated_due_date(body.due_date)
-        for class_id in body.class_ids:
-            owned(class_id, teacher_id)  # every target is checked before anything is created
         try:
-            results = store.assign_template(template_id, teacher_id, body.class_ids, due_date)
+            results = store.distribute(teacher_id, body.class_ids, due_date, require_case, template_id=template_id)
         except KeyError as exc:
-            raise HTTPException(404, "模板不存在或不属于当前教师") from exc
-        names = {cid: owned(cid, teacher_id)["name"] for cid in body.class_ids}
-        results = [({**result, "class_name": names[result["class_id"]]} if "class_id" in result else result)
-                   for result in results]
+            raise HTTPException(404, "模板或班级不存在或不属于当前教师") from exc
         return {"results": results, "notice": "按班级逐个布置；已有同病例进行中任务的班级未重复布置。"}
 
     @router.post("/teacher/classes/{class_id}/copy-assignments")
@@ -691,13 +692,10 @@ def build_router(get_roster: Callable[[], RosterStore], get_accounts: Callable[[
                          teacher_id: str = Depends(current_teacher)) -> dict:
         store = roster()
         due_date = validated_due_date(body.due_date)
-        names = {cid: owned(cid, teacher_id)["name"] for cid in body.target_class_ids}  # all targets first
         try:
-            results = store.copy_class_assignments(class_id, teacher_id, body.target_class_ids, due_date)
+            results = store.distribute(teacher_id, body.target_class_ids, due_date, require_case, source_class_id=class_id)
         except KeyError as exc:
             raise HTTPException(404, "班级不存在或不属于当前教师") from exc
-        results = [({**result, "class_name": names[result["class_id"]]} if "class_id" in result else result)
-                   for result in results]
         return {"results": results,
                 "notice": "整班任务按病例复制；分组任务不跨班复制，已有同病例任务的班级跳过。"}
 

@@ -280,6 +280,12 @@ try {
   ok("可按分组布置任务并显示完成分母", /完成 0\/1/.test(await groupedHeader.innerText()));
   await page.locator("tr", { hasText: "面板学生二" }).getByText("—", { exact: true }).waitFor();
   ok("组外学生在分组任务列显示不适用", true);
+  const [matrixDownload] = await Promise.all([
+    page.waitForEvent("download"), page.getByRole("button", { name: "导出完成情况" }).click(),
+  ]);
+  const matrix = await readFile(await matrixDownload.path(), "utf8");
+  ok("CSV 明示当前分组并区分组外学生", matrix.includes("当前分组") && matrix.includes("CASE-003")
+    && matrix.split(/\r?\n/).some(row => row.includes("面板学生二") && row.includes("不适用")));
   await page.screenshot({ path: path.join(OUT, "class-templates-groups.png"), fullPage: true });
   await page.getByRole("button", { name: "学生名单" }).click();
   page.once("dialog", (dialog) => dialog.accept());

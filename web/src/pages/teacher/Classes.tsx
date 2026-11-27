@@ -18,14 +18,14 @@ interface TemplateRow { id: string; name: string; case_public_id: string; title:
 interface BatchRow { class_id?: string; class_name?: string; case_public_id?: string; status: string; assignment_id?: string; count?: number; message?: string; }
 
 export function Classes({ classId }: { classId?: string }) {
-  return classId ? <ClassDetail classId={classId} /> : <ClassList />;
+  return classId ? <ClassDetail key={classId} classId={classId} /> : <ClassList />;
 }
 
 function ClassList() {
   const { data, error, reload } = useLoad(() => get<ClassRow[]>("/api/teacher/classes"), []);
   const [name, setName] = useState("");
   const { busy, run } = useAction();
-  if (!data) return <Loading error={error} onRetry={reload} />;
+  if (error || !data) return <Loading error={error} onRetry={reload} />;
   const create = (e: FormEvent) => {
     e.preventDefault();
     run("create", async () => { const c = await request<ClassRow>("POST", "/api/teacher/classes", { name }); setName(""); navigate(`/teacher/classes/${c.id}`); }, "班级已创建");
@@ -76,7 +76,7 @@ function ClassDetail({ classId }: { classId: string }) {
   const [copy, setCopy] = useState<{ targets: string[]; due: string }>({ targets: [], due: "" });
   const [batchReport, setBatchReport] = useState<string | null>(null);
   const { busy, run } = useAction();
-  if (!data) return <Loading error={error} onRetry={reload} />;
+  if (error || !data) return <Loading error={error} onRetry={reload} />;
   const parsed = parseRoster(roster);
   const groupOfMember = new Map(data.groups.flatMap((g) => g.member_ids.map((id) => [id, g.name] as const)));
   const exportIssued = (rows: Issued[]) => downloadCsv(`${data.name}-初始密码.csv`,
@@ -132,7 +132,7 @@ function ClassDetail({ classId }: { classId: string }) {
   const archiveTask = (t: Task) => window.confirm(`撤回任务“${t.title}”？已完成的训练记录保留。`) && run("archive", async () => { await request("DELETE", `/api/teacher/assignments/${enc(t.id)}`); await reload(); });
   const otherClasses = (allClasses || []).filter((c) => c.id !== classId && !c.archived);
   const exportProgress = () => downloadCsv(`${data.name}-任务完成情况.csv`, [
-    ["账号", "姓名", "分组", ...data.assignments.map((t) => `${t.title}(${t.case_public_id})${t.group ? `[${t.group}]` : ""}`)],
+    ["账号", "姓名", "当前分组", ...data.assignments.map((t) => `${t.title}(${t.case_public_id})${t.group ? `[${t.group}]` : ""}`)],
     ...data.members.map((m) => [m.username, m.display_name, groupOfMember.get(m.id) || "未分组", ...data.assignments.map((t) => {
       const p = t.progress[m.id];
       if (!p) return t.group_id ? "不适用" : "未开始";
@@ -237,11 +237,12 @@ function ClassDetail({ classId }: { classId: string }) {
           </div>
         </Panel>
         <Panel title="完成情况" flush>
+          <p className="faint">按当前名册、分组和进行中任务统计。换组或撤回任务会改变本表和导出范围。</p>
           {data.assignments.length === 0 ? <div className="empty">尚未布置任务</div> : (
             <div className="table-wrap"><table className="table">
               <thead><tr><th>学生</th>{data.assignments.map((t) => (
                 <th key={t.id} style={{ whiteSpace: "normal", minWidth: 130 }}>{t.case_public_id} {t.title}
-                  <div className="faint" style={{ fontWeight: 400 }}>{t.group ? `分组 ${t.group}　` : ""}截止 {t.due_date || "不限"}　完成 {t.completed}/{t.group_id ? (data.groups.find((g) => g.id === t.group_id)?.member_ids.length || 0) : data.members.length}　均分 {pct(t.average_ratio)}</div>
+                  <div className="faint" style={{ fontWeight: 400 }}>{t.group ? `分组 ${t.group}　` : ""}截止 {t.due_date || "不限"}　完成 {t.completed}/{Object.keys(t.progress).length}　均分 {pct(t.average_ratio)}</div>
                   <button className="btn-link btn small" onClick={() => archiveTask(t)}>撤回</button></th>))}</tr></thead>
               <tbody>{data.members.map((m) => (
                 <tr key={m.id}><td>{m.display_name}<div className="faint mono">{m.username}</div></td>
