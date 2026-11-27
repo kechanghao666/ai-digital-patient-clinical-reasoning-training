@@ -9,12 +9,18 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend"))
 from app.accounts import AccountStore
 from app.integration.config import data_directory
+from app.sensitive_access import SensitiveAccessAudit, record_audit_read
+
+AUDIT_LOG_NAMES = {"audit-log": "account_management_audit",
+                   "qualification-audit": "reviewer_qualification_audit",
+                   "sensitive-audit": "sensitive_access_audit"}
 
 
 def main():
     parser = argparse.ArgumentParser(description="管理本项目独立账号；使用当前 APP_DATA_DIR")
     parser.add_argument("action", choices=["create", "reset-password", "disable", "audit-log",
-                                          "qualification-create", "qualification-status", "qualification-audit"])
+                                          "qualification-create", "qualification-status", "qualification-audit",
+                                          "sensitive-audit"])
     parser.add_argument("username", nargs="?", help="账号名；qualification-status 时传入资质记录编号")
     parser.add_argument("--role", choices=["student", "teacher"], default="student")
     parser.add_argument("--name")
@@ -27,13 +33,21 @@ def main():
     parser.add_argument("--confirm-external-verification", action="store_true",
                         help="由获授权本机操作人员确认已在系统外人工核验；程序不会核验医学执业资格")
     args = parser.parse_args()
-    if args.action in {"audit-log", "qualification-audit"}:
+    if args.action in AUDIT_LOG_NAMES:
         if args.username is not None:
             parser.error(f"{args.action} 不接受 username")
+        accounts_db = data_directory() / "accounts.db"
+        audit = SensitiveAccessAudit(accounts_db)
         try:
-            reader = (AccountStore.read_account_audit if args.action == "audit-log"
-                      else AccountStore.read_reviewer_qualification_audit)
-            records = reader(data_directory() / "accounts.db", args.limit)
+            if args.action == "sensitive-audit":
+                records = audit.recent(args.limit)
+            else:
+                reader = (AccountStore.read_account_audit if args.action == "audit-log"
+                          else AccountStore.read_reviewer_qualification_audit)
+                records = reader(accounts_db, args.limit)
+            # Reading any audit log is itself a sensitive access and is recorded. A missing
+            # accounts.db keeps the historic guarantee: a read of nothing creates nothing.
+            record_audit_read(audit, AUDIT_LOG_NAMES[args.action], "local-ops", args.limit)
             print(json.dumps(records, ensure_ascii=False))
         except (ValueError, sqlite3.Error) as exc:
             parser.exit(1, str(exc) + "\n")
