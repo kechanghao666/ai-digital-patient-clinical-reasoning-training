@@ -153,6 +153,20 @@ def build_router(get_repository: Callable, get_cases: Callable, get_accounts: Ca
         if not result.get("ok"):
             body["store_note"] = result.get("error")
         budget, budget_note = _budget(get_turn_budget, stats.get("turns_today"))
+        if budget is not None:
+            budget["scope"] = "teacher-owned class members; independent of case/date filters"
+            if case_ids is not None or date_from is not None or date_to is not None:
+                from .turn_budget import budget_status
+
+                try:
+                    daily = get_turn_stats(owner_ids, None, None, None)
+                    if not daily.get("ok"):
+                        raise ValueError("daily statistics unavailable")
+                    budget.update(budget_status(budget, daily["stats"]["turns_today"]))
+                except Exception as exc:
+                    logger.warning("daily budget statistics failed: %s", type(exc).__name__)
+                    budget.update(budget_status(budget, None))
+                    budget_note = "今日回合统计不可用，预算状态未知"
         if budget_note:
             body["budget_note"] = budget_note
         if budget is not None or get_turn_budget is not None:

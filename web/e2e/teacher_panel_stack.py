@@ -113,6 +113,8 @@ def serve(data):
     app_main.RUNTIME.turns.record_call(turn.turn_id, "submit_fact_selection", ok=True)
     app_main.RUNTIME.turns.submit(turn.turn_id, {"fact_ids": ["f_hx_htn"]})
     app_main.RUNTIME.turns.finalize(turn.turn_id)
+    from app.turn_budget import write_budget
+    write_budget(Path(data) / "accounts.db", 1)
 
     server = LiveServer(app_main.app).start()
     print(f"READY http://127.0.0.1:{server.port} {password} {data}", flush=True)

@@ -3,6 +3,7 @@
 // training + one trusted turn) and verifies: has data, no data, endpoint failure + retry recovery,
 // and export preview + download. No real model call.
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -74,10 +75,52 @@ try {
   ok("有数据：观测面板显示记录回合数", true);
 
   const refreshed = page.waitForResponse(r => r.url().endsWith("/api/teacher/observability") && r.status() === 200);
-  await page.getByRole("button", { name: "刷新" }).click();
+  await obs.getByRole("button", { name: "刷新", exact: true }).click();
   await refreshed;
   await obs.locator(".faint", { hasText: "记录回合数" }).waitFor({ timeout: 15000 });
   ok("刷新后观测面板仍显示数据", true);
+  await obs.getByText(/已达预算上限/).waitFor();
+  let releaseStats;
+  let statsArrived;
+  const heldStats = new Promise(resolve => { releaseStats = resolve; });
+  const arrivedStats = new Promise(resolve => { statsArrived = resolve; });
+  await context.route("**/api/teacher/observability?*", async route => {
+    const response = await route.fetch();
+    statsArrived();
+    await heldStats;
+    await route.fulfill({ response });
+  });
+  await page.getByLabel("观测病例筛选").fill("NO-SUCH-CASE");
+  await arrivedStats;
+  await obs.getByText("统计加载中…").waitFor();
+  ok("切换观测范围等待期间隐藏旧统计及预算", await obs.getByText(/已达预算上限/).count() === 0
+    && await obs.getByText("记录回合数", { exact: true }).count() === 0);
+  releaseStats();
+  await obs.getByText(/筛选范围内暂无/).waitFor();
+  await obs.getByText(/已达预算上限/).waitFor();
+  ok("病例筛选不消除自有班级预算告警", true);
+  await context.unroute("**/api/teacher/observability?*");
+  await page.getByLabel("观测病例筛选").fill("");
+  await obs.getByText("记录回合数", { exact: true }).waitFor();
+  await page.getByLabel("观测结束日期").fill("2020-01-01");
+  await obs.getByText(/筛选范围内暂无/).waitFor();
+  await obs.getByText(/已达预算上限/).waitFor();
+  ok("历史日期筛选不消除今日预算告警", true);
+  await page.getByLabel("观测结束日期").fill("");
+  await obs.getByText("记录回合数", { exact: true }).waitFor();
+  await context.route("**/api/teacher/observability", async route => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.budget.turns_today = null;
+    body.budget.exceeded = null;
+    await route.fulfill({ response, json: body });
+  });
+  await obs.getByRole("button", { name: "刷新", exact: true }).click();
+  await obs.getByText(/预算状态未知/).waitFor();
+  ok("未知预算不显示未达上限", await obs.getByText(/未达上限/).count() === 0);
+  await context.unroute("**/api/teacher/observability");
+  await obs.getByRole("button", { name: "刷新", exact: true }).click();
+  await obs.getByText(/已达预算上限/).waitFor();
 
   const exp = heading("数据导出（去标识化）");
   await exp.getByRole("button", { name: "预览导出" }).click();
@@ -127,9 +170,10 @@ try {
 
   // ---- endpoint failure + retry recovery
   await context.route("**/api/teacher/observability", (route) => route.fulfill({ status: 503, contentType: "application/json", body: '{"detail":"统计暂不可用"}' }));
-  await page.getByRole("button", { name: "刷新" }).click();
+  await obs.getByRole("button", { name: "刷新", exact: true }).click();
   await obs.getByText("统计暂不可用").waitFor({ timeout: 15000 });
   ok("接口故障显示统计暂不可用", true);
+  ok("接口故障隐藏旧预算", await obs.getByText(/已达预算上限|未达上限/).count() === 0);
   await context.unroute("**/api/teacher/observability");
   await obs.getByRole("button", { name: "重试" }).click();
   await obs.locator(".faint", { hasText: "记录回合数" }).waitFor({ timeout: 15000 });
@@ -218,6 +262,7 @@ try {
 }
 
 const passed = checks.length > 0 && checks.every((c) => c.ok);
-writeFileSync(path.join(OUT, "run.json"), JSON.stringify({ checks, passed }, null, 2), "utf-8");
+const mainJsSha256 = createHash("sha256").update(await readFile(path.join(ROOT, "web/dist/assets/main.js"))).digest("hex");
+writeFileSync(path.join(OUT, "run.json"), JSON.stringify({ checks, passed, real_model_calls: 0, main_js_sha256: mainJsSha256 }, null, 2), "utf-8");
 console.log(passed ? "ALL CHECKS PASSED" : "REGRESSION DETECTED", "->", path.join(OUT, "run.json"));
 process.exit(passed ? 0 : 1);

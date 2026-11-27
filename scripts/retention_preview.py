@@ -1,14 +1,15 @@
-"""Read-only retention preview over the three persistent stores (dry run, never deletes).
+"""Retention dry run: reads business rows, writes an audit record, never deletes.
 
 Reports what a future retention policy would consider removable — aged sealed/unsealed trainings,
 expired login sessions and attempts, aged finalized/expired/cancelled trusted turns and their tool
-calls — together with the age range of each scope. Every invocation is recorded in the
+calls — together with the age range of each scope. Every released preview is recorded in the
 sensitive-access audit; if that record cannot be written the preview is not shown (fail closed).
 Deletion execution is deliberately not implemented here.
 """
 import argparse
 import json
 import os
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -45,6 +46,9 @@ def main() -> None:
                                    include_expired_logins=not args.skip_expired_logins)
     except ValueError as exc:
         print(str(exc) + "\n", file=sys.stderr)
+        sys.exit(1)
+    except sqlite3.Error:
+        print("留存预览不可用：无法读取数据存储。", file=sys.stderr)
         sys.exit(1)
 
     audit = SensitiveAccessAudit(accounts_db)

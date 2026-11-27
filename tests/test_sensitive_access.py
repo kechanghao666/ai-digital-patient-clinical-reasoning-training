@@ -153,6 +153,93 @@ def test_preview_tolerates_missing_stores(tmp_path):
     assert result["turns"]["present"] is False
 
 
+def test_preview_skips_expired_logins(stores):
+    result = preview_retention(**stores, session_age_days=30, turn_age_days=None,
+                               include_expired_logins=False)
+    assert result["expired_login_sessions"] is None
+    assert result["expired_login_attempts"] is None
+
+
+def test_preview_handles_invalid_and_naive_session_timestamps(stores):
+    states = [[], {"events": [None]}, {"events": "invalid"},
+              {"sealed": True, "events": [{"action": "seal", "created_at": "invalid"},
+                                          {"created_at": "2020-01-01T00:00:00Z"}]},
+              {"events": [{"created_at": "2020-01-01T00:00:00"},
+                          {"created_at": "2020-01-02T00:00:00Z"}]}]
+    for state in states:
+        with closing(sqlite3.connect(stores["app_db"])) as connection:
+            connection.execute("UPDATE sessions SET state_json=?", (json.dumps(state),))
+            connection.commit()
+        result = preview_retention(**stores, session_age_days=30, turn_age_days=None)
+        # Ambiguous or malformed activity must never suggest deletion.
+        assert result["sessions"]["unparseable_timestamp"] == 4
+        assert result["sessions"]["sealed_over_age"] == 0
+        assert result["sessions"]["unsealed_over_age"] == 0
+
+
+def test_preview_turn_boundary_matches_followed_calls(stores, monkeypatch):
+    import app.sensitive_access as module
+
+    fixed = datetime(2026, 11, 28, tzinfo=timezone.utc)
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed
+    monkeypatch.setattr(module, "datetime", Clock)
+    with closing(sqlite3.connect(stores["integration_db"])) as connection:
+        connection.execute("UPDATE turns SET created_at=? WHERE turn_id='t-old'",
+                           ((fixed - timedelta(days=30)).timestamp(),))
+        connection.commit()
+    result = preview_retention(**stores, session_age_days=None, turn_age_days=30)
+    assert result["turns"]["over_age"] == 0
+    assert result["turns"]["followed_tool_calls_over_age"] == 0
+
+
+@pytest.mark.parametrize("action", ["audit-log", "qualification-audit", "sensitive-audit"])
+def test_cli_audit_read_fails_closed(tmp_path, monkeypatch, capsys, action):
+    from app.accounts import AccountStore
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import manage_accounts
+
+    AccountStore(tmp_path / "accounts.db").create("viewer", "Op-Pass-2026-xyz", "teacher", "合成教师")
+    def fail(*args, **kwargs):
+        raise sqlite3.OperationalError("synthetic audit failure")
+    monkeypatch.setattr(SensitiveAccessAudit, "append", fail)
+    monkeypatch.setenv("APP_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(sys, "argv", ["manage_accounts.py", action])
+    with pytest.raises(SystemExit) as exc:
+        manage_accounts.main()
+    assert exc.value.code != 0
+    assert capsys.readouterr().out == ""
+
+
+def test_preview_cli_writes_only_audit_and_withholds_result_on_failure(stores, monkeypatch, capsys):
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import retention_preview
+
+    argv = ["retention_preview.py", "--session-age-days", "30", "--skip-expired-logins"]
+    for key, path in stores.items():
+        argv.extend(["--" + key.replace("_", "-"), str(path)])
+    monkeypatch.setattr(sys, "argv", argv)
+    before = {name: path.read_bytes() for name, path in stores.items()}
+    retention_preview.main()
+    assert json.loads(capsys.readouterr().out)["expired_login_sessions"] is None
+    assert stores["app_db"].read_bytes() == before["app_db"]
+    assert stores["integration_db"].read_bytes() == before["integration_db"]
+    assert SensitiveAccessAudit(stores["accounts_db"]).recent()[-1]["action"] == "retention_preview"
+    def fail(*args, **kwargs):
+        raise sqlite3.OperationalError("synthetic write failure")
+    monkeypatch.setattr(SensitiveAccessAudit, "append", fail)
+    with pytest.raises(SystemExit):
+        retention_preview.main()
+    assert not capsys.readouterr().out
+    stores["app_db"].write_bytes(b"corrupted")
+    with pytest.raises(SystemExit):
+        retention_preview.main()
+    captured = capsys.readouterr()
+    assert not captured.out and "Traceback" not in captured.err
+
+
 # --- audit reads leave a trace ------------------------------------------------
 
 def test_cli_audit_reads_record_sensitive_access(tmp_path, monkeypatch):

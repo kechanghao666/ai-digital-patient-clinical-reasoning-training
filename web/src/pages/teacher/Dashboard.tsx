@@ -50,8 +50,9 @@ export function Dashboard({ params }: { params: URLSearchParams }) {
   if (obsFrom) obsQuery.set("date_from", obsFrom);
   if (obsTo) obsQuery.set("date_to", obsTo);
   const obsQs = obsQuery.toString();
-  const { data: obs, error: obsError, reload: reloadObs } = useLoad(
-    () => get<Observability>(`/api/teacher/observability${obsQs ? `?${obsQs}` : ""}`), [obsCase, obsFrom, obsTo]);
+  const { data: obsLoaded, error: obsError, reload: reloadObs } = useLoad(async () => ({ query: obsQs,
+    value: await get<Observability>(`/api/teacher/observability${obsQs ? `?${obsQs}` : ""}`) }), [obsQs]);
+  const obs = !obsError && obsLoaded?.query === obsQs ? obsLoaded.value : null;
   const [caseFilter, setCaseFilter] = useState("");
   const [reviewOnly, setReviewOnly] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -122,14 +123,14 @@ export function Dashboard({ params }: { params: URLSearchParams }) {
             </div>}
         {obs && obs.budget && (
           <div style={{ padding: "10px 16px 0" }}>
-            <Msg tone={obs.budget.exceeded ? "bad" : "ok"}>
-              {`每日预算 ${obs.budget.daily_turn_limit} 回合，今日已 ${obs.budget.turns_today == null ? "未知" : obs.budget.turns_today}`}
-              {obs.budget.exceeded ? "：已达预算上限，请注意调用量。" : "：未达上限。"}
+            <Msg tone={obs.budget.exceeded == null ? "warn" : obs.budget.exceeded ? "bad" : "ok"}>
+              {`自有班级每日预算 ${obs.budget.daily_turn_limit} 回合，今日已 ${obs.budget.turns_today == null ? "未知" : obs.budget.turns_today}`}
+              {obs.budget.exceeded == null ? "：预算状态未知。" : obs.budget.exceeded ? "：已达预算上限，请注意调用量。" : "：未达上限。"}
             </Msg>
           </div>
         )}
         {obs && obs.budget_note && <div style={{ padding: "10px 16px 0" }}><Msg tone="warn">{obs.budget_note}</Msg></div>}
-        <p className="faint" style={{ margin: "10px 16px 0" }}>仅统计当前教师班级内学生已记录的可信回合（Nexent 适配器路径）；筛选按病例内部编号与 UTC 日期；适配器模式不代表真实供应商调用，预算按回合次数告警而非费用，token 用量与费用未知时显式标注。</p>
+        <p className="faint" style={{ margin: "10px 16px 0" }}>仅统计当前教师班级内学生已记录的可信回合（Nexent 适配器路径）；筛选按病例内部编号与 UTC 日期。预算覆盖全部自有班级，不受病例、日期或上方班级筛选影响，按服务器本地自然日计数。适配器模式不代表真实供应商调用，预算按回合次数告警而非费用，token 用量与费用未知时显式标注。</p>
       </Panel>
       <Panel title="数据导出（去标识化）" flush>
         <div className="panel-body" style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>

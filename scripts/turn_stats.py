@@ -10,6 +10,7 @@ never invented.
 import argparse
 import json
 import os
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -33,7 +34,10 @@ def main() -> None:
     args = parser.parse_args()
     if not args.db:
         parser.error("需要 --db 或设置 INTEGRATION_DB_PATH")
-    result = read_stats(args.db, case_ids=args.case_id, date_from=args.date_from, date_to=args.date_to)
+    try:
+        result = read_stats(args.db, case_ids=args.case_id, date_from=args.date_from, date_to=args.date_to)
+    except ValueError as exc:
+        parser.error(str(exc))
     if not result.get("ok"):
         # Short, client-safe error: reason + message, never the absolute path or SQL detail.
         print(json.dumps({"ok": False, "reason": result.get("reason"), "error": result.get("error")},
@@ -45,10 +49,19 @@ def main() -> None:
         args.accounts_db = str(Path(data_dir) / "accounts.db") if data_dir else None
     if args.accounts_db:
         try:
-            budget = budget_status(read_budget(args.accounts_db), result["stats"].get("turns_today"))
-        except TurnBudgetError as exc:
+            config = read_budget(args.accounts_db)
+            daily = result
+            if config is not None and (args.case_id or args.date_from or args.date_to):
+                daily = read_stats(args.db)
+            count = daily["stats"].get("turns_today") if daily.get("ok") else None
+            budget = budget_status(config, count)
+            if budget is not None:
+                budget["scope"] = "all recorded turns; independent of case/date filters"
+            if not daily.get("ok"):
+                payload["budget_note"] = "今日回合统计不可用，预算状态未知"
+        except (TurnBudgetError, sqlite3.Error):
             budget = None
-            payload["budget_note"] = str(exc)
+            payload["budget_note"] = "预算配置不可用"
         if budget is not None:
             payload["budget"] = budget
     print(json.dumps(payload, ensure_ascii=False, indent=2))

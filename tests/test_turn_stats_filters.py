@@ -127,10 +127,18 @@ def test_turns_today_counts_only_the_local_day(tmp_path):
     _issue_finalized(store, "old", db_path=tmp_path / "turns.db",
                      created_at=datetime(2020, 1, 1, tzinfo=timezone.utc).timestamp())
     _issue_finalized(store, "today")
+    _issue_finalized(store, "future", db_path=tmp_path / "turns.db", created_at=time.time() + 30 * 86400)
     stats = store.stats()
     assert stats["turns_today"] == 1
     assert stats["turns_today_boundary"] == "server-local calendar day"
     assert empty_stats()["turns_today"] == 0
+
+
+@pytest.mark.parametrize("filters", [{"date_from": "bad"}, {"date_to": "9999-12-31"}])
+def test_filters_validated_even_without_store(tmp_path, filters):
+    with pytest.raises(ValueError):
+        read_stats(tmp_path / "missing.db", **filters)
+    assert not (tmp_path / "missing.db").exists()
 
 
 # --- daily budget ---------------------------------------------------------------
@@ -256,6 +264,14 @@ def test_endpoint_budget_alert(endpoint_env):
     assert body["budget"]["exceeded"] is True
     assert body["budget"]["turns_today"] == 1
     assert body["budget"]["notice"].endswith("unknown。")
+    _issue_finalized(endpoint_env["runtime"].turns, "outsider", owner_id="another-teachers-student")
+    for params in ({"case_id": "CASE-001"}, {"date_to": "2026-01-10"}):
+        filtered = client.get("/api/teacher/observability", headers=headers, params=params).json()
+        assert filtered["stats"]["turns_today"] == 0
+        assert filtered["budget"]["turns_today"] == 1
+        assert filtered["budget"]["exceeded"] is True
+    assert client.get("/api/teacher/observability", headers=headers,
+                      params={"date_to": "9999-12-31"}).status_code == 400
     clear_budget(accounts_path)
 
     write_budget(accounts_path, 2)
@@ -283,3 +299,58 @@ def test_cli_turn_budget_round_trip(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["turn_budget.py", "show"])
     turn_budget_cli.main()
     assert json.loads(capsys.readouterr().out)["configured"] is False
+
+
+def test_cli_budget_ignores_analysis_filters(tmp_path, monkeypatch, capsys):
+    import json
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import turn_stats
+
+    db = tmp_path / "turns.db"
+    _issue_finalized(TurnStore(db), "today")
+    accounts = tmp_path / "accounts.db"
+    write_budget(accounts, 1)
+    monkeypatch.setattr(sys, "argv", ["turn_stats.py", "--db", str(db), "--accounts-db", str(accounts),
+                                      "--date-to", "2020-01-01"])
+    turn_stats.main()
+    body = json.loads(capsys.readouterr().out)
+    assert body["stats"]["turns_total"] == 0
+    assert body["budget"]["turns_today"] == 1 and body["budget"]["exceeded"] is True
+
+
+def test_cli_invalid_filters_and_corrupt_budget_are_safe(tmp_path, monkeypatch, capsys):
+    import json
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import turn_stats
+
+    db = tmp_path / "turns.db"
+    monkeypatch.setattr(sys, "argv", ["turn_stats.py", "--db", str(db), "--date-to", "9999-12-31"])
+    with pytest.raises(SystemExit):
+        turn_stats.main()
+    output = capsys.readouterr()
+    assert not output.out and "Traceback" not in output.err
+    assert not db.exists()
+    TurnStore(db)
+    accounts = tmp_path / "accounts.db"
+    accounts.write_bytes(b"not a database")
+    monkeypatch.setattr(sys, "argv", ["turn_stats.py", "--db", str(db), "--accounts-db", str(accounts)])
+    turn_stats.main()
+    body = json.loads(capsys.readouterr().out)
+    assert body["budget_note"] == "预算配置不可用" and "budget" not in body
+
+
+def test_budget_failure_never_claims_below_limit(endpoint_env, monkeypatch):
+    from app import main
+    write_budget(endpoint_env["accounts_path"], 1)
+    original = main.read_stats
+    def fail_daily(path, owner_ids=None, case_ids=None, date_from=None, date_to=None):
+        if case_ids is None:
+            raise sqlite3.OperationalError("synthetic daily query failure")
+        return original(path, owner_ids, case_ids, date_from, date_to)
+    monkeypatch.setattr(main, "read_stats", fail_daily)
+    response = endpoint_env["client"].get("/api/teacher/observability", headers=endpoint_env["headers"],
+                                          params={"case_id": "CASE-001"})
+    assert response.status_code == 200
+    assert response.json()["budget"]["exceeded"] is None
+    assert response.json()["budget"]["turns_today"] is None
+    assert "未知" in response.json()["budget_note"]

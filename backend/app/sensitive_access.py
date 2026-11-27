@@ -89,17 +89,13 @@ def record_audit_read(audit: SensitiveAccessAudit | None, log_name: str, actor_i
 
     ``audit=None`` or a missing database keeps the historic read-only guarantee for a nonexistent
     accounts.db (a read of nothing creates nothing); any real read against an existing store is
-    recorded. A failing append is swallowed only here — callers that must fail closed audit their
-    own failure paths before raising.
+    recorded before callers release records; a failed append propagates to fail closed.
     """
     if audit is None:
         return
     if not audit.path.exists():
         return
-    try:
-        audit.append("sensitive_audit_read", actor_id, {"log": log_name, "limit": limit}, "success")
-    except sqlite3.Error:
-        pass
+    audit.append("sensitive_audit_read", actor_id, {"log": log_name, "limit": limit}, "success")
 
 
 def _iso_or_none(value: datetime | None) -> str | None:
@@ -108,23 +104,28 @@ def _iso_or_none(value: datetime | None) -> str | None:
 
 def _session_timestamp(state_json: dict[str, Any]) -> datetime | None:
     """Last meaningful activity of one training: the seal time, else the newest event time."""
+    if not isinstance(state_json, dict) or not isinstance(state_json.get("events"), list):
+        return None
     stamps: list[datetime] = []
-    for event in state_json.get("events") or []:
+    seals: list[datetime] = []
+    for event in state_json["events"]:
+        if not isinstance(event, dict):
+            return None
         raw = event.get("created_at")
         if not isinstance(raw, str):
-            continue
+            return None
         try:
-            stamps.append(datetime.fromisoformat(raw))
+            stamp = datetime.fromisoformat(raw)
+            # Unknown activity/timezones must not turn into apparent deletion candidates.
+            if stamp.tzinfo is None:
+                return None
+            stamp = stamp.astimezone(timezone.utc)
         except ValueError:
-            continue
-    if not stamps:
-        return None
-    if state_json.get("sealed"):
-        seals = [datetime.fromisoformat(event["created_at"]) for event in state_json.get("events") or []
-                 if event.get("action") == "seal" and isinstance(event.get("created_at"), str)]
-        if seals:
-            return max(seals)
-    return max(stamps)
+            return None
+        stamps.append(stamp)
+        if event.get("action") == "seal":
+            seals.append(stamp)
+    return max(seals if state_json.get("sealed") and seals else stamps, default=None)
 
 
 def _require_age(value: int | None, name: str) -> int | None:
@@ -189,7 +190,7 @@ def preview_retention(app_db: Path, accounts_db: Path, integration_db: Path, *,
         })
 
     expired_login_sessions = expired_login_attempts = None
-    if Path(accounts_db).is_file():
+    if include_expired_logins and Path(accounts_db).is_file():
         with closing(sqlite3.connect(Path(accounts_db).resolve().as_uri() + "?mode=ro", uri=True)) as connection:
             epoch_now = now.timestamp()
             for table, column, target in (("login_sessions", "expires_at", "expired_login_sessions"),
@@ -233,7 +234,7 @@ def preview_retention(app_db: Path, accounts_db: Path, integration_db: Path, *,
                 if "turn_calls" in tables and turn_cutoff is not None:
                     followed_calls = connection.execute(
                         "SELECT COUNT(*) FROM turn_calls WHERE turn_id IN "
-                        "(SELECT turn_id FROM turns WHERE status IN (?, ?, ?) AND created_at <= ?)",
+                        "(SELECT turn_id FROM turns WHERE status IN (?, ?, ?) AND created_at < ?)",
                         (*RETAINABLE_TURN_STATUSES, turn_cutoff.timestamp()),
                     ).fetchone()[0]
                 turns.update({

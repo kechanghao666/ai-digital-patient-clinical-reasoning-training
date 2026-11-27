@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-28",
+  "base_sha": "e099d29458e95e83bcec5834ce7f17878a9bfec9",
+  "tested_working_tree_changes": true,
+  "pytest": {
+    "passed": 928,
+    "failed": 0,
+    "seconds": 205.31
+  },
+  "targeted": {
+    "passed": 32,
+    "failed": 0,
+    "seconds": 5.11
+  },
+  "reproduction_before_fixes": {
+    "passed": 18,
+    "failed": 10,
+    "seconds": 7.05
+  },
+  "teacher_browser": {
+    "passed": 29,
+    "failed": 0,
+    "main_js_sha256": "992fd26b823907b6b1680410b828821aa9aef32572d5968ca63f9f9c695e5893"
+  },
+  "engineering_samples": {
+    "passed": 12,
+    "complete": 12,
+    "formal_acceptance": false,
+    "recorded_code_sha": "e099d29458e95e83bcec5834ce7f17878a9bfec9",
+    "note": "run on uncommitted fixes; recorded HEAD is the base, not an immutable tested tree"
+  },
+  "typecheck": "passed",
+  "build": "passed",
+  "compileall": "passed",
+  "npm_audit_vulnerabilities": 0,
+  "real_model_calls": 0,
+  "business_data_modified": false,
+  "official_upstream_main_verified": "0f3403ff87215a34e8c32e16a1b86536d811e960",
+  "announcement": "2026-11-27 archived source, not freshly retrieved on 2026-11-28",
+  "independent_review": "no remaining actionable findings in this patch; not a whole-repository certification",
+  "cleanup": {
+    "browser_service_exited": true,
+    "browser_temp_data_removed": true,
+    "historical_cleanup_policy_denials_not_retried": true
+  }
+}

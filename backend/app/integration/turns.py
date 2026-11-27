@@ -181,9 +181,11 @@ def _aggregate(turn_rows: list[sqlite3.Row], call_rows: list[sqlite3.Row]) -> di
                 durations.append(duration)
     calls_total = len(call_rows)
     calls_failed = sum(1 for row in call_rows if not row["ok"])
-    local_midnight = datetime.now().astimezone().replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+    midnight = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    local_midnight = midnight.timestamp()
+    next_midnight = (midnight + timedelta(days=1)).timestamp()
     turns_today = sum(1 for row in turn_rows if row["created_at"] is not None
-                      and row["created_at"] >= local_midnight)
+                      and local_midnight <= row["created_at"] < next_midnight)
     return {
         "coverage": "recorded trusted turns only (Nexent adapter path); the simulator path returns a "
                     "selection directly and never issues a turn",
@@ -417,6 +419,8 @@ def _validate_filters(case_ids: Iterable[str] | None, date_from: str | None,
         from_ts = datetime.combine(parse_iso_date(date_from, "date_from"),
                                    datetime.min.time(), tzinfo=timezone.utc).timestamp()
     if date_to is not None:
+        if date_to == "9999-12-31":
+            raise ValueError("date_to 须早于 9999-12-31")
         to_ts = datetime.combine(parse_iso_date(date_to, "date_to") + timedelta(days=1),
                                  datetime.min.time(), tzinfo=timezone.utc).timestamp()
     if from_ts is not None and to_ts is not None and from_ts >= to_ts:
@@ -473,13 +477,13 @@ def read_stats(path: str | Path, owner_ids: Iterable[str] | None = None,
 
     Returns ``{"ok": True, "stats": {...}}`` or ``{"ok": False, "reason": ..., "error": ...}``.
     """
+    filters = _validate_filters(case_ids, date_from, date_to)
     path = str(path)
     if not Path(path).is_file():
         return {"ok": False, "reason": "not_found", "error": "turn store not found"}
-    filters = _validate_filters(case_ids, date_from, date_to)
     connection = None
     try:
-        connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        connection = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True)
         connection.row_factory = sqlite3.Row
         try:
             table = connection.execute(
