@@ -96,7 +96,7 @@ try {
   await page.getByRole("button", { name: "训练任务" }).click();
   const option = await page.locator("select option", { hasText: "CASE-001" }).first().getAttribute("value");
   await panel("布置任务").locator("select").selectOption(option);
-  await page.getByLabel("截止日期").fill("2026-12-31");
+  await page.getByLabel("截止日期", { exact: true }).fill("2026-12-31");
   await page.getByRole("button", { name: "布置" }).click();
   await page.locator("th", { hasText: "CASE-001" }).waitFor();
   await step("布置训练任务");
