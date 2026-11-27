@@ -302,6 +302,44 @@ try {
   await page.getByText("分组已删除").waitFor();
   ok("撤回任务后分组可删除", true);
 
+  // ---- M3/M11b: semesters, courses, class linking and cross-term course reuse
+  await page.goto(stack.base + "/#/teacher/classes");
+  await page.getByLabel("学期名称").fill("2026 春季学期");
+  await page.getByRole("button", { name: "新建学期" }).click();
+  await page.getByText(/2026 春季学期（0门课程/).waitFor();
+  ok("可创建学期", true);
+  await page.getByLabel("课程名称").fill("临床诊断学");
+  await page.getByLabel("课程所属学期").selectOption({ label: "2026 春季学期" });
+  await page.getByRole("button", { name: "新建课程" }).click();
+  await page.locator("tr", { has: page.getByText("临床诊断学", { exact: true }) }).getByText("未关联").waitFor();
+  ok("可创建课程并归属学期", true);
+  const linkCourse = async (className) => {
+    await page.locator("tr", { has: page.getByText(className, { exact: true }) }).getByRole("button", { name: "管理" }).click();
+    await page.getByRole("heading", { name: className, exact: true }).waitFor();
+    await page.getByLabel("关联课程").selectOption({ label: "临床诊断学（2026 春季学期）" });
+    await page.getByText("已关联课程").waitFor();
+    // In-app navigation, like a real user; page.goto with a fragment-only change does not
+    // reliably re-run the list load in this back-and-forth sequence.
+    await page.getByRole("button", { name: "返回" }).click();
+    await page.getByRole("heading", { name: "班级与任务" }).waitFor();
+  };
+  await linkCourse("面板班");
+  await linkCourse("面板班二");
+  const courseRow = page.locator("tr", { has: page.getByText("临床诊断学", { exact: true }) });
+  await courseRow.getByText(/面板班（/).waitFor();
+  ok("班级可关联到课程并回显", true);
+  await courseRow.getByRole("button", { name: "跨学期复用" }).click();
+  await page.getByLabel("课程复用源班级").selectOption({ index: 1 }); // 面板班（课程内按创建时间排序）
+  await page.getByLabel(/面板班二/).check();
+  await page.getByRole("button", { name: /复用（1 个班）/ }).click();
+  await page.getByText(/课程复用：跳过已有 1 项/).waitFor();
+  ok("课程跨学期复用对已有同病例任务幂等跳过", true);
+  page.once("dialog", (dialog) => dialog.accept());
+  await courseRow.getByRole("button", { name: "删除", exact: true }).click();
+  await page.getByText(/该课程仍关联班级/).waitFor();
+  ok("仍关联班级的课程不能删除", true);
+  await page.screenshot({ path: path.join(OUT, "course-semesters.png"), fullPage: true });
+
   // ---- no data (teacher with no class)
   await login("tpanel_empty", stack.teacherPw);
   await heading("模型调用观测").getByText("暂无已记录的可信回合数据").waitFor({ timeout: 15000 });

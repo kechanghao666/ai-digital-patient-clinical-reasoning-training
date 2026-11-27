@@ -4,14 +4,18 @@ import { navigate } from "../../App";
 import type { CaseSummary } from "../../types";
 import { downloadCsv, Loading, Msg, Panel, pct, useAction, useLoad } from "../../ui";
 
-interface ClassRow { id: string; name: string; students: number; assignments: number; archived: boolean; created_at: number; }
+interface ClassRow { id: string; name: string; students: number; assignments: number; archived: boolean; created_at: number;
+  course_id: string | null; course_name: string | null; }
+interface SemesterRow { id: string; name: string; start_date: string | null; end_date: string | null; courses: number; }
+interface CourseClass { id: string; name: string; students: number; assignments: number; }
+interface CourseRow { id: string; name: string; semester_id: string | null; semester_name: string | null; classes: CourseClass[]; }
 interface Member { id: string; username: string; display_name: string; disabled: boolean; must_change_password: boolean; trainings: number; sealed: number; average_ratio: number | null; }
 interface GroupRow { id: string; name: string; member_ids: string[]; }
 interface Progress { status: string; best_ratio: number | null; attempts: number; latest_sealed_session_id: string | null; needs_review: boolean; }
 interface Task { id: string; title: string; case_public_id: string; due_date: string | null; note: string; group_id: string | null; group: string | null;
   case: { title: string; available: boolean };
   progress: Record<string, Progress>; completed: number; in_progress: number; average_ratio: number | null; }
-interface Detail extends Omit<ClassRow, "assignments" | "students"> { members: Member[]; groups: GroupRow[]; assignments: Task[]; }
+interface Detail extends Omit<ClassRow, "assignments" | "students"> { course_name: string | null; members: Member[]; groups: GroupRow[]; assignments: Task[]; }
 interface Issued { username: string; display_name?: string; status: string; temporary_password: string | null; message?: string; }
 interface TemplateRow { id: string; name: string; case_public_id: string; title: string; note: string;
   case: { title: string; available: boolean; unavailable_reason: string | null }; }
@@ -23,27 +27,119 @@ export function Classes({ classId }: { classId?: string }) {
 
 function ClassList() {
   const { data, error, reload } = useLoad(() => get<ClassRow[]>("/api/teacher/classes"), []);
+  const { data: semesters, reload: reloadSemesters } = useLoad(() => get<SemesterRow[]>("/api/teacher/semesters"), []);
+  const { data: courses, reload: reloadCourses } = useLoad(() => get<CourseRow[]>("/api/teacher/courses"), []);
   const [name, setName] = useState("");
+  const [term, setTerm] = useState({ name: "", start: "", end: "" });
+  const [course, setCourse] = useState({ name: "", semester_id: "" });
+  const [reuse, setReuse] = useState<{ courseId: string; source: string; targets: string[]; due: string }>(
+    { courseId: "", source: "", targets: [], due: "" });
+  const [courseReport, setCourseReport] = useState<string | null>(null);
   const { busy, run } = useAction();
   if (error || !data) return <Loading error={error} onRetry={reload} />;
   const create = (e: FormEvent) => {
     e.preventDefault();
     run("create", async () => { const c = await request<ClassRow>("POST", "/api/teacher/classes", { name }); setName(""); navigate(`/teacher/classes/${c.id}`); }, "班级已创建");
   };
+  const createSemester = () => run("term", async () => {
+    await request("POST", "/api/teacher/semesters", { name: term.name, start_date: term.start || null, end_date: term.end || null });
+    setTerm({ name: "", start: "", end: "" }); reloadSemesters();
+  }, "学期已创建");
+  const createCourse = () => run("course", async () => {
+    await request("POST", "/api/teacher/courses", { name: course.name, semester_id: course.semester_id || null });
+    setCourse({ name: "", semester_id: "" }); reloadCourses(); reloadSemesters();
+  }, "课程已创建");
+  const deleteSemester = (s: SemesterRow) => window.confirm(`删除学期“${s.name}”？`) && run("delTerm", async () => { await request("DELETE", `/api/teacher/semesters/${enc(s.id)}`); reloadSemesters(); }, "学期已删除");
+  const deleteCourse = (c: CourseRow) => window.confirm(`删除课程“${c.name}”？`) && run("delCourse", async () => { await request("DELETE", `/api/teacher/courses/${enc(c.id)}`); reloadCourses(); reload(); }, "课程已删除");
+  const runReuse = () => run("reuse", async () => {
+    const r = await request<{ results: BatchRow[] }>("POST", `/api/teacher/courses/${enc(reuse.courseId)}/reuse`,
+      { source_class_id: reuse.source, target_class_ids: reuse.targets, due_date: reuse.due || null });
+    setCourseReport(`课程复用：${summarize(r.results)}`); setReuse({ courseId: "", source: "", targets: [], due: "" });
+    reloadCourses(); reload();
+  });
+  const reuseCourse = reuse.courseId ? (courses || []).find((c) => c.id === reuse.courseId) : null;
   return (
     <div className="stack-lg">
       <div className="page-title"><h1>班级与任务</h1>
         <form className="row" onSubmit={create}><input className="input" style={{ width: 220 }} placeholder="新班级名称，如 临床2024级1班" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} aria-label="班级名称" />
           <button className="btn btn-primary" disabled={!name.trim() || busy !== null}>新建班级</button></form></div>
+      {courseReport && <Msg tone="ok"><span>{courseReport}</span><button className="btn-link btn" style={{ marginLeft: 12 }} onClick={() => setCourseReport(null)}>关闭</button></Msg>}
       <section className="panel">
         {data.length === 0 ? <div className="empty">还没有班级。新建班级后可导入学生并布置训练任务。</div> : (
-          <table className="table"><thead><tr><th>班级</th><th className="num">学生</th><th className="num">进行中任务</th><th>状态</th><th /></tr></thead>
+          <table className="table"><thead><tr><th>班级</th><th>课程</th><th className="num">学生</th><th className="num">进行中任务</th><th>状态</th><th /></tr></thead>
             <tbody>{data.map((c) => (
-              <tr key={c.id}><td style={{ fontWeight: 600 }}>{c.name}</td><td className="num">{c.students}</td><td className="num">{c.assignments}</td>
+              <tr key={c.id}><td style={{ fontWeight: 600 }}>{c.name}</td><td className="faint">{c.course_name || "—"}</td><td className="num">{c.students}</td><td className="num">{c.assignments}</td>
                 <td>{c.archived ? <span className="status">已归档</span> : <span className="status ok">使用中</span>}</td>
                 <td className="num"><button className="btn" onClick={() => navigate(`/teacher/classes/${c.id}`)}>管理</button></td></tr>))}</tbody></table>
         )}
       </section>
+      <Panel title="学期与课程" flush>
+        <div className="panel-body stack">
+          <div className="row" style={{ flexWrap: "wrap", alignItems: "flex-end" }}>
+            <label className="field"><span>新学期名称</span><input className="input" style={{ width: 180 }} placeholder="如 2026 春季学期" value={term.name} maxLength={60} aria-label="学期名称" onChange={(e) => setTerm({ ...term, name: e.target.value })} /></label>
+            <label className="field"><span>开始日期</span><input className="input" type="date" value={term.start} aria-label="学期开始日期" onChange={(e) => setTerm({ ...term, start: e.target.value })} /></label>
+            <label className="field"><span>结束日期</span><input className="input" type="date" value={term.end} aria-label="学期结束日期" onChange={(e) => setTerm({ ...term, end: e.target.value })} /></label>
+            <button className="btn btn-primary" disabled={!term.name.trim() || busy !== null} onClick={createSemester}>新建学期</button>
+          </div>
+          <div className="row" style={{ flexWrap: "wrap", alignItems: "flex-end" }}>
+            <label className="field"><span>新课程名称</span><input className="input" style={{ width: 180 }} placeholder="如 临床诊断学" value={course.name} maxLength={60} aria-label="课程名称" onChange={(e) => setCourse({ ...course, name: e.target.value })} /></label>
+            <label className="field"><span>所属学期</span><select className="select" value={course.semester_id} aria-label="课程所属学期" onChange={(e) => setCourse({ ...course, semester_id: e.target.value })}>
+              <option value="">暂不归属学期</option>{(semesters || []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select></label>
+            <button className="btn btn-primary" disabled={!course.name.trim() || busy !== null} onClick={createCourse}>新建课程</button>
+          </div>
+          <span className="faint">在班级管理页把班级关联到课程；课程跨学期复用只复制任务设置（病例、标题、要求），学生、分组与训练记录属于原班级，不随课程复制。</span>
+          {(courses || []).length === 0 ? <div className="empty">暂无课程。新建课程并关联班级后，可跨学期复用任务。</div> : (
+            <div className="table-wrap"><table className="table">
+              <thead><tr><th>课程</th><th>学期</th><th>班级</th><th /></tr></thead>
+              <tbody>{(courses || []).map((c) => (
+                <tr key={c.id}>
+                  <td style={{ fontWeight: 600 }}>{c.name}</td>
+                  <td className="faint">{c.semester_name || "—"}</td>
+                  <td>{c.classes.length === 0 ? <span className="faint">未关联</span> : c.classes.map((cl) => `${cl.name}（${cl.students}人/${cl.assignments}任务）`).join("、")}</td>
+                  <td className="num" style={{ whiteSpace: "nowrap" }}>
+                    {c.classes.length >= 2 && <button className="btn" onClick={() => setReuse(reuse.courseId === c.id ? { courseId: "", source: "", targets: [], due: "" } : { courseId: c.id, source: "", targets: [], due: "" })}>
+                      {reuse.courseId === c.id ? "收起复用" : "跨学期复用"}</button>}{" "}
+                    <button className="btn btn-danger" onClick={() => deleteCourse(c)}>删除</button>
+                  </td>
+                </tr>))}</tbody></table></div>
+          )}
+          {reuseCourse && (
+            <div className="stack" style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+              <div className="row" style={{ flexWrap: "wrap", alignItems: "flex-end" }}>
+                <label className="field"><span>源班级（复制其任务）</span>
+                  <select className="select" value={reuse.source} aria-label="课程复用源班级" onChange={(e) => setReuse({ ...reuse, source: e.target.value, targets: reuse.targets.filter((t) => t !== e.target.value) })}>
+                    <option value="">选择源班级</option>
+                    {reuseCourse.classes.map((cl) => <option key={cl.id} value={cl.id}>{cl.name}（{cl.assignments}个进行中任务）</option>)}
+                  </select></label>
+                <label className="field"><span>新截止日期（选填，留空沿用原值）</span><input className="input" type="date" value={reuse.due} aria-label="课程复用截止日期" onChange={(e) => setReuse({ ...reuse, due: e.target.value })} /></label>
+              </div>
+              <div className="row" style={{ flexWrap: "wrap" }}>
+                <span className="faint">目标班级（须已关联本课程）：</span>
+                {reuseCourse.classes.filter((cl) => cl.id !== reuse.source).map((cl) => (
+                  <label className="check" key={cl.id}>
+                    <input type="checkbox" checked={reuse.targets.includes(cl.id)}
+                      onChange={(e) => setReuse({ ...reuse, targets: e.target.checked ? [...reuse.targets, cl.id] : reuse.targets.filter((id) => id !== cl.id) })} />
+                    {cl.name}
+                  </label>))}
+              </div>
+              <div className="row">
+                <button className="btn btn-primary" disabled={!reuse.source || !reuse.targets.length || busy !== null} onClick={runReuse}>
+                  复用（{reuse.targets.length} 个班）</button>
+                <span className="faint">已有同病例进行中任务的班级跳过；分组任务不复制。</span>
+              </div>
+            </div>
+          )}
+          {(semesters || []).length > 0 && (
+            <div className="row" style={{ flexWrap: "wrap" }}>
+              <span className="faint">已有学期：</span>
+              {(semesters || []).map((s) => (
+                <span className="status info" key={s.id}>{s.name}（{s.courses}门课程{s.start_date ? `，${s.start_date}起` : ""}）
+                  <button className="btn-link btn small" style={{ marginLeft: 6 }} onClick={() => deleteSemester(s)}>删除</button></span>))}
+            </div>
+          )}
+        </div>
+      </Panel>
     </div>
   );
 }
@@ -66,6 +162,7 @@ function ClassDetail({ classId }: { classId: string }) {
   const { data, error, reload } = useLoad(() => get<Detail>(`/api/teacher/classes/${enc(classId)}`), [classId]);
   const { data: cases } = useLoad(() => get<CaseSummary[]>("/api/cases"), []);
   const { data: allClasses } = useLoad(() => get<ClassRow[]>("/api/teacher/classes"), []);
+  const { data: courses, reload: reloadCourses } = useLoad(() => get<CourseRow[]>("/api/teacher/courses"), []);
   const { data: templates, reload: reloadTemplates } = useLoad(() => get<TemplateRow[]>("/api/teacher/task-templates"), []);
   const [tab, setTab] = useState<"tasks" | "students">("tasks");
   const [roster, setRoster] = useState("");
@@ -129,6 +226,10 @@ function ClassDetail({ classId }: { classId: string }) {
     setBatchReport(`复制到其他班：${summarize(r.results)}`); setCopy({ targets: [], due: "" });
     await reload();
   });
+  const linkCourse = (courseId: string) => run("linkCourse", async () => {
+    await request("PUT", `/api/teacher/classes/${enc(classId)}/course`, { course_id: courseId || null });
+    await reload(); reloadCourses();
+  }, courseId ? "已关联课程" : "已解除课程关联");
   const archiveTask = (t: Task) => window.confirm(`撤回任务“${t.title}”？已完成的训练记录保留。`) && run("archive", async () => { await request("DELETE", `/api/teacher/assignments/${enc(t.id)}`); await reload(); });
   const otherClasses = (allClasses || []).filter((c) => c.id !== classId && !c.archived);
   const exportProgress = () => downloadCsv(`${data.name}-任务完成情况.csv`, [
@@ -145,6 +246,12 @@ function ClassDetail({ classId }: { classId: string }) {
         <div className="row"><button className="btn" onClick={() => navigate("/teacher/classes")}>返回</button><h1>{data.name}</h1>
           <span className="faint">{data.members.length} 名学生　{data.groups.length} 个分组　{data.assignments.length} 项任务</span></div>
         <div className="row">
+          <label className="field"><span>关联课程</span>
+            <select className="select" value={data.course_id || ""} aria-label="关联课程" disabled={!courses || busy !== null}
+              onChange={(e) => linkCourse(e.target.value)}>
+              <option value="">未关联课程</option>
+              {(courses || []).map((c) => <option key={c.id} value={c.id}>{c.name}{c.semester_name ? `（${c.semester_name}）` : ""}</option>)}
+            </select></label>
           <button className="btn" onClick={() => navigate(`/teacher/dashboard?class_id=${enc(classId)}`)}>本班学情</button>
           <button className="btn" disabled={!data.members.length} onClick={exportProgress}>导出完成情况</button>
         </div>
