@@ -31,8 +31,6 @@ def platform(mode="stall", drive=None, slow_stop=False, stall_s=0.9):
         def do_POST(self):
             body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             records.append(body)
-            if drive:
-                drive(body)
             if script["mode"] == "headers":
                 closed.wait(0.9)
             try:
@@ -48,8 +46,13 @@ def platform(mode="stall", drive=None, slow_stop=False, stall_s=0.9):
                             return
                     self.wfile.write(b'\n\n')
                 else:
+                    # Establish the stream and deliver the thinking event *before* the model tool
+                    # calls, like the real platform: the client's first-event deadline is satisfied
+                    # immediately and the (possibly slow) tool calls run afterwards.
                     self.wfile.write(b'data: {"type":"model_output_thinking","content":"x"}\n\n')
                     self.wfile.flush()
+                    if drive:
+                        drive(body)
                     if script["mode"] == "stall":
                         closed.wait(stall_s)
                     elif script["mode"] == "timing":
@@ -203,6 +206,36 @@ def test_comment_prefix_does_not_count_as_first_event(tmp_path):
     assert result.event_types == {"final_answer": 1}  # the comment was skipped, never parsed
 
 
+def test_comment_only_stream_does_not_extend_first_event_deadline(tmp_path, caplog):
+    # The comment-prefix test above proves comments are not *counted* as events, but it alone cannot
+    # prove a comment never *resets* the first-event deadline. This deterministic (MockTransport)
+    # case does: a stream of only comments must still trip the FIRST-event deadline. The 10s total vs
+    # 0.2s first-event gap makes a wrong "comments reset the deadline" implementation unmistakable
+    # (it would wait ~10s) while tolerating event-loop scheduling latency.
+    class CommentOnly(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            for _ in range(1000):
+                yield b":keep-alive\n\n"
+                await asyncio.sleep(0.01)
+        async def aclose(self):
+            pass
+
+    def handler(request):
+        # The advisory stop is a GET; it must ack immediately, not stream comments for 10s.
+        if request.method != "POST":
+            return httpx.Response(200)
+        return httpx.Response(200, headers={"conversation_id": "73"}, stream=CommentOnly())
+
+    client = NexentClient(settings_for(tmp_path, total_timeout_s=10, first_event_timeout_s=0.2), httpx.MockTransport(handler))
+    started = time.monotonic()
+    with pytest.raises(NexentError) as raised:
+        client.run(agent_name="a", query="q")
+    assert raised.value.kind == "timeout"
+    assert "event_count=0" in caplog.text  # no comment ever became a data event
+    assert "first_event_ms=None" in caplog.text
+    assert time.monotonic() - started < 2.0  # first-event deadline (0.2s), not total (10s)
+
+
 def test_first_event_deadline_rejects_comment_trickle(tmp_path, caplog):
     with platform("trickle") as (url, _, _, _):
         client = NexentClient(settings_for(tmp_path, nexent_base_url=url, total_timeout_s=2, first_event_timeout_s=0.2))
@@ -241,7 +274,11 @@ def test_deadline_cancels_submitted_turn_and_same_request_retries_once(tmp_path,
         agent(httpx.Request("POST", "http://local.test"), body, env.service)
 
     with platform(drive=drive, slow_stop=True) as (url, records, _, script):
-        settings = replace(env.settings, mode="nexent", nexent_base_url=url, total_timeout_s=0.3, first_event_timeout_s=2)
+        # total_timeout_s must outlive the (slow, multi-tool) drive so the turn is actually
+        # SUBMITTED before the deadline fires and can then be cancelled; it must still fire inside
+        # the 0.9s stall. 0.3s races the feedback drive (whose agent runs get_sealed_review + two
+        # searches + submit_feedback), which previously surfaced as an empty POST body -> IndexError.
+        settings = replace(env.settings, mode="nexent", nexent_base_url=url, total_timeout_s=0.8, first_event_timeout_s=2)
         runtime = IntegrationRuntime(settings)
         monkeypatch.setattr(main, "RUNTIME", runtime)
         path = f"/api/sessions/{sid}/{'ask' if role == 'patient' else 'feedback'}"

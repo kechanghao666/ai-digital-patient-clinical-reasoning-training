@@ -446,30 +446,201 @@ def test_turn_stats_aggregate_calls_latency_and_mode(tmp_path, monkeypatch):
     sid = env.new_session()
     turns = env.runtime.turns
 
-    # A finalized real-platform turn with one ok and one failed tool call.
+    # A finalized turn with one ok and one failed tool call.
     turn, _token = _issue(env, sid, kind=PATIENT, mode="nexent")
     assert turns.submit(turn.turn_id, {"fact_ids": ["f_hx_htn"]})
     turns.record_call(turn.turn_id, "get_turn_context", ok=True)
     turns.record_call(turn.turn_id, "submit_fact_selection", ok=False, detail="rejected")
     assert turns.finalize(turn.turn_id)
 
-    # An unfinalized simulator turn with no calls.
+    # An unfinalized turn with no calls.
     _issue(env, sid, kind=PATIENT, mode="simulator")
 
     stats = turns.stats()
+    assert stats["coverage"].startswith("recorded trusted turns only")
     assert stats["turns_total"] == 2
-    assert stats["by_mode"] == {"nexent": 1, "simulator": 1}
+    assert stats["by_adapter_mode"] == {"nexent": 1, "simulator": 1}
     assert stats["by_kind"] == {PATIENT: 2}
-    assert stats["calls_total"] == 2
-    assert stats["calls_failed"] == 1
-    assert stats["calls_failure_rate"] == 0.5
-    assert stats["latency"]["finalized_count"] == 1
-    assert stats["latency"]["min_ms"] is not None and stats["latency"]["min_ms"] >= 0
-    assert stats["latency"]["median_ms"] == stats["latency"]["max_ms"]
+    assert stats["tool_calls_total"] == 2
+    assert stats["tool_calls_failed"] == 1
+    assert stats["tool_calls_failure_rate"] == 0.5
+    assert stats["turn_completion"]["measured_count"] == 1
+    assert stats["turn_completion"]["negative_count"] == 0
     assert stats["token_usage"] == "unknown" and stats["cost"] == "unknown"
     # The finalized turn carries the mode and a finalized_at timestamp.
     assert turns.get(turn.turn_id).mode == "nexent"
     assert turns.get(turn.turn_id).finalized_at is not None
+
+
+def test_turn_stats_median_handles_empty_single_odd_even_and_negative(tmp_path, monkeypatch):
+    import sqlite3
+
+    counter = 0
+
+    def store_with_intervals(intervals):
+        # Fresh store per case (unique subdir) so empty/single/odd/even are independent.
+        nonlocal counter
+        case_dir = tmp_path / f"case{counter}"
+        counter += 1
+        env = Env(case_dir, monkeypatch)
+        sid = env.new_session()
+        turns = env.runtime.turns
+        for created, finalized in intervals:
+            turn, _ = _issue(env, sid, kind=PATIENT)
+            assert turns.submit(turn.turn_id, {"fact_ids": ["f_hx_htn"]})
+            assert turns.finalize(turn.turn_id)
+            with sqlite3.connect(env.settings.integration_db_path) as db:
+                db.execute("UPDATE turns SET created_at=?, finalized_at=? WHERE turn_id=?",
+                           (created, finalized, turn.turn_id))
+        return turns.stats()["turn_completion"]
+
+    empty = store_with_intervals([])
+    assert empty["measured_count"] == 0 and empty["negative_count"] == 0
+    assert empty["min_ms"] is None and empty["median_ms"] is None and empty["max_ms"] is None
+
+    single = store_with_intervals([(0.0, 2.5)])
+    assert single["measured_count"] == 1
+    assert single["median_ms"] == 2500 and single["min_ms"] == 2500 and single["max_ms"] == 2500
+
+    odd = store_with_intervals([(0.0, 1.0), (0.0, 2.0), (0.0, 4.0)])
+    assert odd["measured_count"] == 3
+    assert odd["median_ms"] == 2000 and odd["min_ms"] == 1000 and odd["max_ms"] == 4000
+
+    even = store_with_intervals([(0.0, 1.0), (0.0, 3.0)])
+    assert even["measured_count"] == 2
+    assert even["median_ms"] == 2000  # not the upper median 3000
+
+    mixed = store_with_intervals([(0.0, 1.0), (0.0, 3.0), (5.0, 4.0)])
+    assert mixed["measured_count"] == 2 and mixed["negative_count"] == 1
+    assert mixed["median_ms"] == 2000 and mixed["min_ms"] == 1000 and mixed["max_ms"] == 3000
+
+
+def test_turn_stats_read_only_and_missing_path(tmp_path, monkeypatch):
+    import sqlite3
+
+    from app.integration.turns import read_stats
+
+    env = Env(tmp_path, monkeypatch)
+    sid = env.new_session()
+    turns = env.runtime.turns
+    turn, _ = _issue(env, sid, kind=PATIENT)
+    turns.submit(turn.turn_id, {"fact_ids": ["f_hx_htn"]})
+    turns.finalize(turn.turn_id)
+
+    result = read_stats(env.settings.integration_db_path)
+    assert result["ok"] is True
+    assert result["stats"]["turns_total"] == 1
+    assert "schema_note" not in result["stats"]
+
+    # Missing path -> explicit failure and no file/dir is created.
+    missing = tmp_path / "does-not-exist" / "integration.db"
+    result = read_stats(missing)
+    assert result["ok"] is False
+    assert not missing.exists()
+
+    # Old store predating the observability columns -> compatible result + schema note, not migrated.
+    old_path = tmp_path / "old.db"
+    db = sqlite3.connect(old_path)
+    db.executescript(
+        """
+        CREATE TABLE turns (
+            turn_id TEXT PRIMARY KEY, secret_hash TEXT NOT NULL, kind TEXT NOT NULL,
+            owner_id TEXT NOT NULL, session_id TEXT NOT NULL, case_id TEXT NOT NULL,
+            case_version INTEGER NOT NULL, request_id TEXT NOT NULL, state_version INTEGER NOT NULL,
+            question TEXT NOT NULL, candidates_json TEXT NOT NULL, status TEXT NOT NULL,
+            expires_at REAL NOT NULL, submission_json TEXT, cancel_reason TEXT, created_at REAL NOT NULL
+        );
+        CREATE TABLE turn_calls (
+            call_id INTEGER PRIMARY KEY AUTOINCREMENT, turn_id TEXT NOT NULL,
+            tool TEXT NOT NULL, ok INTEGER NOT NULL, detail TEXT NOT NULL, at REAL NOT NULL
+        );
+        """
+    )
+    db.execute(
+        "INSERT INTO turns(turn_id, secret_hash, kind, owner_id, session_id, case_id, case_version, "
+        "request_id, state_version, question, candidates_json, status, expires_at, created_at) "
+        "VALUES ('t1','h','patient','o','s','c',1,'r',0,'q','[]','open',0.0,0.0)"
+    )
+    db.commit()
+    db.close()
+
+    result = read_stats(old_path)
+    assert result["ok"] is True
+    assert result["stats"]["turns_total"] == 1
+    assert result["stats"]["by_adapter_mode"] == {"unknown": 1}
+    assert "schema_note" in result["stats"]
+
+    # read_stats did not migrate the old store.
+    db = sqlite3.connect(old_path)
+    columns = {row[1] for row in db.execute("PRAGMA table_info(turns)")}
+    db.close()
+    assert "finalized_at" not in columns and "mode" not in columns
+
+
+def test_turn_store_concurrent_init_on_old_schema(tmp_path):
+    import concurrent.futures
+    import sqlite3
+
+    from app.integration.turns import TurnStore
+
+    # An old store (pre-observability columns) shared by API and MCP processes.
+    old_path = tmp_path / "old.db"
+    db = sqlite3.connect(old_path)
+    db.executescript(
+        """
+        CREATE TABLE turns (
+            turn_id TEXT PRIMARY KEY, secret_hash TEXT NOT NULL, kind TEXT NOT NULL,
+            owner_id TEXT NOT NULL, session_id TEXT NOT NULL, case_id TEXT NOT NULL,
+            case_version INTEGER NOT NULL, request_id TEXT NOT NULL, state_version INTEGER NOT NULL,
+            question TEXT NOT NULL, candidates_json TEXT NOT NULL, status TEXT NOT NULL,
+            expires_at REAL NOT NULL, submission_json TEXT, cancel_reason TEXT, created_at REAL NOT NULL
+        );
+        CREATE TABLE turn_calls (
+            call_id INTEGER PRIMARY KEY AUTOINCREMENT, turn_id TEXT NOT NULL,
+            tool TEXT NOT NULL, ok INTEGER NOT NULL, detail TEXT NOT NULL, at REAL NOT NULL
+        );
+        """
+    )
+    db.execute(
+        "INSERT INTO turns(turn_id, secret_hash, kind, owner_id, session_id, case_id, case_version, "
+        "request_id, state_version, question, candidates_json, status, expires_at, created_at) "
+        "VALUES ('t1','h','patient','o','s','c',1,'r',0,'q','[]','open',0.0,0.0)"
+    )
+    db.commit()
+    db.close()
+
+    def init():
+        TurnStore(old_path)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        list(executor.map(lambda _: init(), range(8)))
+
+    # The columns exist exactly once and the original row survived.
+    db = sqlite3.connect(old_path)
+    columns = {row[1] for row in db.execute("PRAGMA table_info(turns)")}
+    row = db.execute("SELECT mode FROM turns WHERE turn_id='t1'").fetchone()
+    db.close()
+    assert "finalized_at" in columns and "mode" in columns
+    assert row[0] == "unknown"
+
+
+def test_teacher_observability_is_permission_isolated_and_read_only(tmp_path, monkeypatch):
+    env = Env(tmp_path, monkeypatch, select("f_hx_htn"))
+    sid = env.new_session()
+    assert env.ask(sid, "有高血压吗", "r1").status_code == 200
+
+    # Students/owners and anonymous callers are rejected.
+    assert env.client.get("/api/teacher/observability", headers=env.headers).status_code == 403
+    assert env.client.get("/api/teacher/observability", headers={}).status_code in (401, 403)
+
+    # A teacher reads read-only stats that reflect the recorded trusted turn.
+    res = env.client.get("/api/teacher/observability", headers={"X-Owner-Id": "teacher-obs"})
+    assert res.status_code == 200
+    body = res.json()
+    assert body["ok"] is True
+    assert body["stats"]["turns_total"] == 1
+    assert body["stats"]["by_adapter_mode"] == {"nexent": 1}
+    assert body["stats"]["token_usage"] == "unknown" and body["stats"]["cost"] == "unknown"
 
 
 def test_tokens_are_bound_and_unforgeable(tmp_path, monkeypatch):
