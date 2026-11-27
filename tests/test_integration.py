@@ -577,6 +577,51 @@ def test_turn_stats_read_only_and_missing_path(tmp_path, monkeypatch):
     assert "finalized_at" not in columns and "mode" not in columns
 
 
+def test_read_stats_reports_corrupt_and_incomplete_stores(tmp_path):
+    import sqlite3
+
+    from app.integration.turns import read_stats
+
+    # A non-SQLite file is reported as corrupted, never as empty data, and leaks no path/detail.
+    text_db = tmp_path / "text.db"
+    text_db.write_text("this is not a database", encoding="utf-8")
+    result = read_stats(text_db)
+    assert result["ok"] is False and result["reason"] == "corrupted"
+    assert str(text_db) not in result["error"]
+
+    # A store with `turns` but no `turn_calls` is reported as incomplete.
+    no_calls = tmp_path / "no_calls.db"
+    db = sqlite3.connect(no_calls)
+    db.execute(
+        "CREATE TABLE turns (turn_id TEXT PRIMARY KEY, secret_hash TEXT, kind TEXT, owner_id TEXT, "
+        "session_id TEXT, case_id TEXT, case_version INTEGER, request_id TEXT, state_version INTEGER, "
+        "question TEXT, candidates_json TEXT, status TEXT, expires_at REAL, submission_json TEXT, "
+        "cancel_reason TEXT, created_at REAL, finalized_at REAL, mode TEXT)"
+    )
+    db.commit()
+    db.close()
+    result = read_stats(no_calls)
+    assert result["ok"] is False and result["reason"] == "incomplete"
+
+    # A valid store reports ok with empty stats (no turns recorded yet).
+    normal = tmp_path / "normal.db"
+    db = sqlite3.connect(normal)
+    db.executescript(
+        """
+        CREATE TABLE turns (turn_id TEXT PRIMARY KEY, secret_hash TEXT, kind TEXT, owner_id TEXT,
+            session_id TEXT, case_id TEXT, case_version INTEGER, request_id TEXT, state_version INTEGER,
+            question TEXT, candidates_json TEXT, status TEXT, expires_at REAL, submission_json TEXT,
+            cancel_reason TEXT, created_at REAL, finalized_at REAL, mode TEXT);
+        CREATE TABLE turn_calls (call_id INTEGER PRIMARY KEY AUTOINCREMENT, turn_id TEXT,
+            tool TEXT, ok INTEGER, detail TEXT, at REAL);
+        """
+    )
+    db.commit()
+    db.close()
+    result = read_stats(normal)
+    assert result["ok"] is True and result["stats"]["turns_total"] == 0
+
+
 def test_turn_store_concurrent_init_on_old_schema(tmp_path):
     import concurrent.futures
     import sqlite3
@@ -625,22 +670,77 @@ def test_turn_store_concurrent_init_on_old_schema(tmp_path):
 
 
 def test_teacher_observability_is_permission_isolated_and_read_only(tmp_path, monkeypatch):
+    from app.accounts import AccountStore
+
     env = Env(tmp_path, monkeypatch, select("f_hx_htn"))
     sid = env.new_session()
     assert env.ask(sid, "有高血压吗", "r1").status_code == 200
+    monkeypatch.setenv("APP_AUTH_MODE", "local")
+    accounts = AccountStore(tmp_path / "accounts.db")
+    monkeypatch.setattr(main, "ACCOUNTS", accounts)
+    teacher_id = accounts.create("teachera", "Ta-Pass-2026", "teacher", "老师甲")
 
     # Students/owners and anonymous callers are rejected.
-    assert env.client.get("/api/teacher/observability", headers=env.headers).status_code == 403
+    assert env.client.get("/api/teacher/observability", headers=env.headers).status_code in (401, 403)
     assert env.client.get("/api/teacher/observability", headers={}).status_code in (401, 403)
 
-    # A teacher reads read-only stats that reflect the recorded trusted turn.
-    res = env.client.get("/api/teacher/observability", headers={"X-Owner-Id": "teacher-obs"})
+    # A teacher with no classes sees an empty scoped aggregate, not the full library.
+    login = env.client.post("/api/auth/login", json={"username": "teachera", "password": "Ta-Pass-2026"})
+    headers = {"Authorization": "Bearer " + login.json()["token"]}
+    res = env.client.get("/api/teacher/observability", headers=headers)
     assert res.status_code == 200
     body = res.json()
     assert body["ok"] is True
-    assert body["stats"]["turns_total"] == 1
-    assert body["stats"]["by_adapter_mode"] == {"nexent": 1}
+    assert body["stats"]["turns_total"] == 0
     assert body["stats"]["token_usage"] == "unknown" and body["stats"]["cost"] == "unknown"
+
+
+def test_teacher_observability_scopes_to_own_class_members(tmp_path, monkeypatch):
+    from app.accounts import AccountStore
+    from app.roster import RosterStore
+
+    env = Env(tmp_path, monkeypatch, select("f_hx_htn"))
+    monkeypatch.setenv("APP_AUTH_MODE", "local")
+    accounts = AccountStore(tmp_path / "accounts.db")
+    monkeypatch.setattr(main, "ACCOUNTS", accounts)
+
+    ta = accounts.create("teachera", "Ta-Pass-2026", "teacher", "老师甲")
+    tb = accounts.create("teacherb", "Tb-Pass-2026", "teacher", "老师乙")
+    roster = RosterStore(accounts)
+    class_a = roster.create_class(ta, "甲班")
+    class_b = roster.create_class(tb, "乙班")
+    roster.add_students(class_a["id"], ta, [{"username": "s001", "display_name": "学生一"}])
+    roster.add_students(class_b["id"], tb, [{"username": "s002", "display_name": "学生二"},
+                                            {"username": "s003", "display_name": "学生三"}])
+
+    def add_turn(owner_id, rid):
+        turn, _ = env.runtime.turns.issue(
+            kind=PATIENT, owner_id=owner_id, session_id=f"ses-{rid}", case_id="CASE-001",
+            case_version=1, request_id=rid, state_version=0, question="有高血压吗",
+            candidate_fact_ids=["f_hx_htn"], mode="nexent",
+        )
+        env.runtime.turns.record_call(turn.turn_id, "get_turn_context", ok=True)
+        env.runtime.turns.record_call(turn.turn_id, "submit_fact_selection", ok=True)
+        env.runtime.turns.submit(turn.turn_id, {"fact_ids": ["f_hx_htn"]})
+        env.runtime.turns.finalize(turn.turn_id)
+
+    add_turn(accounts.find("s001")["id"], "r1")
+    add_turn(accounts.find("s002")["id"], "r2")
+    add_turn(accounts.find("s003")["id"], "r3")
+
+    def login(username, password):
+        res = env.client.post("/api/auth/login", json={"username": username, "password": password})
+        assert res.status_code == 200, res.text
+        return {"Authorization": "Bearer " + res.json()["token"]}
+
+    a = env.client.get("/api/teacher/observability", headers=login("teachera", "Ta-Pass-2026")).json()
+    b = env.client.get("/api/teacher/observability", headers=login("teacherb", "Tb-Pass-2026")).json()
+
+    # Each teacher sees only their own class members' turns; tool calls follow the same scope.
+    assert a["ok"] is True and a["stats"]["turns_total"] == 1
+    assert b["ok"] is True and b["stats"]["turns_total"] == 2
+    assert a["stats"]["tool_calls_total"] == 2
+    assert b["stats"]["tool_calls_total"] == 4
 
 
 def test_tokens_are_bound_and_unforgeable(tmp_path, monkeypatch):

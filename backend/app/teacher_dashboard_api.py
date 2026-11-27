@@ -11,6 +11,7 @@ from typing import Callable
 from fastapi import APIRouter, Depends, HTTPException
 
 from .history_coverage import history_coverage
+from .integration.turns import empty_stats
 
 STAGES = ("病史采集", "检查选择", "鉴别诊断", "诊断", "治疗")
 
@@ -123,13 +124,36 @@ def build_router(get_repository: Callable, get_cases: Callable, get_accounts: Ca
 
     @router.get("/observability")
     def observability(teacher_id: str = Depends(current_teacher)) -> dict:
-        # Read-only, teacher-only observability over the trusted turn/call store. The store may not
-        # exist yet (no turn ever issued) — that is "no data", reported explicitly, not a 500.
+        # Read-only, teacher-only observability over the trusted turn/call store. A teacher sees
+        # only the trusted turns of the students enrolled in their own classes (the existing
+        # class-ownership relationship); tool-call stats follow the same scoped turns. Distinguish
+        # "no data yet" (store absent / no turns table) from "statistics unavailable" (corrupted
+        # or incomplete store): the former is a legitimate empty state, the latter is an error.
         if get_turn_stats is None:
             raise HTTPException(404, "可观测统计未启用")
-        result = get_turn_stats()
+        owner_ids = _teacher_member_ids(get_roster, teacher_id)
+        result = get_turn_stats(owner_ids)
         if result.get("ok"):
             return {"ok": True, "stats": result["stats"]}
-        return {"ok": False, "error": result.get("error", "turn store unavailable"), "stats": None}
+        if result.get("reason") in ("not_found", "not_initialized"):
+            return {"ok": True, "stats": empty_stats(), "store_note": result.get("error")}
+        raise HTTPException(503, result.get("error", "统计暂不可用"))
 
     return router
+
+
+def _teacher_member_ids(get_roster: Callable | None, teacher_id: str) -> list[str]:
+    """The student account ids across all classes owned by ``teacher_id`` (empty when none)."""
+    if get_roster is None:
+        return []
+    try:
+        roster = get_roster()
+    except Exception:
+        return []
+    members: list[str] = []
+    try:
+        for cls in roster.classes(teacher_id):
+            members.extend(roster.member_ids(cls["id"]))
+    except Exception:
+        return []
+    return list(dict.fromkeys(members))

@@ -351,49 +351,84 @@ class TurnStore:
             ).fetchall()
         return [{"tool": r["tool"], "ok": bool(r["ok"]), "detail": r["detail"], "at": r["at"]} for r in rows]
 
-    def stats(self) -> dict[str, Any]:
-        """Observability aggregate over recorded turns and tool calls (see ``_aggregate``)."""
+    def stats(self, owner_ids: Iterable[str] | None = None) -> dict[str, Any]:
+        """Observability aggregate over recorded turns and tool calls (see ``_aggregate``).
+
+        ``owner_ids`` restricts both the turn rows and the tool-call rows to the same set of owners,
+        so a scoped aggregate never mixes per-turn counts with full-store tool counts.
+        """
         with self.lock, self._connect() as connection:
-            turn_rows = connection.execute(
-                "SELECT kind, mode, status, created_at, finalized_at FROM turns"
-            ).fetchall()
-            call_rows = connection.execute("SELECT ok FROM turn_calls").fetchall()
+            turn_rows, call_rows = _query_filtered(connection, owner_ids, "mode", "finalized_at")
         return _aggregate(turn_rows, call_rows)
 
 
-def read_stats(path: str | Path) -> dict[str, Any]:
-    """Read-only aggregate over an *existing* turn store.
+def empty_stats() -> dict[str, Any]:
+    """The aggregate for a store with no recorded turns (used when the store is absent/uninitialised)."""
+    return _aggregate([], [])
 
-    Never creates the file, never initialises tables, never switches journal mode and never
-    migrates. A missing path, an uninitialised file or a store that predates the observability
-    columns is reported explicitly rather than fixed here.
 
-    Returns ``{"ok": True, "stats": {...}}`` on success or ``{"ok": False, "error": "..."}``.
-    """
-    path = str(path)
-    if not Path(path).is_file():
-        return {"ok": False, "error": f"turn store not found: {path}"}
-    try:
-        connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
-    except sqlite3.OperationalError as exc:
-        return {"ok": False, "error": f"cannot open turn store read-only: {exc}"}
-    try:
-        connection.row_factory = sqlite3.Row
-        table = connection.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='turns'"
-        ).fetchone()
-        if table is None:
-            return {"ok": False, "error": "turns table not found (not an initialized turn store)"}
-        columns = {row["name"] for row in connection.execute("PRAGMA table_info(turns)")}
-        missing = [name for name in ("finalized_at", "mode") if name not in columns]
-        mode_expr = "mode" if "mode" in columns else "'unknown'"
-        finalized_expr = "finalized_at" if "finalized_at" in columns else "NULL"
+def _query_filtered(connection: sqlite3.Connection, owner_ids: Iterable[str] | None,
+                    mode_expr: str, finalized_expr: str) -> tuple[list[sqlite3.Row], list[sqlite3.Row]]:
+    """Return (turn_rows, call_rows) with an optional owner filter; tool calls follow the same turns."""
+    ids = None if owner_ids is None else list(dict.fromkeys(owner_ids))
+    if ids is None:
         turn_rows = connection.execute(
             f"SELECT kind, {mode_expr} AS mode, status, created_at, {finalized_expr} AS finalized_at FROM turns"
         ).fetchall()
         call_rows = connection.execute("SELECT ok FROM turn_calls").fetchall()
+    elif not ids:
+        return [], []
+    else:
+        placeholders = ",".join("?" * len(ids))
+        turn_rows = connection.execute(
+            f"SELECT kind, {mode_expr} AS mode, status, created_at, {finalized_expr} AS finalized_at "
+            f"FROM turns WHERE owner_id IN ({placeholders})", ids
+        ).fetchall()
+        call_rows = connection.execute(
+            f"SELECT ok FROM turn_calls WHERE turn_id IN "
+            f"(SELECT turn_id FROM turns WHERE owner_id IN ({placeholders}))", ids
+        ).fetchall()
+    return turn_rows, call_rows
+
+
+def read_stats(path: str | Path, owner_ids: Iterable[str] | None = None) -> dict[str, Any]:
+    """Read-only aggregate over an *existing* turn store.
+
+    Never creates the file, never initialises tables, never switches journal mode and never
+    migrates. ``owner_ids`` scopes both turn and tool-call rows to the same owners. Every failure
+    mode is reported with a short, client-safe ``reason``/``error`` that carries no filesystem path
+    or SQL detail (diagnostics stay server-side): a missing path, a non-SQLite file, a store without
+    the ``turns`` table, a store missing ``turn_calls``, and a store predating the observability
+    columns.
+
+    Returns ``{"ok": True, "stats": {...}}`` or ``{"ok": False, "reason": ..., "error": ...}``.
+    """
+    path = str(path)
+    if not Path(path).is_file():
+        return {"ok": False, "reason": "not_found", "error": "turn store not found"}
+    connection = None
+    try:
+        connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        connection.row_factory = sqlite3.Row
+        try:
+            table = connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='turns'"
+            ).fetchone()
+        except sqlite3.DatabaseError:
+            return {"ok": False, "reason": "corrupted", "error": "turn store is not a valid database"}
+        if table is None:
+            return {"ok": False, "reason": "not_initialized", "error": "turn store has no turns table"}
+        columns = {row["name"] for row in connection.execute("PRAGMA table_info(turns)")}
+        missing = [name for name in ("finalized_at", "mode") if name not in columns]
+        mode_expr = "mode" if "mode" in columns else "'unknown'"
+        finalized_expr = "finalized_at" if "finalized_at" in columns else "NULL"
+        try:
+            turn_rows, call_rows = _query_filtered(connection, owner_ids, mode_expr, finalized_expr)
+        except sqlite3.OperationalError:
+            return {"ok": False, "reason": "incomplete", "error": "turn store is missing a required table"}
     finally:
-        connection.close()
+        if connection is not None:
+            connection.close()
     stats = _aggregate(turn_rows, call_rows)
     if missing:
         stats["schema_note"] = (

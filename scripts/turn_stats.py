@@ -26,7 +26,9 @@ def main() -> None:
         parser.error("需要 --db 或设置 INTEGRATION_DB_PATH")
     result = read_stats(args.db)
     if not result.get("ok"):
-        print(json.dumps(result, ensure_ascii=False, indent=2), file=sys.stderr)
+        # Short, client-safe error: reason + message, never the absolute path or SQL detail.
+        print(json.dumps({"ok": False, "reason": result.get("reason"), "error": result.get("error")},
+                         ensure_ascii=False, indent=2), file=sys.stderr)
         sys.exit(1)
     print(json.dumps(result["stats"], ensure_ascii=False, indent=2))
 

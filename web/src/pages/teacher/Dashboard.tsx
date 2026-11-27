@@ -15,6 +15,14 @@ interface CaseRow {
   frequently_lost: { item_id: string; stage: string; description: string; attempts: number; lost: number; loss_rate: number }[];
 }
 interface Data { overview: { trainings: number; students: number; sealed: number; needs_review: number; average_ratio: number | null }; cases: CaseRow[]; trainings: Training[]; notice: string; }
+interface Observability {
+  ok: boolean; store_note?: string;
+  stats: {
+    turns_total: number; tool_calls_total: number; tool_calls_failed: number; tool_calls_failure_rate: number | null;
+    turn_completion: { measured_count: number; min_ms: number | null; median_ms: number | null; max_ms: number | null };
+    token_usage: string; cost: string;
+  } | null;
+}
 const STATUS: Record<string, [string, string]> = { complete: ["已评分", "ok"], needs_review: ["待复核", "warn"], failed: ["评分失败", "bad"] };
 const heat = (r: number | null | undefined) => r == null ? {} : { background: r >= 0.8 ? "var(--ok-soft)" : r >= 0.5 ? "var(--warn-soft)" : "var(--bad-soft)", color: r >= 0.8 ? "var(--ok)" : r >= 0.5 ? "var(--warn)" : "var(--bad)" };
 
@@ -23,6 +31,7 @@ export function Dashboard({ params }: { params: URLSearchParams }) {
   const local = getIdentity()?.mode === "local";
   const { data: classes } = useLoad(() => local ? get<{ id: string; name: string }[]>("/api/teacher/classes") : Promise.resolve([]), [local]);
   const { data, error, reload } = useLoad(() => get<Data>(`/api/teacher/dashboard${classId ? `?class_id=${enc(classId)}` : ""}`), [classId]);
+  const { data: obs, error: obsError } = useLoad(() => get<Observability>("/api/teacher/observability"), []);
   const [caseFilter, setCaseFilter] = useState("");
   const [reviewOnly, setReviewOnly] = useState(false);
   if (!data) return <Loading error={error} onRetry={reload} />;
@@ -44,6 +53,18 @@ export function Dashboard({ params }: { params: URLSearchParams }) {
         {([["训练次数", o.trainings], ["学生", o.students], ["已提交", o.sealed], ["待复核", o.needs_review], ["平均得分率", pct(o.average_ratio)]] as const).map(([k, v]) =>
           <div key={k}><div className="faint">{k}</div><div style={{ fontSize: 20, fontWeight: 600 }} className="num">{v}</div></div>)}
       </div></section>
+      <Panel title="模型调用观测" flush>
+        {obsError ? <div className="empty">统计暂不可用</div>
+          : !obs || !obs.stats ? <div className="empty">统计加载中…</div>
+          : obs.stats.turns_total === 0 ? <div className="empty">暂无已记录的可信回合数据{obs.store_note ? `（${obs.store_note}）` : ""}</div>
+          : <div className="panel-body" style={{ display: "flex", gap: 36, flexWrap: "wrap" }}>
+              <div><div className="faint">记录回合数</div><div className="num" style={{ fontSize: 20, fontWeight: 600 }}>{obs.stats.turns_total}</div></div>
+              <div><div className="faint">工具调用失败率</div><div className="num" style={{ fontSize: 20, fontWeight: 600 }}>{obs.stats.tool_calls_failure_rate == null ? "—" : pct(obs.stats.tool_calls_failure_rate)}</div></div>
+              <div><div className="faint">回合完成区间（中位）</div><div className="num" style={{ fontSize: 20, fontWeight: 600 }}>{obs.stats.turn_completion.median_ms == null ? "—" : `${(obs.stats.turn_completion.median_ms / 1000).toFixed(2)} 秒`}</div></div>
+              <div><div className="faint">费用</div><div className="num" style={{ fontSize: 20, fontWeight: 600 }}>{obs.stats.cost === "unknown" ? "未知" : obs.stats.cost}</div></div>
+            </div>}
+        <p className="faint" style={{ margin: "10px 16px 0" }}>仅统计当前教师班级内学生已记录的可信回合（Nexent 适配器路径）；适配器模式不代表真实供应商调用，token 用量与费用未知时显式标注。</p>
+      </Panel>
       {data.trainings.length === 0 ? <section className="panel"><div className="empty">暂无训练数据</div></section> : <>
         <div className="work">
           <Panel title="五环节得分率" flush>

@@ -132,7 +132,7 @@ app.include_router(build_feedback_review_router(lambda: REPOSITORY, lambda: CASE
 app.include_router(build_score_review_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: RUNTIME, current_teacher))
 app.include_router(build_dashboard_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: ACCOUNTS, current_teacher,
                                           lambda: roster_for(ACCOUNTS),
-                                          lambda: read_stats(RUNTIME.settings.integration_db_path)))
+                                          lambda owner_ids: read_stats(RUNTIME.settings.integration_db_path, owner_ids)))
 app.include_router(build_roster_router(lambda: roster_for(ACCOUNTS), lambda: ACCOUNTS, lambda: REPOSITORY, lambda: CASE_STORE,
                                        current_teacher, current_owner, _development,
                                        lambda case_id, version: RUNTIME.case_training.is_stopped(case_id, version),
