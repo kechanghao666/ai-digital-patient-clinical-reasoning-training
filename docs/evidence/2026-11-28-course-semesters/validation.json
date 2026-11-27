@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "round": "2026-11-28 M3/M11 学期/课程关联与课程跨学期复用",
+  "round": "2026-11-28 M3/M11 学期/课程关联与同课程跨班复用",
   "feature_shas": {
     "backend": "b8317da",
     "frontend": "5b4eafc"
@@ -32,9 +32,9 @@
     },
     "browser": {
       "probe": "web/e2e/teacher-panel.mjs",
-      "checks_total": 45,
-      "passed": 45,
-      "new_semester_course_checks": 6,
+      "checks_total": 44,
+      "passed": 44,
+      "new_semester_course_checks": 5,
       "evidence": "docs/evidence/2026-11-28-course-semesters/teacher-panel-run.json",
       "screenshot": "docs/evidence/2026-11-28-course-semesters/course-semesters.png"
     },
@@ -49,7 +49,7 @@
     "copied_with_course": "任务设置：病例、标题、要求；截止日期可统一覆写或沿用源值",
     "not_copied": "学生与班级归属、班内分组及组员关系、训练记录、评分与审计均留在原班级",
     "skipped": "分组任务不复制并单独报告；目标班已有同病例进行中任务时幂等跳过",
-    "guards": "课程复用要求源班与目标班均已关联该课程；归属与查重在 distribute 同一写事务内复核，任一班级越权或病例不可用则整批回滚"
+    "guards": "4eb29e9 的课程关系在写事务开始前检查；事务内复核教师对班级的归属和重复任务。原始浏览器记录只建一个学期，未覆盖两个学期。"
   },
   "real_provider_calls": 0,
   "business_database_touched": false,

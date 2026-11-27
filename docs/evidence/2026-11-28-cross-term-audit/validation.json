@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-28",
+  "upstream": {
+    "main": "0f3403ff87215a34e8c32e16a1b86536d811e960",
+    "verified_byte_identical": [
+      "requirements.md",
+      "upstream-readme.md",
+      "upstream-LICENSE"
+    ],
+    "discussion_26_md_sha256": "34f82c6d3aa6ea220e84279f3aa1aed310dba03002921dd768c0911a27d7db00"
+  },
+  "feature_sha": "90b1e3cb72ee23adb7d57b01549e298437e8df66",
+  "pytest": {
+    "passed": 950,
+    "failed": 0,
+    "seconds": 241.78,
+    "scope": "functional working tree committed as 90b1e3c; later changes cover packaging, demo driver and documentation"
+  },
+  "browser": {
+    "old_actual": 44,
+    "old_terms": 1,
+    "new_passed": 46,
+    "new_total": 46,
+    "source_and_destination_terms": 2,
+    "outcomes": [
+      "created",
+      "exists"
+    ],
+    "js_sha256": "25f5be34ea7f19825b7b13c6d464841f215b8a35734ce3d81cf51b27cf5853df"
+  },
+  "samples": "12/12, engineering-summary.json",
+  "frontend": "typecheck/build passed, npm audit 0, three bundled license texts verified against installed packages",
+  "compileall": "passed",
+  "demo": {
+    "initial_failure": "due date matched two controls",
+    "fixed": "13/13, demo-run.json and demo-isolation.json; smoke.mjs content committed in 751882d",
+    "archived_video_sha256": "a8f9ab0ea49416535380e339c890b11cf1144da23fd4d57954f1a3efde069c05"
+  },
+  "real_provider_calls": 0,
+  "formal_acceptance": false
+}
