@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import shutil
 import sys
 import tempfile
 import threading
@@ -48,12 +49,7 @@ class LiveServer:
         return self
 
 
-def sse(*events):
-    for event in events:
-        yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n".encode()
-
-
-def build_fake_nexent(mcp_url: str, script: dict):
+def build_fake_nexent(mcp_url: str, script: dict, shutdown: threading.Event, repository=None):
     app = FastAPI()
     # Non-serializable barrier control for the controlled-wait browser probe. ``pause_at`` is one of
     # "before_submission" / "after_submission"; "after_validation" is wired in main() on the backend.
@@ -82,17 +78,22 @@ def build_fake_nexent(mcp_url: str, script: dict):
             raise HTTPException(status_code=401, detail="bad local key")
         script["calls"] += 1
         body = await request.json()
-        if script.get("hang"):
-            await asyncio.sleep(script["hang"])
-        await drive(body["metadata"]["role"], body["metadata"]["turn_token"])
+        role = body["metadata"]["role"]
+        token = body["metadata"]["turn_token"]
+
+        async def stream():
+            if script.get("hang"):
+                await asyncio.sleep(script["hang"])
+            # Establish the SSE stream with a thinking event *before* the model tool calls, so the
+            # after_submission barrier sits after the response headers/stream exist (like the real
+            # platform), not before the stream is returned.
+            yield f"data: {json.dumps({'type': 'model_output_thinking', 'content': 'local fake', 'unit_index': 1}, ensure_ascii=False)}\n\n".encode()
+            await drive(role, token)
+            yield f"data: {json.dumps({'type': 'execution_result', 'content': 'submitted', 'unit_index': 2}, ensure_ascii=False)}\n\n".encode()
+            yield f"data: {json.dumps({'type': 'final_answer', 'content': 'untrusted free text must not be shown', 'unit_index': 3}, ensure_ascii=False)}\n\n".encode()
+
         return StreamingResponse(
-            sse(
-                {"type": "model_output_thinking", "content": "local fake", "unit_index": 1},
-                {"type": "execution_result", "content": "submitted", "unit_index": 2},
-                {"type": "final_answer", "content": "untrusted free text must not be shown", "unit_index": 3},
-            ),
-            media_type="text/event-stream",
-            headers={"conversation_id": "local-ask-regression"},
+            stream(), media_type="text/event-stream", headers={"conversation_id": "local-ask-regression"}
         )
 
     @app.get("/__control")
@@ -113,6 +114,29 @@ def build_fake_nexent(mcp_url: str, script: dict):
         if patch.get("release"):
             barrier["release"].set()
         return {"pause_at": barrier["pause_at"], "paused": barrier["paused"].is_set()}
+
+    @app.post("/__shutdown")
+    async def shutdown_endpoint():
+        # Graceful stop so main() can release server threads and delete the temporary data directory.
+        shutdown.set()
+        return {"shutting_down": True}
+
+    @app.get("/__trace/{session_id}")
+    async def trace(session_id: str):
+        # Raw adapter trace of the latest ask event; safe_event strips it from the student API, so the
+        # probe reads it here (isolated loopback, temporary DB only).
+        if repository is None:
+            return {}
+        try:
+            state = repository.get(session_id, "demo-controlled-wait")
+        except KeyError:
+            return {}
+        for event in reversed(state.events):
+            result = event.result if isinstance(event.result, dict) else {}
+            adapter = result.get("adapter")
+            if isinstance(adapter, dict):
+                return adapter
+        return {}
 
     return app, barrier
 
@@ -150,7 +174,8 @@ def main():
     mcp_server = LiveServer(mcp_app).start()
 
     script = {"hang": 0, "take": 1, "calls": 0}
-    fake, barrier = build_fake_nexent(f"http://127.0.0.1:{mcp_server.port}/mcp", script)
+    shutdown = threading.Event()
+    fake, barrier = build_fake_nexent(f"http://127.0.0.1:{mcp_server.port}/mcp", script, shutdown, repository)
     nexent_server = LiveServer(fake).start()
 
     # Wire the "after_validation" pause into the backend's answer authorization gate. main.py
@@ -188,12 +213,15 @@ def main():
         flush=True,
     )
     try:
-        threading.Event().wait()
+        shutdown.wait()
     except KeyboardInterrupt:
         pass
     finally:
         for server in (api_server, nexent_server, mcp_server):
             server.server.should_exit = True
+        # Best-effort removal of this run's temporary databases and config; never touches the
+        # repository data directories or any historical database.
+        shutil.rmtree(data, ignore_errors=True)
 
 
 if __name__ == "__main__":

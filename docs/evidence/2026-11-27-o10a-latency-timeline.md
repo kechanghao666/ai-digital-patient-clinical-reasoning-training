@@ -49,7 +49,16 @@
 
 ## 浏览器端到端可控等待（本轮已完成，零模型调用）
 
-`web/e2e/controlled-wait.mjs` + `web/e2e/ask_stack.py` 用假 Nexent/真实后端/MCP/临时库 + 真实浏览器，在三个位置注入事件屏障：提交前（`before_submission`）、提交后尚未发完成事件（`after_submission`）、正文授权校验后（`after_validation`）。结果见 [2026-11-27-controlled-wait.json](2026-11-27-controlled-wait.json)，三项均 `paused_blocked_answer=true`、`paused_no_save=true`、释放后 `saved_events=1`、`settled_single=true`。
+`web/e2e/controlled-wait.mjs` + `web/e2e/ask_stack.py` 用假 Nexent/真实后端/MCP/临时库 + 真实浏览器，在三个位置注入事件屏障：提交前（`before_submission`）、提交后尚未发完成事件（`after_submission`）、正文授权校验后（`after_validation`），外加一个平台停滞超时场景。假 Nexent 现在**先建立 SSE 流并发出 thinking 事件、再驱动可信 MCP 提交**，因此「提交后」屏障发生在响应头/流已建立、可信提交已完成、仅完成事件被暂停的位置，更接近真实平台。结果见 [2026-11-27-controlled-wait.json](2026-11-27-controlled-wait.json)。
 
-结论：三处暂停期间学生都看不到任何正文、服务端都不保存事件；答案只在「模型运行 + 回合 finalize + 正文校验 + 会话保存 + 响应返回」全部完成后才出现。即链路里**没有可单独去除的人工等待**，8–10 秒等待来自模型流程自身（平台步骤时长已占 7.3–7.9 秒），缩短首字只能换更快模型或改协议，不能靠绕过授权/校验/保存来「提前显示」。
+每轮记录同一请求的 `request_id`、服务端阶段（API 进程 monotonic）、适配器 `trace`（`trusted_completion_ms`/`finalize_ms`/`first_event_ms` 等）、浏览器点击/响应/DOM/双 rAF 估算、屏障到达/释放时刻，并标注各自计时起点（浏览器 `performance.now()`、API 进程 monotonic、驱动端 `Date.now()` 墙钟，不能跨时钟相减）。三处暂停期间均「请求未完成、无正文、无保存」；释放后核对 HTTP 状态、API 正文、DOM 正文、持久正文一致；并用同一 `request_id` 直接重放，核对平台运行次数与持久事件数均不增加；停滞超时场景核对失败不显示未完成答案、不保存。
+
+这些只能证明：三处受控暂停期间学生未提前看到正文、服务端未提前保存训练事件；释放后流程完成、保存一致。**不能据此推出「没有可单独去除的人工等待」或「8–10 秒全部来自模型流程自身」**——真实平台各阶段耗时与可优化等待仍未完整定位。至少还有这些边界：
+
+- 假平台在同一进程内通过可信 MCP 提交，`submit_fact_selection` 落库仍无独立（MCP 进程）单调记录；`trusted_completion_ms` 是「首次观察到提交」的检测时刻，不是实际落库时刻。
+- 平台步骤时长之和（7.3–7.9 秒）只是 runtime 汇总时长，不是提交落库时刻，不能与浏览器时点相减或当作提交/授权时刻。
+- 不同进程/主机、不同起点的 monotonic 值不能直接相减；补墙钟也不会自动消除时钟同步与采集误差。
+- 双 rAF 只是显示估算，不是物理绘制实测。
+
+因此「缩短首字只能换模型或改协议」没有证据支持：在补齐 MCP 进程提交落库时点、并区分响应头等待/事件唤醒/流结束等待之前，不能排除其他可优化的等待，也不能排除平台事件、流关闭、停止请求或后端校验保存的等待。
 

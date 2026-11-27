@@ -3,53 +3,210 @@
     {
       "position": "before_submission",
       "question": "有高血压吗？",
+      "request_id": "dd2208e0-faee-45ca-9634-a93aa34dfe5a",
       "server_stages": {
         "request_entry": 0,
-        "classified": 16,
-        "adapter_returned": 1031,
-        "validated": 1031,
-        "saved": 1047
+        "classified": 0,
+        "adapter_returned": 812,
+        "validated": 812,
+        "saved": 827
       },
+      "adapter_trace": {
+        "real_platform": true,
+        "turn_id": "0f126349c7594841a8f4ea44f4dc41ac",
+        "conversation_id": null,
+        "event_types": {
+          "model_output_thinking": 1,
+          "execution_result": 1
+        },
+        "first_event_ms": 218,
+        "platform_first_event_ms": 218,
+        "platform_first_final_event_ms": null,
+        "total_ms": 750,
+        "trusted_completion": true,
+        "trusted_completion_ms": 750,
+        "tool_calls": [
+          {
+            "tool": "get_turn_context",
+            "ok": true
+          },
+          {
+            "tool": "submit_fact_selection",
+            "ok": true
+          }
+        ],
+        "finalize_ms": 796,
+        "answer_validated_ms": 812
+      },
+      "clock_origins": {
+        "clickT": "browser performance.now()",
+        "postT": "browser performance.now()",
+        "visibleT": "browser performance.now()",
+        "paintT": "browser performance.now() (double rAF estimate)",
+        "server_stages": "API-process monotonic",
+        "trace_ms": "API-process monotonic",
+        "barrier": "driver Date.now() wall clock (not comparable to browser/API clocks)"
+      },
+      "barrier": {
+        "reached_ms": 790,
+        "released_ms": 817
+      },
+      "paused_request_incomplete": true,
       "paused_blocked_answer": true,
       "paused_no_save": true,
-      "answer": "有高血压10年。",
-      "click_to_visible_ms": 1056.5,
+      "http_status": 200,
+      "api_answer": "有高血压10年。",
+      "dom_answer": "有高血压10年。",
+      "persisted_answer": "有高血压10年。",
+      "answers_consistent": true,
+      "click_to_visible_ms": 838,
       "saved_events": 1,
-      "settled_single": true
+      "settled_single": true,
+      "replay_status": 200,
+      "replay_replayed": true,
+      "replay_same_event": true,
+      "replay_no_extra_call": true
     },
     {
       "position": "after_submission",
       "question": "有糖尿病吗？",
+      "request_id": "77d3aee5-0385-4477-b938-0db6f82dbdeb",
       "server_stages": {
         "request_entry": 0,
-        "classified": 0,
-        "adapter_returned": 375,
-        "validated": 375,
-        "saved": 375
+        "classified": 14,
+        "adapter_returned": 250,
+        "validated": 250,
+        "saved": 250
       },
+      "adapter_trace": {
+        "real_platform": true,
+        "turn_id": "d802c49bdd2046b19ff55362e1a1a5fd",
+        "conversation_id": null,
+        "event_types": {
+          "model_output_thinking": 1,
+          "execution_result": 1
+        },
+        "first_event_ms": 15,
+        "platform_first_event_ms": 15,
+        "platform_first_final_event_ms": null,
+        "total_ms": 203,
+        "trusted_completion": true,
+        "trusted_completion_ms": 188,
+        "tool_calls": [
+          {
+            "tool": "get_turn_context",
+            "ok": true
+          },
+          {
+            "tool": "submit_fact_selection",
+            "ok": true
+          }
+        ],
+        "finalize_ms": 235,
+        "answer_validated_ms": 250
+      },
+      "clock_origins": {
+        "clickT": "browser performance.now()",
+        "postT": "browser performance.now()",
+        "visibleT": "browser performance.now()",
+        "paintT": "browser performance.now() (double rAF estimate)",
+        "server_stages": "API-process monotonic",
+        "trace_ms": "API-process monotonic",
+        "barrier": "driver Date.now() wall clock (not comparable to browser/API clocks)"
+      },
+      "barrier": {
+        "reached_ms": 193,
+        "released_ms": 224
+      },
+      "paused_request_incomplete": true,
       "paused_blocked_answer": true,
       "paused_no_save": true,
-      "answer": "有糖尿病5年。",
-      "click_to_visible_ms": 379.7,
+      "http_status": 200,
+      "api_answer": "有糖尿病5年。",
+      "dom_answer": "有糖尿病5年。",
+      "persisted_answer": "有糖尿病5年。",
+      "answers_consistent": true,
+      "click_to_visible_ms": 247.6,
       "saved_events": 1,
-      "settled_single": true
+      "settled_single": true,
+      "replay_status": 200,
+      "replay_replayed": true,
+      "replay_same_event": true,
+      "replay_no_extra_call": true
     },
     {
       "position": "after_validation",
       "question": "以前做过手术吗？",
+      "request_id": "1e07d69d-8038-4d2a-9a9f-61135a75440b",
       "server_stages": {
         "request_entry": 0,
         "classified": 0,
-        "adapter_returned": 311,
-        "validated": 421,
-        "saved": 452
+        "adapter_returned": 171,
+        "validated": 296,
+        "saved": 312
       },
+      "adapter_trace": {
+        "real_platform": true,
+        "turn_id": "360e543794df4648814537287c055c58",
+        "conversation_id": null,
+        "event_types": {
+          "model_output_thinking": 1,
+          "execution_result": 1
+        },
+        "first_event_ms": 15,
+        "platform_first_event_ms": 15,
+        "platform_first_final_event_ms": null,
+        "total_ms": 140,
+        "trusted_completion": true,
+        "trusted_completion_ms": 140,
+        "tool_calls": [
+          {
+            "tool": "get_turn_context",
+            "ok": true
+          },
+          {
+            "tool": "submit_fact_selection",
+            "ok": true
+          }
+        ],
+        "finalize_ms": 171,
+        "answer_validated_ms": 296
+      },
+      "clock_origins": {
+        "clickT": "browser performance.now()",
+        "postT": "browser performance.now()",
+        "visibleT": "browser performance.now()",
+        "paintT": "browser performance.now() (double rAF estimate)",
+        "server_stages": "API-process monotonic",
+        "trace_ms": "API-process monotonic",
+        "barrier": "driver Date.now() wall clock (not comparable to browser/API clocks)"
+      },
+      "barrier": {
+        "reached_ms": 294,
+        "released_ms": 325
+      },
+      "paused_request_incomplete": true,
       "paused_blocked_answer": true,
       "paused_no_save": true,
-      "answer": "没做过手术。",
-      "click_to_visible_ms": 455.7,
+      "http_status": 200,
+      "api_answer": "没做过手术。",
+      "dom_answer": "没做过手术。",
+      "persisted_answer": "没做过手术。",
+      "answers_consistent": true,
+      "click_to_visible_ms": 310.7,
       "saved_events": 1,
-      "settled_single": true
+      "settled_single": true,
+      "replay_status": 200,
+      "replay_replayed": true,
+      "replay_same_event": true,
+      "replay_no_extra_call": true
+    },
+    {
+      "scenario": "timeout",
+      "question": "有高血压吗？",
+      "http_status": 504,
+      "blocked_answer": true,
+      "no_save": true
     }
   ],
   "passed": true
