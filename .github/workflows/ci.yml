@@ -22,6 +22,20 @@ jobs:
       - run: python -m pytest -q
       - run: python scripts/run_engineering_samples.py
       - run: python -m compileall -q backend/app frontend tests
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm audit --audit-level=high
   dependency-audit:
     runs-on: ubuntu-latest
     steps:
