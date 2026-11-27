@@ -54,3 +54,5 @@
 | 重启本机预览 | `powershell -ExecutionPolicy Bypass -File E:\AI数字病人临床思维训练\scripts\restart_account_preview.ps1` |
 
 密码通过交互方式输入，不要写在命令行或文件里。班级、任务和改密功能仅在独立账号模式（`APP_AUTH_MODE=local`）下可用，演示模式下返回 409。
+
+2026-11-27隔离演示的关键截图：[检查与回报](evidence/comprehensive-review-20261127/05-training-intake.png)、[评分与本地反馈](evidence/comprehensive-review-20261127/08-review.png)、[教师评分复核](evidence/comprehensive-review-20261127/12-teacher-score-review.png)。这些画面使用合成账号和本地规则模拟器，不是真实学生/医学验收。

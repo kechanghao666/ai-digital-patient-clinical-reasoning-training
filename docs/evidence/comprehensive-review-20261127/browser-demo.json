@@ -1,0 +1,162 @@
+{
+  "kind": "engineering_only",
+  "real_model_calls": 0,
+  "recorded_run": {
+    "base": "http://127.0.0.1:9663",
+    "steps": [
+      {
+        "name": "登录页与合规提示",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "name": "教师建班并导入学生，获得一次性初始密码",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "name": "布置训练任务",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "name": "首次登录强制改密后进入我的任务",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "name": "问诊 10 轮全部得到回答",
+        "ok": true,
+        "detail": "兜底 0"
+      },
+      {
+        "name": "检查从全院目录选择，不预先给出答案",
+        "ok": true,
+        "detail": "目录 46 项"
+      },
+      {
+        "name": "开单、推进时间、结果回报；无关检查只返回中性结果",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "name": "病历、鉴别与诊断提交",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "name": "提交后评分、扣分说明与反馈；多余检查被指出",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "name": "班级完成情况显示学生成绩",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "name": "从学情进入评分复核并自动载入",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "name": "病例管理可打开病例",
+        "ok": true,
+        "detail": ""
+      },
+      {
+        "name": "无前端脚本错误",
+        "ok": true,
+        "detail": ""
+      }
+    ],
+    "console_errors": []
+  },
+  "recorded_source": {
+    "dirty_worktree": true,
+    "source_sha256": {
+      "web/e2e/demo.py": "e1cbd06f49d46e77e323ae083f78d813afe3ca60ded0c9f3c3a2167bd8a2dfe4",
+      "web/e2e/smoke.mjs": "ae61cb25a370a6ee98e309697026c6b4ae8328f53aa1914563920105d8f29785",
+      "web/dist/index.html": "24d8f4ea079a090ba15b04b53be0eca4adb7102a45c3f17d940ca68d6ecd5773",
+      "web/dist/assets/main.js": "591cb95c0bc9c01d114072435dd2bd0b00da2356b817a527b7450f2eaea9740f"
+    },
+    "inherited_web_dist_dir_present": false,
+    "code_sha": "c11265d7c8aa85447cca6a2230dcd173cf463037",
+    "note": "Captured during the final recording, before the subsequent launcher evidence/WEB_DIST_DIR improvement."
+  },
+  "final_launcher_run": {
+    "mode": "simulator",
+    "auth": "local",
+    "real_model_calls": 0,
+    "isolated_data": true,
+    "temporary_data_removed": true,
+    "code_sha": "c11265d7c8aa85447cca6a2230dcd173cf463037",
+    "dirty_worktree": true,
+    "source_sha256": {
+      "web/e2e/demo.py": "3dd715173b77c4fa23831218c25badc6db749478ba2a1bacc77984677b5ae183",
+      "web/e2e/smoke.mjs": "ae61cb25a370a6ee98e309697026c6b4ae8328f53aa1914563920105d8f29785",
+      "web/e2e/o10a_stack.py": "e6fbfd23cbce554787cc3f90e478b79349c56b4c58468dd96dfc02eec05ca448",
+      "web/dist/index.html": "24d8f4ea079a090ba15b04b53be0eca4adb7102a45c3f17d940ca68d6ecd5773",
+      "web/dist/assets/main.js": "591cb95c0bc9c01d114072435dd2bd0b00da2356b817a527b7450f2eaea9740f"
+    },
+    "browser_exit_code": 0,
+    "checks_passed": 13,
+    "checks_total": 13
+  },
+  "failure_checks": {
+    "runtime_failure_exit_code": 1,
+    "runtime_failed_steps": 1,
+    "missing_config_exit_code": 1,
+    "real_model_calls": 0
+  },
+  "timeout_check": {
+    "mode": "simulator",
+    "auth": "local",
+    "real_model_calls": 0,
+    "isolated_data": true,
+    "temporary_data_removed": true,
+    "code_sha": "c11265d7c8aa85447cca6a2230dcd173cf463037",
+    "dirty_worktree": true,
+    "source_sha256": {
+      "web/e2e/demo.py": "3dd715173b77c4fa23831218c25badc6db749478ba2a1bacc77984677b5ae183",
+      "web/e2e/smoke.mjs": "ae61cb25a370a6ee98e309697026c6b4ae8328f53aa1914563920105d8f29785",
+      "web/e2e/o10a_stack.py": "e6fbfd23cbce554787cc3f90e478b79349c56b4c58468dd96dfc02eec05ca448",
+      "web/dist/index.html": "24d8f4ea079a090ba15b04b53be0eca4adb7102a45c3f17d940ca68d6ecd5773",
+      "web/dist/assets/main.js": "591cb95c0bc9c01d114072435dd2bd0b00da2356b817a527b7450f2eaea9740f"
+    },
+    "error_type": "TimeoutExpired"
+  },
+  "video": {
+    "duration_seconds": 219.88,
+    "bytes": 3915140,
+    "sha256": "a8f9ab0ea49416535380e339c890b11cf1144da23fd4d57954f1a3efde069c05",
+    "decoder_exit_code": 0,
+    "source": "demo-simulator.webm",
+    "codec": "H.264",
+    "audio": "none; on-screen step captions"
+  },
+  "visual_review": {
+    "duration_seconds": 219.88,
+    "decoder_exit_code": 0,
+    "sha256": "d19a9fc3421a3f1f09cf58a9517d4f0d41bf7df9081a1cd35bbbf1f2af9dcb42",
+    "bytes": 32227042,
+    "frames_inspected": [
+      25,
+      105,
+      120,
+      145,
+      155,
+      200
+    ],
+    "visual_checks": [
+      "Temporary password replaced by hidden-password label",
+      "ECG/troponin results visible",
+      "Saved notes and differential visible",
+      "Five stage scores and deductions visible",
+      "Local-rule feedback and replay visible",
+      "Teacher evidence navigation visible"
+    ]
+  },
+  "local_video_path": "local-only\\audit-20261127-recorded-demo-final\\demo-simulator.mp4",
+  "note": "Video recorded before the launcher evidence/WEB_DIST_DIR improvement; final launcher separately passed 13 checks. No final clinical or official acceptance."
+}

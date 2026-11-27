@@ -1,0 +1,989 @@
+{
+  "sample_id": "SIM-01",
+  "code_sha": "c11265d7c8aa85447cca6a2230dcd173cf463037",
+  "source_file": "local-only/comprehensive-review-20261127/samples/SIM-01.json",
+  "source_sha256": "0b643200a587c61e86c5bed09452cd12e0071005783c94dbacb3f3e645e352b5",
+  "versions": {
+    "case_id": "STEMI-001",
+    "case_version": 3,
+    "case_hash": "95fab2699a55a1904d22b682f6732f543579fdd825bb8167e20a4afc96c2be23",
+    "case_review": "draft",
+    "rubric": [
+      {
+        "item_id": "f_pain_character",
+        "stage": "病史采集",
+        "description": "询问胸痛性质",
+        "evidence_type": "ask_event",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "建议询问疼痛的性质（压榨、撕裂、刺痛等），它能区分缺血性胸痛和其他原因。"
+      },
+      {
+        "item_id": "f_pain_radiation",
+        "stage": "病史采集",
+        "description": "询问疼痛放射",
+        "evidence_type": "ask_event",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "建议询问疼痛是否向肩、上肢、下颌或背部放射。"
+      },
+      {
+        "item_id": "f_pain_onset",
+        "stage": "病史采集",
+        "description": "询问起病时间和诱因",
+        "evidence_type": "ask_event",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "建议询问起病时间、诱因和持续情况，判断是否为持续性静息痛。"
+      },
+      {
+        "item_id": "ex_ecg",
+        "stage": "检查选择",
+        "description": "优先开立心电图",
+        "evidence_type": "exam_order",
+        "weight": 2.0,
+        "critical": true,
+        "latest_workflow": null,
+        "ordering_constraint": "first_exam_before_wait",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "疑似急性冠脉综合征应在其他检查和等待之前先开立并解读心电图。"
+      },
+      {
+        "item_id": "ex_troponin",
+        "stage": "检查选择",
+        "description": "开立肌钙蛋白",
+        "evidence_type": "exam_order",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "建议同时开立肌钙蛋白，但不应因等待结果而延误再灌注决策。"
+      },
+      {
+        "item_id": "aortic_dissection",
+        "stage": "鉴别诊断",
+        "description": "提供主动脉夹层的支持/反对证据",
+        "evidence_type": "ddx_evidence",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": {
+          "supporting_keys": [
+            "f_pain_onset"
+          ],
+          "opposing_keys": [
+            "f_pain_character",
+            "f_pain_radiation",
+            "ex_ecg"
+          ],
+          "min_supporting": 1,
+          "min_opposing": 1,
+          "medically_reviewed": false
+        },
+        "improvement": ""
+      },
+      {
+        "item_id": "pulmonary_embolism",
+        "stage": "鉴别诊断",
+        "description": "提供肺栓塞的支持/反对证据",
+        "evidence_type": "ddx_evidence",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": {
+          "supporting_keys": [
+            "f_pain_onset"
+          ],
+          "opposing_keys": [
+            "f_pain_character",
+            "ex_ecg"
+          ],
+          "min_supporting": 1,
+          "min_opposing": 1,
+          "medically_reviewed": false
+        },
+        "improvement": ""
+      },
+      {
+        "item_id": "stemi",
+        "stage": "诊断",
+        "description": "提交急性ST段抬高型心肌梗死方向",
+        "evidence_type": "diagnosis",
+        "weight": 2.0,
+        "critical": true,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": {
+          "names": [
+            "stemi",
+            "急性st段抬高型心肌梗死"
+          ],
+          "extra_positive": [
+            "{name}已确诊，无药物过敏史",
+            "{name}，已排除主动脉夹层",
+            "{name}，考虑急诊pci",
+            "{name}已确诊，非nstemi",
+            "{name}已确诊并排除主动脉夹层",
+            "{name}已确诊并已排除主动脉夹层",
+            "{name}已确诊，排除主动脉夹层",
+            "{name}已确诊，已排除主动脉夹层",
+            "{name}已确诊并排除nstemi",
+            "{name}已确诊并已排除nstemi",
+            "{name}已确诊，排除nstemi",
+            "{name}已确诊，已排除nstemi"
+          ],
+          "leak_terms": [
+            "stemi",
+            "心肌梗死"
+          ]
+        },
+        "differential": null,
+        "improvement": "请直接写出明确诊断（如“急性ST段抬高型心肌梗死”），并避免否定或不确定的表述。"
+      },
+      {
+        "item_id": "aspirin",
+        "stage": "治疗",
+        "description": "确认执行阿司匹林动作（适用条件待审核）",
+        "evidence_type": "treatment_execution",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "无禁忌时应确认执行阿司匹林；仅提交计划不计入执行。"
+      },
+      {
+        "item_id": "reperfusion_pathway",
+        "stage": "治疗",
+        "description": "确认启动再灌注路径",
+        "evidence_type": "treatment_execution",
+        "weight": 2.0,
+        "critical": true,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "心电图提示ST段抬高后应尽快确认启动再灌注路径；仅计划不计入执行。"
+      }
+    ],
+    "knowledge_manifest_sha256": "e54a60672059175a65a44186b98f1ac343f3188e9e5a83b797cb13b4dda60b47",
+    "knowledge_status": "draft_unreviewed",
+    "basis_hashes": {
+      "kb_chest_pain_history": "63f477dbbe8f22236a85ae9c86097e6d6fc23e174470792832e9209a538d0814",
+      "kb_ecg_first": "3e31bc725357ba491745eb35a0feea66284a10b5cd970963f895601f7412efd2",
+      "kb_troponin_role": "66a87f0e102cceed74620dcda9d2bc38ed54f003991b0a9e456a7c3a936c9898",
+      "kb_stemi_ecg_criteria": "06cb0cf71b45937732b5ccf758b7e352f99c45af9b9f0bd8d5bde5549d9964bd",
+      "kb_ddx_aortic_dissection": "4d2a57cc2b645c4bc0eb4088082f5ccbc11e3d624af15d88ff199426c413765a",
+      "kb_ddx_pulmonary_embolism": "91adfefa83e4674180ad49cf58a07ed64231572a6629c967a36980ea81f55e77",
+      "kb_reperfusion_timing": "37eb98c13be2a12597812a19497db21430390cc2e1f39b81f3e6be7c75f9f593",
+      "kb_aspirin_consideration": "9ef8ada26e1ae626d6000b81597666d1f8f18898600ebf55b7bca9b0732aa932",
+      "kb_feedback_principles": "3c999eb08540601a870c0758bfbe437d0fc67a1b0751fd2d1e6b75c36508fd8c"
+    }
+  },
+  "engineering_pass": true,
+  "formal_acceptance": false,
+  "model": "deterministic simulator; zero real model calls",
+  "result": {
+    "score": {
+      "session_id": "a0e17800-6ef6-4535-b0e6-1fc7797d5c12",
+      "seal_seq": 11,
+      "total_score": 14.0,
+      "max_score": 14.0,
+      "status": "complete",
+      "items": [
+        {
+          "item_id": "f_pain_character",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "76273981-6d4c-4735-8343-5778ea3f5610"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "f_pain_radiation",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "f37bf93f-faee-418e-ab05-3b406211249f"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "f_pain_onset",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "41e02ae5-a4d6-4eee-bc8f-5610544cae91"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "ex_ecg",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 2.0,
+          "max_score": 2.0,
+          "evidence_event_ids": [
+            "6013c088-2919-4003-9c02-6daea0f41d89"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "ex_troponin",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "19422b26-db82-4657-b032-581760e21618"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "aortic_dissection",
+          "stage": "鉴别诊断",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "41e02ae5-a4d6-4eee-bc8f-5610544cae91",
+            "76273981-6d4c-4735-8343-5778ea3f5610"
+          ],
+          "reason": "已找到符合病例规则的支持/反对证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "pulmonary_embolism",
+          "stage": "鉴别诊断",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "41e02ae5-a4d6-4eee-bc8f-5610544cae91",
+            "47b9b61d-46ad-4b78-81dd-c560dce93d24"
+          ],
+          "reason": "已找到符合病例规则的支持/反对证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "stemi",
+          "stage": "诊断",
+          "hit": true,
+          "score": 2.0,
+          "max_score": 2.0,
+          "evidence_event_ids": [
+            "d2846a5d-2039-4853-86a1-5b0ddfb70021"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "aspirin",
+          "stage": "治疗",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "0f0260e1-7712-41f0-be61-9dd877503d31"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "reperfusion_pathway",
+          "stage": "治疗",
+          "hit": true,
+          "score": 2.0,
+          "max_score": 2.0,
+          "evidence_event_ids": [
+            "5166a4d7-36c5-4a8e-b190-190f9341a8fe"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "exam_stewardship",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [],
+          "reason": "未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 120 元）",
+          "improvement": ""
+        }
+      ],
+      "generated_at": "2026-11-27T08:46:27.729950Z"
+    },
+    "feedback": {
+      "source": "local_rules",
+      "review_status": "local_rules",
+      "basis_status": "draft_unreviewed",
+      "items": [
+        {
+          "stage": "病史采集",
+          "comment": "本环节得分 3/3。 已完成：询问胸痛性质（已找到符合条件的事件证据） 已完成：询问疼痛放射（已找到符合条件的事件证据） 已完成：询问起病时间和诱因（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "76273981-6d4c-4735-8343-5778ea3f5610",
+            "f37bf93f-faee-418e-ab05-3b406211249f",
+            "41e02ae5-a4d6-4eee-bc8f-5610544cae91"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "检查选择",
+          "comment": "本环节得分 4/4。 已完成：优先开立心电图（已找到符合条件的事件证据） 已完成：开立肌钙蛋白（已找到符合条件的事件证据） 已完成：检查选择（未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 120 元））",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "6013c088-2919-4003-9c02-6daea0f41d89",
+            "19422b26-db82-4657-b032-581760e21618"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "鉴别诊断",
+          "comment": "本环节得分 2/2。 已完成：提供主动脉夹层的支持/反对证据（已找到符合病例规则的支持/反对证据） 已完成：提供肺栓塞的支持/反对证据（已找到符合病例规则的支持/反对证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "41e02ae5-a4d6-4eee-bc8f-5610544cae91",
+            "76273981-6d4c-4735-8343-5778ea3f5610",
+            "47b9b61d-46ad-4b78-81dd-c560dce93d24"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "诊断",
+          "comment": "本环节得分 2/2。 已完成：诊断结论（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "d2846a5d-2039-4853-86a1-5b0ddfb70021"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "治疗",
+          "comment": "本环节得分 3/3。 已完成：确认执行阿司匹林动作（适用条件待审核）（已找到符合条件的事件证据） 已完成：确认启动再灌注路径（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "0f0260e1-7712-41f0-be61-9dd877503d31",
+            "5166a4d7-36c5-4a8e-b190-190f9341a8fe"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        }
+      ],
+      "teaching_basis": [
+        {
+          "basis_id": "kb_feedback_principles",
+          "title": "训练反馈的撰写原则",
+          "sources": [
+            "项目自拟的反馈撰写规范"
+          ],
+          "restricted": false,
+          "revision": 1,
+          "content_hash": "3c999eb08540601a870c0758bfbe437d0fc67a1b0751fd2d1e6b75c36508fd8c"
+        }
+      ],
+      "basis_provenance": "snapshot",
+      "review_revision": 0,
+      "basis_coverage": {
+        "status": "draft_unreviewed",
+        "missing_clinical_stages": [],
+        "notice": "通用反馈规范不属于专科临床依据；存在条目不代表来源已核对或医学审核通过。"
+      },
+      "notice": "反馈基于原封存规则评分，教师评分裁定独立展示；反馈与教学依据均为未经医学审核的教学草稿。"
+    },
+    "replay_event_count": 12,
+    "state": {
+      "exam_cost_total": 120,
+      "session_id": "a0e17800-6ef6-4535-b0e6-1fc7797d5c12",
+      "workflow": "submitted",
+      "clinical_state": "initial",
+      "sim_time_minutes": 30,
+      "case_notes": "工程自测病历，非真实患者，未经医学审核。\n病史记录：\n问：疼痛是什么性质\n答：胸痛像压榨一样。\n问：放射到哪里\n答：疼痛向左肩和左上肢放射，后背没有撕裂一样的疼。\n问：当时在干什么，持续多久，是否缓解\n答：我两个小时前突然开始胸痛，休息时突然发作，持续没有缓解。\n已回报检查：\n心电图：\"II/III/aVF导联ST段抬高\"\n肌钙蛋白：\"升高\"\n模拟时间：30分钟。",
+      "submissions": {
+        "diagnosis": "STEMI",
+        "differential": [
+          {
+            "candidate_id": "aortic_dissection",
+            "supporting_evidence": [
+              "休息时突然发作"
+            ],
+            "opposing_evidence": [
+              "胸痛像压榨一样"
+            ],
+            "evidence_event_ids": [
+              "41e02ae5-a4d6-4eee-bc8f-5610544cae91",
+              "76273981-6d4c-4735-8343-5778ea3f5610"
+            ]
+          },
+          {
+            "candidate_id": "pulmonary_embolism",
+            "supporting_evidence": [
+              "休息时突然发作"
+            ],
+            "opposing_evidence": [
+              "ST段抬高"
+            ],
+            "evidence_event_ids": [
+              "41e02ae5-a4d6-4eee-bc8f-5610544cae91",
+              "47b9b61d-46ad-4b78-81dd-c560dce93d24"
+            ]
+          }
+        ],
+        "treatment": {
+          "treatment_id": "reperfusion_pathway",
+          "parameters": {},
+          "confirm_execution": true,
+          "treatment_name": "再灌注路径"
+        }
+      },
+      "disclosed_fact_count": 5,
+      "clinical_updates": [],
+      "orders": [
+        {
+          "state": "ready",
+          "exam_name": "心电图",
+          "category": "心血管",
+          "cost": 30,
+          "catalog_id": "cat_018",
+          "ordered_sim_time": 0,
+          "sample_sim_time": 0,
+          "return_sim_time": 5,
+          "result": "II/III/aVF导联ST段抬高",
+          "viewed": false
+        },
+        {
+          "state": "ready",
+          "exam_name": "肌钙蛋白",
+          "category": "心血管",
+          "cost": 90,
+          "catalog_id": "cat_019",
+          "ordered_sim_time": 0,
+          "sample_sim_time": 0,
+          "return_sim_time": 30,
+          "result": "升高",
+          "viewed": false
+        }
+      ],
+      "events": [
+        {
+          "event_id": "76273981-6d4c-4735-8343-5778ea3f5610",
+          "request_id": "r1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "疼痛是什么性质",
+          "result": {
+            "answer": "胸痛像压榨一样。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "f37bf93f-faee-418e-ab05-3b406211249f",
+          "request_id": "r2",
+          "seq": 2,
+          "action": "ask",
+          "intent": "放射到哪里",
+          "result": {
+            "answer": "疼痛向左肩和左上肢放射，后背没有撕裂一样的疼。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "41e02ae5-a4d6-4eee-bc8f-5610544cae91",
+          "request_id": "r3",
+          "seq": 3,
+          "action": "ask",
+          "intent": "当时在干什么，持续多久，是否缓解",
+          "result": {
+            "answer": "我两个小时前突然开始胸痛，休息时突然发作，持续没有缓解。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "6013c088-2919-4003-9c02-6daea0f41d89",
+          "request_id": "r4",
+          "seq": 4,
+          "action": "order_exam",
+          "intent": null,
+          "result": {
+            "state": "pending"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "19422b26-db82-4657-b032-581760e21618",
+          "request_id": "r5",
+          "seq": 5,
+          "action": "order_exam",
+          "intent": null,
+          "result": {
+            "state": "pending"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "47b9b61d-46ad-4b78-81dd-c560dce93d24",
+          "request_id": "r6",
+          "seq": 6,
+          "action": "wait",
+          "intent": null,
+          "result": {
+            "advanced_minutes": 30,
+            "clinical_state": "initial",
+            "clinical_updates": [],
+            "exam_results": [
+              {
+                "name": "心电图",
+                "result": "II/III/aVF导联ST段抬高"
+              },
+              {
+                "name": "肌钙蛋白",
+                "result": "升高"
+              }
+            ]
+          },
+          "sim_time": 30,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 30
+          }
+        },
+        {
+          "event_id": "09bee0e9-5959-4d92-8925-d8c0278840a0",
+          "request_id": "r7",
+          "seq": 7,
+          "action": "update_notes",
+          "intent": null,
+          "result": {
+            "submitted": true
+          },
+          "sim_time": 30,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 30
+          }
+        },
+        {
+          "event_id": "79dfd8e6-15f1-4348-af8e-6378612233b2",
+          "request_id": "r8",
+          "seq": 8,
+          "action": "submit_differential",
+          "intent": null,
+          "result": {
+            "submitted": true,
+            "candidates": [
+              {
+                "candidate_id": "aortic_dissection",
+                "supporting_evidence": [
+                  "休息时突然发作"
+                ],
+                "opposing_evidence": [
+                  "胸痛像压榨一样"
+                ],
+                "evidence_event_ids": [
+                  "41e02ae5-a4d6-4eee-bc8f-5610544cae91",
+                  "76273981-6d4c-4735-8343-5778ea3f5610"
+                ]
+              },
+              {
+                "candidate_id": "pulmonary_embolism",
+                "supporting_evidence": [
+                  "休息时突然发作"
+                ],
+                "opposing_evidence": [
+                  "ST段抬高"
+                ],
+                "evidence_event_ids": [
+                  "41e02ae5-a4d6-4eee-bc8f-5610544cae91",
+                  "47b9b61d-46ad-4b78-81dd-c560dce93d24"
+                ]
+              }
+            ]
+          },
+          "sim_time": 30,
+          "state_after": {
+            "workflow": "differential",
+            "clinical_state": "initial",
+            "sim_time_minutes": 30
+          }
+        },
+        {
+          "event_id": "d2846a5d-2039-4853-86a1-5b0ddfb70021",
+          "request_id": "r9",
+          "seq": 9,
+          "action": "submit_diagnosis",
+          "intent": null,
+          "result": {
+            "submitted": true,
+            "diagnosis": "STEMI"
+          },
+          "sim_time": 30,
+          "state_after": {
+            "workflow": "diagnosis",
+            "clinical_state": "initial",
+            "sim_time_minutes": 30
+          }
+        },
+        {
+          "event_id": "0f0260e1-7712-41f0-be61-9dd877503d31",
+          "request_id": "r10",
+          "seq": 10,
+          "action": "execute_treatment",
+          "intent": null,
+          "result": {
+            "executed": true,
+            "clinical_state": "initial",
+            "clinical_updates": [],
+            "treatment": {
+              "treatment_id": "aspirin",
+              "parameters": {},
+              "confirm_execution": true
+            }
+          },
+          "sim_time": 30,
+          "state_after": {
+            "workflow": "treatment",
+            "clinical_state": "initial",
+            "sim_time_minutes": 30
+          }
+        },
+        {
+          "event_id": "5166a4d7-36c5-4a8e-b190-190f9341a8fe",
+          "request_id": "r11",
+          "seq": 11,
+          "action": "execute_treatment",
+          "intent": null,
+          "result": {
+            "executed": true,
+            "clinical_state": "initial",
+            "clinical_updates": [],
+            "treatment": {
+              "treatment_id": "reperfusion_pathway",
+              "parameters": {},
+              "confirm_execution": true
+            }
+          },
+          "sim_time": 30,
+          "state_after": {
+            "workflow": "treatment",
+            "clinical_state": "initial",
+            "sim_time_minutes": 30
+          }
+        },
+        {
+          "event_id": "ba32019d-2bd3-49c8-b6f7-7aea8e0687a7",
+          "request_id": "r12",
+          "seq": 12,
+          "action": "seal",
+          "intent": null,
+          "result": {},
+          "sim_time": 30,
+          "state_after": {
+            "workflow": "submitted",
+            "clinical_state": "initial",
+            "sim_time_minutes": 30
+          }
+        }
+      ],
+      "sealed": true,
+      "seal_seq": 11,
+      "seal_sim_time": 30,
+      "state_version": 12
+    }
+  },
+  "checks": [
+    {
+      "name": "病历保存并重新读取一致",
+      "expected": "工程自测病历，非真实患者，未经医学审核。\n病史记录：\n问：疼痛是什么性质\n答：胸痛像压榨一样。\n问：放射到哪里\n答：疼痛向左肩和左上肢放射，后背没有撕裂一样的疼。\n问：当时在干什么，持续多久，是否缓解\n答：我两个小时前突然开始胸痛，休息时突然发作，持续没有缓解。\n已回报检查：\n心电图：\"II/III/aVF导联ST段抬高\"\n肌钙蛋白：\"升高\"\n模拟时间：30分钟。",
+      "actual": "工程自测病历，非真实患者，未经医学审核。\n病史记录：\n问：疼痛是什么性质\n答：胸痛像压榨一样。\n问：放射到哪里\n答：疼痛向左肩和左上肢放射，后背没有撕裂一样的疼。\n问：当时在干什么，持续多久，是否缓解\n答：我两个小时前突然开始胸痛，休息时突然发作，持续没有缓解。\n已回报检查：\n心电图：\"II/III/aVF导联ST段抬高\"\n肌钙蛋白：\"升高\"\n模拟时间：30分钟。",
+      "passed": true
+    },
+    {
+      "name": "现有量表各项均命中",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "现有量表总分匹配",
+      "expected": 14.0,
+      "actual": 14.0,
+      "passed": true
+    },
+    {
+      "name": "五环节评分存在",
+      "expected": 5,
+      "actual": 5,
+      "passed": true
+    },
+    {
+      "name": "反馈生成后可重新读取",
+      "expected": [
+        {
+          "stage": "病史采集",
+          "comment": "本环节得分 3/3。 已完成：询问胸痛性质（已找到符合条件的事件证据） 已完成：询问疼痛放射（已找到符合条件的事件证据） 已完成：询问起病时间和诱因（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "76273981-6d4c-4735-8343-5778ea3f5610",
+            "f37bf93f-faee-418e-ab05-3b406211249f",
+            "41e02ae5-a4d6-4eee-bc8f-5610544cae91"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "检查选择",
+          "comment": "本环节得分 4/4。 已完成：优先开立心电图（已找到符合条件的事件证据） 已完成：开立肌钙蛋白（已找到符合条件的事件证据） 已完成：检查选择（未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 120 元））",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "6013c088-2919-4003-9c02-6daea0f41d89",
+            "19422b26-db82-4657-b032-581760e21618"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "鉴别诊断",
+          "comment": "本环节得分 2/2。 已完成：提供主动脉夹层的支持/反对证据（已找到符合病例规则的支持/反对证据） 已完成：提供肺栓塞的支持/反对证据（已找到符合病例规则的支持/反对证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "41e02ae5-a4d6-4eee-bc8f-5610544cae91",
+            "76273981-6d4c-4735-8343-5778ea3f5610",
+            "47b9b61d-46ad-4b78-81dd-c560dce93d24"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "诊断",
+          "comment": "本环节得分 2/2。 已完成：诊断结论（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "d2846a5d-2039-4853-86a1-5b0ddfb70021"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "治疗",
+          "comment": "本环节得分 3/3。 已完成：确认执行阿司匹林动作（适用条件待审核）（已找到符合条件的事件证据） 已完成：确认启动再灌注路径（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "0f0260e1-7712-41f0-be61-9dd877503d31",
+            "5166a4d7-36c5-4a8e-b190-190f9341a8fe"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        }
+      ],
+      "actual": [
+        {
+          "stage": "病史采集",
+          "comment": "本环节得分 3/3。 已完成：询问胸痛性质（已找到符合条件的事件证据） 已完成：询问疼痛放射（已找到符合条件的事件证据） 已完成：询问起病时间和诱因（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "76273981-6d4c-4735-8343-5778ea3f5610",
+            "f37bf93f-faee-418e-ab05-3b406211249f",
+            "41e02ae5-a4d6-4eee-bc8f-5610544cae91"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "检查选择",
+          "comment": "本环节得分 4/4。 已完成：优先开立心电图（已找到符合条件的事件证据） 已完成：开立肌钙蛋白（已找到符合条件的事件证据） 已完成：检查选择（未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 120 元））",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "6013c088-2919-4003-9c02-6daea0f41d89",
+            "19422b26-db82-4657-b032-581760e21618"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "鉴别诊断",
+          "comment": "本环节得分 2/2。 已完成：提供主动脉夹层的支持/反对证据（已找到符合病例规则的支持/反对证据） 已完成：提供肺栓塞的支持/反对证据（已找到符合病例规则的支持/反对证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "41e02ae5-a4d6-4eee-bc8f-5610544cae91",
+            "76273981-6d4c-4735-8343-5778ea3f5610",
+            "47b9b61d-46ad-4b78-81dd-c560dce93d24"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "诊断",
+          "comment": "本环节得分 2/2。 已完成：诊断结论（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "d2846a5d-2039-4853-86a1-5b0ddfb70021"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "治疗",
+          "comment": "本环节得分 3/3。 已完成：确认执行阿司匹林动作（适用条件待审核）（已找到符合条件的事件证据） 已完成：确认启动再灌注路径（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "0f0260e1-7712-41f0-be61-9dd877503d31",
+            "5166a4d7-36c5-4a8e-b190-190f9341a8fe"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "反馈为本地模拟规则而非真实模型",
+      "expected": "local_rules",
+      "actual": "local_rules",
+      "passed": true
+    },
+    {
+      "name": "五环节反馈完整",
+      "expected": 5,
+      "actual": 5,
+      "passed": true
+    },
+    {
+      "name": "封存后仍可读取回放事件",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "回放事件按序排列",
+      "expected": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "actual": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "passed": true
+    }
+  ]
+}

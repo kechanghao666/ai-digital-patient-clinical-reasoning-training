@@ -1,0 +1,45 @@
+{
+  "prepared_date": "2026-11-27",
+  "code_baseline": "c11265d7c8aa85447cca6a2230dcd173cf463037",
+  "status": "prepared_for_review_not_preregistered_or_accepted",
+  "sampling_and_tolerances": "must be confirmed by independent reviewers before actual evaluation",
+  "cases": [
+    {
+      "case_id": "APPY-001",
+      "version": 2,
+      "file": "cases/appendicitis_case_v2.json",
+      "file_sha256": "347ee714495612c6e0a02736f76e5a449658d4b0b9383e9136fb507e0f06c8ea",
+      "rubric_sha256": "f48d34088513ac7007db27f350484769674b8c3ead18bf9d8b809f3220a0f137"
+    },
+    {
+      "case_id": "CAP-001",
+      "version": 2,
+      "file": "cases/pneumonia_case_v2.json",
+      "file_sha256": "a20e511363c32626dd1fb1cd058974022ab215380fefbe1a6ba4150da3c22f0c",
+      "rubric_sha256": "17eb8d93aae2db43c8c421dc3993ef6049c01a3761bb6c2203a16a8ca09a4210"
+    },
+    {
+      "case_id": "DKA-001",
+      "version": 2,
+      "file": "cases/dka_case_v2.json",
+      "file_sha256": "444667d2924edf0bf14fc84344ee8e7a54cd29780aeb02f9aff24030385d329a",
+      "rubric_sha256": "c6f82b37e8706ac7b88211c894a49d252f9ba2525d3ba372764202f28560bbf8"
+    },
+    {
+      "case_id": "STEMI-001",
+      "version": 3,
+      "file": "cases/stemi_case_v3.json",
+      "file_sha256": "747d49970cfed6042f40a1b4f723e629031bf51cd7973d750252fff7dd789fd2",
+      "rubric_sha256": "3d3054a27730eace1d836c8fa15149b1914d197eacb9d8e5c68428c34227625a"
+    },
+    {
+      "case_id": "STROKE-001",
+      "version": 2,
+      "file": "cases/stroke_case_v2.json",
+      "file_sha256": "b724b20427512b9239bf16811d91d4122b9ace4605b1a364f5a750ee118db120",
+      "rubric_sha256": "08641caec31264faf3a780771d3c2b486e85d821bd4b81fb0dc74f2abd44876c"
+    }
+  ],
+  "knowledge_manifest_sha256": "e54a60672059175a65a44186b98f1ac343f3188e9e5a83b797cb13b4dda60b47",
+  "platform_configuration": "not frozen; confirm export/model/prompt/MCP hashes before formal evaluation"
+}

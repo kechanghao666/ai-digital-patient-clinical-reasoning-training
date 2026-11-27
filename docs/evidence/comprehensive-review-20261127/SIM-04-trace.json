@@ -1,0 +1,1105 @@
+{
+  "sample_id": "SIM-04",
+  "code_sha": "c11265d7c8aa85447cca6a2230dcd173cf463037",
+  "source_file": "local-only/comprehensive-review-20261127/samples/SIM-04.json",
+  "source_sha256": "6ae1071db82c08e3f55fb0caad02c824ca30d28007cbdf2bb39e9c378aa53e96",
+  "versions": {
+    "case_id": "CAP-001",
+    "case_version": 2,
+    "case_hash": "ef6298f233b31f2e2602fd25ebf9bd89c2645ec1a708c526c8beb4d61163ae43",
+    "case_review": "draft",
+    "rubric": [
+      {
+        "item_id": "f_fever_detail",
+        "stage": "病史采集",
+        "description": "询问发热程度和寒战",
+        "evidence_type": "ask_event",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "f_cough",
+        "stage": "病史采集",
+        "description": "询问咳嗽、咳痰和胸痛",
+        "evidence_type": "ask_event",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "f_dyspnea",
+        "stage": "病史采集",
+        "description": "询问气短和呼吸困难",
+        "evidence_type": "ask_event",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [
+          "f_dyspnea#a1",
+          "f_dyspnea#a2"
+        ],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "出现气短时必须询问活动耐量和呼吸困难程度，评估严重度。"
+      },
+      {
+        "item_id": "f_hx",
+        "stage": "病史采集",
+        "description": "询问吸烟史、基础病和过敏史",
+        "evidence_type": "ask_event",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [
+          "f_hx#a1",
+          "f_hx#a2",
+          "f_hx#a3"
+        ],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "ex_cxr",
+        "stage": "检查选择",
+        "description": "开立胸部X线",
+        "evidence_type": "exam_order",
+        "weight": 2.0,
+        "critical": true,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "发热伴咳嗽、气短应尽快开立胸部影像。"
+      },
+      {
+        "item_id": "ex_cbc",
+        "stage": "检查选择",
+        "description": "开立血常规评估感染",
+        "evidence_type": "exam_order",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "ex_spo2",
+        "stage": "检查选择",
+        "description": "测量血氧饱和度评估严重度",
+        "evidence_type": "exam_order",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "acute_bronchitis",
+        "stage": "鉴别诊断",
+        "description": "提供急性支气管炎的支持与反对证据",
+        "evidence_type": "ddx_evidence",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": {
+          "supporting_keys": [
+            "f_cough"
+          ],
+          "opposing_keys": [
+            "ex_cxr",
+            "ex_spo2"
+          ],
+          "min_supporting": 1,
+          "min_opposing": 1,
+          "medically_reviewed": false
+        },
+        "improvement": ""
+      },
+      {
+        "item_id": "pulmonary_embolism",
+        "stage": "鉴别诊断",
+        "description": "提供肺栓塞的支持与反对证据",
+        "evidence_type": "ddx_evidence",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": {
+          "supporting_keys": [
+            "f_dyspnea"
+          ],
+          "opposing_keys": [
+            "f_fever_detail",
+            "ex_cxr"
+          ],
+          "min_supporting": 1,
+          "min_opposing": 1,
+          "medically_reviewed": false
+        },
+        "improvement": ""
+      },
+      {
+        "item_id": "community_acquired_pneumonia",
+        "stage": "诊断",
+        "description": "提交社区获得性肺炎",
+        "evidence_type": "diagnosis",
+        "weight": 2.0,
+        "critical": true,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": {
+          "names": [
+            "社区获得性肺炎",
+            "细菌性肺炎",
+            "肺炎"
+          ],
+          "extra_positive": [
+            "{name}，考虑抗感染治疗"
+          ],
+          "leak_terms": []
+        },
+        "differential": null,
+        "improvement": "请直接写出明确诊断，并避免否定或不确定的表述。"
+      },
+      {
+        "item_id": "antibiotics",
+        "stage": "治疗",
+        "description": "确认开始经验性抗感染治疗",
+        "evidence_type": "treatment_execution",
+        "weight": 2.0,
+        "critical": true,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "影像和感染指标支持后应尽快确认抗感染；仅计划不计入执行。"
+      },
+      {
+        "item_id": "oxygen_support",
+        "stage": "治疗",
+        "description": "确认吸氧并监测血氧",
+        "evidence_type": "treatment_execution",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      }
+    ],
+    "knowledge_manifest_sha256": "e54a60672059175a65a44186b98f1ac343f3188e9e5a83b797cb13b4dda60b47",
+    "knowledge_status": "draft_unreviewed",
+    "basis_hashes": {
+      "kb_chest_pain_history": "63f477dbbe8f22236a85ae9c86097e6d6fc23e174470792832e9209a538d0814",
+      "kb_ecg_first": "3e31bc725357ba491745eb35a0feea66284a10b5cd970963f895601f7412efd2",
+      "kb_troponin_role": "66a87f0e102cceed74620dcda9d2bc38ed54f003991b0a9e456a7c3a936c9898",
+      "kb_stemi_ecg_criteria": "06cb0cf71b45937732b5ccf758b7e352f99c45af9b9f0bd8d5bde5549d9964bd",
+      "kb_ddx_aortic_dissection": "4d2a57cc2b645c4bc0eb4088082f5ccbc11e3d624af15d88ff199426c413765a",
+      "kb_ddx_pulmonary_embolism": "91adfefa83e4674180ad49cf58a07ed64231572a6629c967a36980ea81f55e77",
+      "kb_reperfusion_timing": "37eb98c13be2a12597812a19497db21430390cc2e1f39b81f3e6be7c75f9f593",
+      "kb_aspirin_consideration": "9ef8ada26e1ae626d6000b81597666d1f8f18898600ebf55b7bca9b0732aa932",
+      "kb_feedback_principles": "3c999eb08540601a870c0758bfbe437d0fc67a1b0751fd2d1e6b75c36508fd8c"
+    }
+  },
+  "engineering_pass": true,
+  "formal_acceptance": false,
+  "model": "deterministic simulator; zero real model calls",
+  "result": {
+    "score": {
+      "session_id": "7c70e70a-35b7-4826-be9b-4b25f334807f",
+      "seal_seq": 13,
+      "total_score": 16.0,
+      "max_score": 16.0,
+      "status": "complete",
+      "items": [
+        {
+          "item_id": "f_fever_detail",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "184d8c16-54b4-4431-a90a-103c1e974eea"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "f_cough",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "4614767b-dae2-4da9-9900-f474cd3bfe11"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "f_dyspnea",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "8b7491a2-deb6-42de-bc01-53f417b2dcfe"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "f_hx",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "bc9f88c1-9184-45a6-9514-b3d93d10e0b2"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "ex_cxr",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 2.0,
+          "max_score": 2.0,
+          "evidence_event_ids": [
+            "51231b2b-7788-4a11-8390-1d86be8f1c65"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "ex_cbc",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "1df50cc5-3378-4cc7-9545-612d53c1fd4b"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "ex_spo2",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "2d1d9b98-33a7-413c-9245-3512fa39f6c2"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "acute_bronchitis",
+          "stage": "鉴别诊断",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "1f68f836-2ef4-4608-b084-f51ae72c1fac",
+            "4614767b-dae2-4da9-9900-f474cd3bfe11"
+          ],
+          "reason": "已找到符合病例规则的支持/反对证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "pulmonary_embolism",
+          "stage": "鉴别诊断",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "184d8c16-54b4-4431-a90a-103c1e974eea",
+            "8b7491a2-deb6-42de-bc01-53f417b2dcfe"
+          ],
+          "reason": "已找到符合病例规则的支持/反对证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "community_acquired_pneumonia",
+          "stage": "诊断",
+          "hit": true,
+          "score": 2.0,
+          "max_score": 2.0,
+          "evidence_event_ids": [
+            "cefc0c97-8ebc-4815-bba4-4d7d752a748a"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "antibiotics",
+          "stage": "治疗",
+          "hit": true,
+          "score": 2.0,
+          "max_score": 2.0,
+          "evidence_event_ids": [
+            "a0961b12-8d25-4848-8e8b-198d0ac7ef30"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "oxygen_support",
+          "stage": "治疗",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "b761ac78-1887-46a7-8ae1-c7b399fb04bc"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "exam_stewardship",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [],
+          "reason": "未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 120 元）",
+          "improvement": ""
+        }
+      ],
+      "generated_at": "2026-11-27T08:46:28.989670Z"
+    },
+    "feedback": {
+      "source": "local_rules",
+      "review_status": "local_rules",
+      "basis_status": "draft_unreviewed",
+      "items": [
+        {
+          "stage": "病史采集",
+          "comment": "本环节得分 4/4。 已完成：询问发热程度和寒战（已找到符合条件的事件证据） 已完成：询问咳嗽、咳痰和胸痛（已找到符合条件的事件证据） 已完成：询问气短和呼吸困难（已找到符合条件的事件证据） 已完成：询问吸烟史、基础病和过敏史（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "184d8c16-54b4-4431-a90a-103c1e974eea",
+            "4614767b-dae2-4da9-9900-f474cd3bfe11",
+            "8b7491a2-deb6-42de-bc01-53f417b2dcfe",
+            "bc9f88c1-9184-45a6-9514-b3d93d10e0b2"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "检查选择",
+          "comment": "本环节得分 5/5。 已完成：开立胸部X线（已找到符合条件的事件证据） 已完成：开立血常规评估感染（已找到符合条件的事件证据） 已完成：测量血氧饱和度评估严重度（已找到符合条件的事件证据） 已完成：检查选择（未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 120 元））",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "51231b2b-7788-4a11-8390-1d86be8f1c65",
+            "1df50cc5-3378-4cc7-9545-612d53c1fd4b",
+            "2d1d9b98-33a7-413c-9245-3512fa39f6c2"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "鉴别诊断",
+          "comment": "本环节得分 2/2。 已完成：提供急性支气管炎的支持与反对证据（已找到符合病例规则的支持/反对证据） 已完成：提供肺栓塞的支持与反对证据（已找到符合病例规则的支持/反对证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "1f68f836-2ef4-4608-b084-f51ae72c1fac",
+            "4614767b-dae2-4da9-9900-f474cd3bfe11",
+            "184d8c16-54b4-4431-a90a-103c1e974eea",
+            "8b7491a2-deb6-42de-bc01-53f417b2dcfe"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "诊断",
+          "comment": "本环节得分 2/2。 已完成：诊断结论（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "cefc0c97-8ebc-4815-bba4-4d7d752a748a"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "治疗",
+          "comment": "本环节得分 3/3。 已完成：确认开始经验性抗感染治疗（已找到符合条件的事件证据） 已完成：确认吸氧并监测血氧（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "a0961b12-8d25-4848-8e8b-198d0ac7ef30",
+            "b761ac78-1887-46a7-8ae1-c7b399fb04bc"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        }
+      ],
+      "teaching_basis": [
+        {
+          "basis_id": "kb_feedback_principles",
+          "title": "训练反馈的撰写原则",
+          "sources": [
+            "项目自拟的反馈撰写规范"
+          ],
+          "restricted": false,
+          "revision": 1,
+          "content_hash": "3c999eb08540601a870c0758bfbe437d0fc67a1b0751fd2d1e6b75c36508fd8c"
+        }
+      ],
+      "basis_provenance": "snapshot",
+      "review_revision": 0,
+      "basis_coverage": {
+        "status": "draft_unreviewed",
+        "missing_clinical_stages": [
+          "病史采集",
+          "检查选择",
+          "鉴别诊断",
+          "诊断",
+          "治疗"
+        ],
+        "notice": "通用反馈规范不属于专科临床依据；存在条目不代表来源已核对或医学审核通过。"
+      },
+      "notice": "反馈基于原封存规则评分，教师评分裁定独立展示；反馈与教学依据均为未经医学审核的教学草稿。"
+    },
+    "replay_event_count": 14,
+    "state": {
+      "exam_cost_total": 120,
+      "session_id": "7c70e70a-35b7-4826-be9b-4b25f334807f",
+      "workflow": "submitted",
+      "clinical_state": "initial",
+      "sim_time_minutes": 30,
+      "case_notes": "工程自测病历，非真实患者，未经医学审核。\n病史记录：\n问：发热多少度，有没有寒战\n答：最高体温39℃，有寒战。\n问：咳嗽咳痰吗\n答：咳黄绿色的痰，咳得厉害时右侧胸口痛。\n问：活动后有没有气短，休息后会不会好一点\n答：活动后气短，休息时好一点。\n问：吸烟多少年，有没有慢性支气管炎和药物过敏\n答：吸烟30年，有慢性支气管炎，没有药物过敏。\n已回报检查：\n胸部X线：\"右下肺斑片状浸润影\"\n血常规：\"白细胞及中性粒细胞升高\"\n血氧饱和度：\"92%（偏低）\"\n模拟时间：30分钟。",
+      "submissions": {
+        "diagnosis": "社区获得性肺炎",
+        "differential": [
+          {
+            "candidate_id": "acute_bronchitis",
+            "supporting_evidence": [
+              "咳黄绿色的痰"
+            ],
+            "opposing_evidence": [
+              "右下肺斑片状浸润影"
+            ],
+            "evidence_event_ids": [
+              "4614767b-dae2-4da9-9900-f474cd3bfe11",
+              "1f68f836-2ef4-4608-b084-f51ae72c1fac"
+            ]
+          },
+          {
+            "candidate_id": "pulmonary_embolism",
+            "supporting_evidence": [
+              "活动后气短"
+            ],
+            "opposing_evidence": [
+              "最高体温39℃"
+            ],
+            "evidence_event_ids": [
+              "8b7491a2-deb6-42de-bc01-53f417b2dcfe",
+              "184d8c16-54b4-4431-a90a-103c1e974eea"
+            ]
+          }
+        ],
+        "treatment": {
+          "treatment_id": "oxygen_support",
+          "parameters": {},
+          "confirm_execution": true,
+          "treatment_name": "吸氧并监测血氧"
+        }
+      },
+      "disclosed_fact_count": 4,
+      "clinical_updates": [],
+      "orders": [
+        {
+          "state": "ready",
+          "exam_name": "胸部X线",
+          "category": "影像",
+          "cost": 90,
+          "catalog_id": "cat_025",
+          "ordered_sim_time": 0,
+          "sample_sim_time": 0,
+          "return_sim_time": 30,
+          "result": "右下肺斑片状浸润影",
+          "viewed": false
+        },
+        {
+          "state": "ready",
+          "exam_name": "血常规",
+          "category": "床旁与基础检验",
+          "cost": 25,
+          "catalog_id": "cat_003",
+          "ordered_sim_time": 0,
+          "sample_sim_time": 0,
+          "return_sim_time": 30,
+          "result": "白细胞及中性粒细胞升高",
+          "viewed": false
+        },
+        {
+          "state": "ready",
+          "exam_name": "血氧饱和度",
+          "category": "床旁与基础检验",
+          "cost": 5,
+          "catalog_id": "cat_001",
+          "ordered_sim_time": 0,
+          "sample_sim_time": 0,
+          "return_sim_time": 0,
+          "result": "92%（偏低）",
+          "viewed": false
+        }
+      ],
+      "events": [
+        {
+          "event_id": "184d8c16-54b4-4431-a90a-103c1e974eea",
+          "request_id": "r1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "发热多少度，有没有寒战",
+          "result": {
+            "answer": "最高体温39℃，有寒战。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "4614767b-dae2-4da9-9900-f474cd3bfe11",
+          "request_id": "r2",
+          "seq": 2,
+          "action": "ask",
+          "intent": "咳嗽咳痰吗",
+          "result": {
+            "answer": "咳黄绿色的痰，咳得厉害时右侧胸口痛。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "8b7491a2-deb6-42de-bc01-53f417b2dcfe",
+          "request_id": "r3",
+          "seq": 3,
+          "action": "ask",
+          "intent": "活动后有没有气短，休息后会不会好一点",
+          "result": {
+            "answer": "活动后气短，休息时好一点。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "bc9f88c1-9184-45a6-9514-b3d93d10e0b2",
+          "request_id": "r4",
+          "seq": 4,
+          "action": "ask",
+          "intent": "吸烟多少年，有没有慢性支气管炎和药物过敏",
+          "result": {
+            "answer": "吸烟30年，有慢性支气管炎，没有药物过敏。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "51231b2b-7788-4a11-8390-1d86be8f1c65",
+          "request_id": "r5",
+          "seq": 5,
+          "action": "order_exam",
+          "intent": null,
+          "result": {
+            "state": "pending"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "1df50cc5-3378-4cc7-9545-612d53c1fd4b",
+          "request_id": "r6",
+          "seq": 6,
+          "action": "order_exam",
+          "intent": null,
+          "result": {
+            "state": "pending"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "2d1d9b98-33a7-413c-9245-3512fa39f6c2",
+          "request_id": "r7",
+          "seq": 7,
+          "action": "order_exam",
+          "intent": null,
+          "result": {
+            "state": "ready",
+            "exam_results": [
+              {
+                "name": "血氧饱和度",
+                "result": "92%（偏低）"
+              }
+            ]
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "1f68f836-2ef4-4608-b084-f51ae72c1fac",
+          "request_id": "r8",
+          "seq": 8,
+          "action": "wait",
+          "intent": null,
+          "result": {
+            "advanced_minutes": 30,
+            "clinical_state": "initial",
+            "clinical_updates": [],
+            "exam_results": [
+              {
+                "name": "胸部X线",
+                "result": "右下肺斑片状浸润影"
+              },
+              {
+                "name": "血常规",
+                "result": "白细胞及中性粒细胞升高"
+              }
+            ]
+          },
+          "sim_time": 30,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 30
+          }
+        },
+        {
+          "event_id": "892700d2-3306-4014-bfb6-6ee79aa7851c",
+          "request_id": "r9",
+          "seq": 9,
+          "action": "update_notes",
+          "intent": null,
+          "result": {
+            "submitted": true
+          },
+          "sim_time": 30,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 30
+          }
+        },
+        {
+          "event_id": "4ab00a25-bc77-4c73-9c0c-6b9c650ac0f2",
+          "request_id": "r10",
+          "seq": 10,
+          "action": "submit_differential",
+          "intent": null,
+          "result": {
+            "submitted": true,
+            "candidates": [
+              {
+                "candidate_id": "acute_bronchitis",
+                "supporting_evidence": [
+                  "咳黄绿色的痰"
+                ],
+                "opposing_evidence": [
+                  "右下肺斑片状浸润影"
+                ],
+                "evidence_event_ids": [
+                  "4614767b-dae2-4da9-9900-f474cd3bfe11",
+                  "1f68f836-2ef4-4608-b084-f51ae72c1fac"
+                ]
+              },
+              {
+                "candidate_id": "pulmonary_embolism",
+                "supporting_evidence": [
+                  "活动后气短"
+                ],
+                "opposing_evidence": [
+                  "最高体温39℃"
+                ],
+                "evidence_event_ids": [
+                  "8b7491a2-deb6-42de-bc01-53f417b2dcfe",
+                  "184d8c16-54b4-4431-a90a-103c1e974eea"
+                ]
+              }
+            ]
+          },
+          "sim_time": 30,
+          "state_after": {
+            "workflow": "differential",
+            "clinical_state": "initial",
+            "sim_time_minutes": 30
+          }
+        },
+        {
+          "event_id": "cefc0c97-8ebc-4815-bba4-4d7d752a748a",
+          "request_id": "r11",
+          "seq": 11,
+          "action": "submit_diagnosis",
+          "intent": null,
+          "result": {
+            "submitted": true,
+            "diagnosis": "社区获得性肺炎"
+          },
+          "sim_time": 30,
+          "state_after": {
+            "workflow": "diagnosis",
+            "clinical_state": "initial",
+            "sim_time_minutes": 30
+          }
+        },
+        {
+          "event_id": "a0961b12-8d25-4848-8e8b-198d0ac7ef30",
+          "request_id": "r12",
+          "seq": 12,
+          "action": "execute_treatment",
+          "intent": null,
+          "result": {
+            "executed": true,
+            "clinical_state": "initial",
+            "clinical_updates": [],
+            "treatment": {
+              "treatment_id": "antibiotics",
+              "parameters": {},
+              "confirm_execution": true
+            }
+          },
+          "sim_time": 30,
+          "state_after": {
+            "workflow": "treatment",
+            "clinical_state": "initial",
+            "sim_time_minutes": 30
+          }
+        },
+        {
+          "event_id": "b761ac78-1887-46a7-8ae1-c7b399fb04bc",
+          "request_id": "r13",
+          "seq": 13,
+          "action": "execute_treatment",
+          "intent": null,
+          "result": {
+            "executed": true,
+            "clinical_state": "initial",
+            "clinical_updates": [],
+            "treatment": {
+              "treatment_id": "oxygen_support",
+              "parameters": {},
+              "confirm_execution": true
+            }
+          },
+          "sim_time": 30,
+          "state_after": {
+            "workflow": "treatment",
+            "clinical_state": "initial",
+            "sim_time_minutes": 30
+          }
+        },
+        {
+          "event_id": "3a95bdc0-0646-4792-baf7-4eea9cb48584",
+          "request_id": "r14",
+          "seq": 14,
+          "action": "seal",
+          "intent": null,
+          "result": {},
+          "sim_time": 30,
+          "state_after": {
+            "workflow": "submitted",
+            "clinical_state": "initial",
+            "sim_time_minutes": 30
+          }
+        }
+      ],
+      "sealed": true,
+      "seal_seq": 13,
+      "seal_sim_time": 30,
+      "state_version": 14
+    }
+  },
+  "checks": [
+    {
+      "name": "病历保存并重新读取一致",
+      "expected": "工程自测病历，非真实患者，未经医学审核。\n病史记录：\n问：发热多少度，有没有寒战\n答：最高体温39℃，有寒战。\n问：咳嗽咳痰吗\n答：咳黄绿色的痰，咳得厉害时右侧胸口痛。\n问：活动后有没有气短，休息后会不会好一点\n答：活动后气短，休息时好一点。\n问：吸烟多少年，有没有慢性支气管炎和药物过敏\n答：吸烟30年，有慢性支气管炎，没有药物过敏。\n已回报检查：\n胸部X线：\"右下肺斑片状浸润影\"\n血常规：\"白细胞及中性粒细胞升高\"\n血氧饱和度：\"92%（偏低）\"\n模拟时间：30分钟。",
+      "actual": "工程自测病历，非真实患者，未经医学审核。\n病史记录：\n问：发热多少度，有没有寒战\n答：最高体温39℃，有寒战。\n问：咳嗽咳痰吗\n答：咳黄绿色的痰，咳得厉害时右侧胸口痛。\n问：活动后有没有气短，休息后会不会好一点\n答：活动后气短，休息时好一点。\n问：吸烟多少年，有没有慢性支气管炎和药物过敏\n答：吸烟30年，有慢性支气管炎，没有药物过敏。\n已回报检查：\n胸部X线：\"右下肺斑片状浸润影\"\n血常规：\"白细胞及中性粒细胞升高\"\n血氧饱和度：\"92%（偏低）\"\n模拟时间：30分钟。",
+      "passed": true
+    },
+    {
+      "name": "现有量表各项均命中",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "现有量表总分匹配",
+      "expected": 16.0,
+      "actual": 16.0,
+      "passed": true
+    },
+    {
+      "name": "五环节评分存在",
+      "expected": 5,
+      "actual": 5,
+      "passed": true
+    },
+    {
+      "name": "反馈生成后可重新读取",
+      "expected": [
+        {
+          "stage": "病史采集",
+          "comment": "本环节得分 4/4。 已完成：询问发热程度和寒战（已找到符合条件的事件证据） 已完成：询问咳嗽、咳痰和胸痛（已找到符合条件的事件证据） 已完成：询问气短和呼吸困难（已找到符合条件的事件证据） 已完成：询问吸烟史、基础病和过敏史（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "184d8c16-54b4-4431-a90a-103c1e974eea",
+            "4614767b-dae2-4da9-9900-f474cd3bfe11",
+            "8b7491a2-deb6-42de-bc01-53f417b2dcfe",
+            "bc9f88c1-9184-45a6-9514-b3d93d10e0b2"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "检查选择",
+          "comment": "本环节得分 5/5。 已完成：开立胸部X线（已找到符合条件的事件证据） 已完成：开立血常规评估感染（已找到符合条件的事件证据） 已完成：测量血氧饱和度评估严重度（已找到符合条件的事件证据） 已完成：检查选择（未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 120 元））",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "51231b2b-7788-4a11-8390-1d86be8f1c65",
+            "1df50cc5-3378-4cc7-9545-612d53c1fd4b",
+            "2d1d9b98-33a7-413c-9245-3512fa39f6c2"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "鉴别诊断",
+          "comment": "本环节得分 2/2。 已完成：提供急性支气管炎的支持与反对证据（已找到符合病例规则的支持/反对证据） 已完成：提供肺栓塞的支持与反对证据（已找到符合病例规则的支持/反对证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "1f68f836-2ef4-4608-b084-f51ae72c1fac",
+            "4614767b-dae2-4da9-9900-f474cd3bfe11",
+            "184d8c16-54b4-4431-a90a-103c1e974eea",
+            "8b7491a2-deb6-42de-bc01-53f417b2dcfe"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "诊断",
+          "comment": "本环节得分 2/2。 已完成：诊断结论（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "cefc0c97-8ebc-4815-bba4-4d7d752a748a"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "治疗",
+          "comment": "本环节得分 3/3。 已完成：确认开始经验性抗感染治疗（已找到符合条件的事件证据） 已完成：确认吸氧并监测血氧（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "a0961b12-8d25-4848-8e8b-198d0ac7ef30",
+            "b761ac78-1887-46a7-8ae1-c7b399fb04bc"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        }
+      ],
+      "actual": [
+        {
+          "stage": "病史采集",
+          "comment": "本环节得分 4/4。 已完成：询问发热程度和寒战（已找到符合条件的事件证据） 已完成：询问咳嗽、咳痰和胸痛（已找到符合条件的事件证据） 已完成：询问气短和呼吸困难（已找到符合条件的事件证据） 已完成：询问吸烟史、基础病和过敏史（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "184d8c16-54b4-4431-a90a-103c1e974eea",
+            "4614767b-dae2-4da9-9900-f474cd3bfe11",
+            "8b7491a2-deb6-42de-bc01-53f417b2dcfe",
+            "bc9f88c1-9184-45a6-9514-b3d93d10e0b2"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "检查选择",
+          "comment": "本环节得分 5/5。 已完成：开立胸部X线（已找到符合条件的事件证据） 已完成：开立血常规评估感染（已找到符合条件的事件证据） 已完成：测量血氧饱和度评估严重度（已找到符合条件的事件证据） 已完成：检查选择（未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 120 元））",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "51231b2b-7788-4a11-8390-1d86be8f1c65",
+            "1df50cc5-3378-4cc7-9545-612d53c1fd4b",
+            "2d1d9b98-33a7-413c-9245-3512fa39f6c2"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "鉴别诊断",
+          "comment": "本环节得分 2/2。 已完成：提供急性支气管炎的支持与反对证据（已找到符合病例规则的支持/反对证据） 已完成：提供肺栓塞的支持与反对证据（已找到符合病例规则的支持/反对证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "1f68f836-2ef4-4608-b084-f51ae72c1fac",
+            "4614767b-dae2-4da9-9900-f474cd3bfe11",
+            "184d8c16-54b4-4431-a90a-103c1e974eea",
+            "8b7491a2-deb6-42de-bc01-53f417b2dcfe"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "诊断",
+          "comment": "本环节得分 2/2。 已完成：诊断结论（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "cefc0c97-8ebc-4815-bba4-4d7d752a748a"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "治疗",
+          "comment": "本环节得分 3/3。 已完成：确认开始经验性抗感染治疗（已找到符合条件的事件证据） 已完成：确认吸氧并监测血氧（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "a0961b12-8d25-4848-8e8b-198d0ac7ef30",
+            "b761ac78-1887-46a7-8ae1-c7b399fb04bc"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "反馈为本地模拟规则而非真实模型",
+      "expected": "local_rules",
+      "actual": "local_rules",
+      "passed": true
+    },
+    {
+      "name": "五环节反馈完整",
+      "expected": 5,
+      "actual": 5,
+      "passed": true
+    },
+    {
+      "name": "封存后仍可读取回放事件",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "回放事件按序排列",
+      "expected": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "actual": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "passed": true
+    }
+  ]
+}

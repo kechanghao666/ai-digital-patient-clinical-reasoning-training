@@ -1,0 +1,1122 @@
+{
+  "sample_id": "SIM-03",
+  "code_sha": "c11265d7c8aa85447cca6a2230dcd173cf463037",
+  "source_file": "local-only/comprehensive-review-20261127/samples/SIM-03.json",
+  "source_sha256": "23c8f59e1151de49c2e0671e6c39ed36d8e5474e161c062e07947627e51f7e92",
+  "versions": {
+    "case_id": "STROKE-001",
+    "case_version": 2,
+    "case_hash": "11f7a30b6da9dd3d690eedfc04f980767a911661149ade539275a613c0dd2657",
+    "case_review": "draft",
+    "rubric": [
+      {
+        "item_id": "f_onset_time",
+        "stage": "病史采集",
+        "description": "询问起病的具体时间",
+        "evidence_type": "ask_event",
+        "weight": 2.0,
+        "critical": true,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [
+          "f_onset_time#a1"
+        ],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "必须问清起病（或最后正常）的具体时间，它决定治疗窗口。"
+      },
+      {
+        "item_id": "f_symptom_detail",
+        "stage": "病史采集",
+        "description": "询问具体症状表现",
+        "evidence_type": "ask_event",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "f_anticoag",
+        "stage": "病史采集",
+        "description": "询问抗凝药、出血和手术外伤史",
+        "evidence_type": "ask_event",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "决定是否可能进行再灌注治疗前，必须询问抗凝与出血风险。"
+      },
+      {
+        "item_id": "f_hx_af",
+        "stage": "病史采集",
+        "description": "询问房颤等心脏病史",
+        "evidence_type": "ask_event",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [
+          "f_hx_af#a1"
+        ],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "ex_ct_head",
+        "stage": "检查选择",
+        "description": "开立头颅CT平扫",
+        "evidence_type": "exam_order",
+        "weight": 2.0,
+        "critical": true,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "突发局灶神经功能缺损应尽快开立头颅CT以排除出血。"
+      },
+      {
+        "item_id": "ex_glucose",
+        "stage": "检查选择",
+        "description": "开立快速血糖以排除低血糖",
+        "evidence_type": "exam_order",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "ex_ecg",
+        "stage": "检查选择",
+        "description": "开立心电图评估心律",
+        "evidence_type": "exam_order",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "intracerebral_hemorrhage",
+        "stage": "鉴别诊断",
+        "description": "提供脑出血的支持与反对证据",
+        "evidence_type": "ddx_evidence",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": {
+          "supporting_keys": [
+            "f_hx_htn"
+          ],
+          "opposing_keys": [
+            "ex_ct_head",
+            "f_headache"
+          ],
+          "min_supporting": 1,
+          "min_opposing": 1,
+          "medically_reviewed": false
+        },
+        "improvement": ""
+      },
+      {
+        "item_id": "hypoglycemia",
+        "stage": "鉴别诊断",
+        "description": "提供低血糖的反对证据",
+        "evidence_type": "ddx_evidence",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": {
+          "supporting_keys": [],
+          "opposing_keys": [
+            "ex_glucose"
+          ],
+          "min_supporting": 0,
+          "min_opposing": 1,
+          "medically_reviewed": false
+        },
+        "improvement": ""
+      },
+      {
+        "item_id": "acute_ischemic_stroke",
+        "stage": "诊断",
+        "description": "提交急性缺血性卒中",
+        "evidence_type": "diagnosis",
+        "weight": 2.0,
+        "critical": true,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": {
+          "names": [
+            "急性缺血性卒中",
+            "缺血性卒中",
+            "急性脑梗死",
+            "脑梗死"
+          ],
+          "extra_positive": [
+            "{name}，已排除脑出血"
+          ],
+          "leak_terms": []
+        },
+        "differential": null,
+        "improvement": "请直接写出明确诊断，并避免否定或不确定的表述。"
+      },
+      {
+        "item_id": "stroke_pathway",
+        "stage": "治疗",
+        "description": "确认启动卒中绿色通道并评估再灌注",
+        "evidence_type": "treatment_execution",
+        "weight": 2.0,
+        "critical": true,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "排除出血后应尽快确认启动卒中绿色通道；仅计划不计入执行。"
+      },
+      {
+        "item_id": "supportive_care",
+        "stage": "治疗",
+        "description": "确认监护与支持治疗",
+        "evidence_type": "treatment_execution",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      }
+    ],
+    "knowledge_manifest_sha256": "e54a60672059175a65a44186b98f1ac343f3188e9e5a83b797cb13b4dda60b47",
+    "knowledge_status": "draft_unreviewed",
+    "basis_hashes": {
+      "kb_chest_pain_history": "63f477dbbe8f22236a85ae9c86097e6d6fc23e174470792832e9209a538d0814",
+      "kb_ecg_first": "3e31bc725357ba491745eb35a0feea66284a10b5cd970963f895601f7412efd2",
+      "kb_troponin_role": "66a87f0e102cceed74620dcda9d2bc38ed54f003991b0a9e456a7c3a936c9898",
+      "kb_stemi_ecg_criteria": "06cb0cf71b45937732b5ccf758b7e352f99c45af9b9f0bd8d5bde5549d9964bd",
+      "kb_ddx_aortic_dissection": "4d2a57cc2b645c4bc0eb4088082f5ccbc11e3d624af15d88ff199426c413765a",
+      "kb_ddx_pulmonary_embolism": "91adfefa83e4674180ad49cf58a07ed64231572a6629c967a36980ea81f55e77",
+      "kb_reperfusion_timing": "37eb98c13be2a12597812a19497db21430390cc2e1f39b81f3e6be7c75f9f593",
+      "kb_aspirin_consideration": "9ef8ada26e1ae626d6000b81597666d1f8f18898600ebf55b7bca9b0732aa932",
+      "kb_feedback_principles": "3c999eb08540601a870c0758bfbe437d0fc67a1b0751fd2d1e6b75c36508fd8c"
+    }
+  },
+  "engineering_pass": true,
+  "formal_acceptance": false,
+  "model": "deterministic simulator; zero real model calls",
+  "result": {
+    "score": {
+      "session_id": "cdd5d430-5d2c-452b-8b85-c7e1ce926d3e",
+      "seal_seq": 15,
+      "total_score": 17.0,
+      "max_score": 17.0,
+      "status": "complete",
+      "items": [
+        {
+          "item_id": "f_onset_time",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 2.0,
+          "max_score": 2.0,
+          "evidence_event_ids": [
+            "214e6ca6-3d35-4d8b-aafc-459d5ffa8ccb"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "f_symptom_detail",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "3f2b83c4-a249-4a68-b0a9-cc66215f5a91"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "f_anticoag",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "c519fef8-7140-4b58-91ba-e5041fbf612d",
+            "7796bb63-acfe-40a5-adc9-bc0f365d09e2"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "f_hx_af",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "7796bb63-acfe-40a5-adc9-bc0f365d09e2"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "ex_ct_head",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 2.0,
+          "max_score": 2.0,
+          "evidence_event_ids": [
+            "89cc80ef-5e7f-4ee7-bef1-44fd0092023e"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "ex_glucose",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "86270f15-9c81-46d3-8b7b-71f3107c810e"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "ex_ecg",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "933d66fd-a89a-4a62-90dc-635de6272112"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "intracerebral_hemorrhage",
+          "stage": "鉴别诊断",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "61c873a3-2a79-4a2a-8da1-b35c9e589101",
+            "865d7874-1586-40eb-9c17-cae51178c1fa"
+          ],
+          "reason": "已找到符合病例规则的支持/反对证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "hypoglycemia",
+          "stage": "鉴别诊断",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "865d7874-1586-40eb-9c17-cae51178c1fa"
+          ],
+          "reason": "已找到符合病例规则的支持/反对证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "acute_ischemic_stroke",
+          "stage": "诊断",
+          "hit": true,
+          "score": 2.0,
+          "max_score": 2.0,
+          "evidence_event_ids": [
+            "ca2fdece-26c8-424e-afe9-1e988ec39a99"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "stroke_pathway",
+          "stage": "治疗",
+          "hit": true,
+          "score": 2.0,
+          "max_score": 2.0,
+          "evidence_event_ids": [
+            "1af5ed48-078c-4cf0-8aad-77b1ee8823f2"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "supportive_care",
+          "stage": "治疗",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "909b94bd-cd2c-4312-a8dd-6b7d6aa0674a"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "exam_stewardship",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [],
+          "reason": "未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 460 元）",
+          "improvement": ""
+        }
+      ],
+      "generated_at": "2026-11-27T08:46:28.538969Z"
+    },
+    "feedback": {
+      "source": "local_rules",
+      "review_status": "local_rules",
+      "basis_status": "draft_unreviewed",
+      "items": [
+        {
+          "stage": "病史采集",
+          "comment": "本环节得分 5/5。 已完成：询问起病的具体时间（已找到符合条件的事件证据） 已完成：询问具体症状表现（已找到符合条件的事件证据） 已完成：询问抗凝药、出血和手术外伤史（已找到符合条件的事件证据） 已完成：询问房颤等心脏病史（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "214e6ca6-3d35-4d8b-aafc-459d5ffa8ccb",
+            "3f2b83c4-a249-4a68-b0a9-cc66215f5a91",
+            "c519fef8-7140-4b58-91ba-e5041fbf612d",
+            "7796bb63-acfe-40a5-adc9-bc0f365d09e2"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "检查选择",
+          "comment": "本环节得分 5/5。 已完成：开立头颅CT平扫（已找到符合条件的事件证据） 已完成：开立快速血糖以排除低血糖（已找到符合条件的事件证据） 已完成：开立心电图评估心律（已找到符合条件的事件证据） 已完成：检查选择（未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 460 元））",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "89cc80ef-5e7f-4ee7-bef1-44fd0092023e",
+            "86270f15-9c81-46d3-8b7b-71f3107c810e",
+            "933d66fd-a89a-4a62-90dc-635de6272112"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "鉴别诊断",
+          "comment": "本环节得分 2/2。 已完成：提供脑出血的支持与反对证据（已找到符合病例规则的支持/反对证据） 已完成：提供低血糖的反对证据（已找到符合病例规则的支持/反对证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "61c873a3-2a79-4a2a-8da1-b35c9e589101",
+            "865d7874-1586-40eb-9c17-cae51178c1fa"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "诊断",
+          "comment": "本环节得分 2/2。 已完成：诊断结论（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "ca2fdece-26c8-424e-afe9-1e988ec39a99"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "治疗",
+          "comment": "本环节得分 3/3。 已完成：确认启动卒中绿色通道并评估再灌注（已找到符合条件的事件证据） 已完成：确认监护与支持治疗（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "1af5ed48-078c-4cf0-8aad-77b1ee8823f2",
+            "909b94bd-cd2c-4312-a8dd-6b7d6aa0674a"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        }
+      ],
+      "teaching_basis": [
+        {
+          "basis_id": "kb_feedback_principles",
+          "title": "训练反馈的撰写原则",
+          "sources": [
+            "项目自拟的反馈撰写规范"
+          ],
+          "restricted": false,
+          "revision": 1,
+          "content_hash": "3c999eb08540601a870c0758bfbe437d0fc67a1b0751fd2d1e6b75c36508fd8c"
+        }
+      ],
+      "basis_provenance": "snapshot",
+      "review_revision": 0,
+      "basis_coverage": {
+        "status": "draft_unreviewed",
+        "missing_clinical_stages": [
+          "病史采集",
+          "检查选择",
+          "鉴别诊断",
+          "诊断",
+          "治疗"
+        ],
+        "notice": "通用反馈规范不属于专科临床依据；存在条目不代表来源已核对或医学审核通过。"
+      },
+      "notice": "反馈基于原封存规则评分，教师评分裁定独立展示；反馈与教学依据均为未经医学审核的教学草稿。"
+    },
+    "replay_event_count": 16,
+    "state": {
+      "exam_cost_total": 460,
+      "session_id": "cdd5d430-5d2c-452b-8b85-c7e1ce926d3e",
+      "workflow": "submitted",
+      "clinical_state": "initial",
+      "sim_time_minutes": 15,
+      "case_notes": "工程自测病历，非真实患者，未经医学审核。\n病史记录：\n问：起病是什么时候，当时在做什么，您记得清楚吗\n答：是上午9点半发生的，当时正在吃早饭，我记得很清楚。\n问：右手、右腿和嘴角分别有什么症状\n答：右手拿不住东西，右腿走路拖着，嘴角有点歪。\n问：有没有吃抗凝药，最近有没有手术或外伤，有没有出血\n答：没有吃抗凝药，最近没有手术，最近没有外伤，没有出血病史。\n问：有房颤吗，平时有没有规律吃药\n答：有房颤好几年，没有规律吃药，没有吃抗凝药。\n问：有高血压吗\n答：高血压15年，血压控制得不好。\n问：头痛呕吐吗\n答：没有明显头痛，没有呕吐。\n已回报检查：\n头颅CT平扫：\"未见出血\"\n快速血糖：\"正常范围\"\n心电图：\"心房颤动\"\n模拟时间：15分钟。",
+      "submissions": {
+        "diagnosis": "急性缺血性卒中",
+        "differential": [
+          {
+            "candidate_id": "intracerebral_hemorrhage",
+            "supporting_evidence": [
+              "高血压15年"
+            ],
+            "opposing_evidence": [
+              "未见出血"
+            ],
+            "evidence_event_ids": [
+              "61c873a3-2a79-4a2a-8da1-b35c9e589101",
+              "865d7874-1586-40eb-9c17-cae51178c1fa"
+            ]
+          },
+          {
+            "candidate_id": "hypoglycemia",
+            "supporting_evidence": [],
+            "opposing_evidence": [
+              "正常范围"
+            ],
+            "evidence_event_ids": [
+              "865d7874-1586-40eb-9c17-cae51178c1fa"
+            ]
+          }
+        ],
+        "treatment": {
+          "treatment_id": "supportive_care",
+          "parameters": {},
+          "confirm_execution": true,
+          "treatment_name": "心电监护并维持气道与对症支持"
+        }
+      },
+      "disclosed_fact_count": 6,
+      "clinical_updates": [],
+      "orders": [
+        {
+          "state": "ready",
+          "exam_name": "头颅CT平扫",
+          "category": "影像",
+          "cost": 420,
+          "catalog_id": "cat_027",
+          "ordered_sim_time": 0,
+          "sample_sim_time": 0,
+          "return_sim_time": 15,
+          "result": "未见出血",
+          "viewed": false
+        },
+        {
+          "state": "ready",
+          "exam_name": "快速血糖",
+          "category": "床旁与基础检验",
+          "cost": 10,
+          "catalog_id": "cat_002",
+          "ordered_sim_time": 0,
+          "sample_sim_time": 0,
+          "return_sim_time": 5,
+          "result": "正常范围",
+          "viewed": false
+        },
+        {
+          "state": "ready",
+          "exam_name": "心电图",
+          "category": "心血管",
+          "cost": 30,
+          "catalog_id": "cat_018",
+          "ordered_sim_time": 0,
+          "sample_sim_time": 0,
+          "return_sim_time": 5,
+          "result": "心房颤动",
+          "viewed": false
+        }
+      ],
+      "events": [
+        {
+          "event_id": "214e6ca6-3d35-4d8b-aafc-459d5ffa8ccb",
+          "request_id": "r1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "起病是什么时候，当时在做什么，您记得清楚吗",
+          "result": {
+            "answer": "是上午9点半发生的，当时正在吃早饭，我记得很清楚。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "3f2b83c4-a249-4a68-b0a9-cc66215f5a91",
+          "request_id": "r2",
+          "seq": 2,
+          "action": "ask",
+          "intent": "右手、右腿和嘴角分别有什么症状",
+          "result": {
+            "answer": "右手拿不住东西，右腿走路拖着，嘴角有点歪。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "c519fef8-7140-4b58-91ba-e5041fbf612d",
+          "request_id": "r3",
+          "seq": 3,
+          "action": "ask",
+          "intent": "有没有吃抗凝药，最近有没有手术或外伤，有没有出血",
+          "result": {
+            "answer": "没有吃抗凝药，最近没有手术，最近没有外伤，没有出血病史。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "7796bb63-acfe-40a5-adc9-bc0f365d09e2",
+          "request_id": "r4",
+          "seq": 4,
+          "action": "ask",
+          "intent": "有房颤吗，平时有没有规律吃药",
+          "result": {
+            "answer": "有房颤好几年，没有规律吃药，没有吃抗凝药。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "61c873a3-2a79-4a2a-8da1-b35c9e589101",
+          "request_id": "r5",
+          "seq": 5,
+          "action": "ask",
+          "intent": "有高血压吗",
+          "result": {
+            "answer": "高血压15年，血压控制得不好。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "8a1d9eea-d6fc-4538-858b-f738dc640b54",
+          "request_id": "r6",
+          "seq": 6,
+          "action": "ask",
+          "intent": "头痛呕吐吗",
+          "result": {
+            "answer": "没有明显头痛，没有呕吐。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "89cc80ef-5e7f-4ee7-bef1-44fd0092023e",
+          "request_id": "r7",
+          "seq": 7,
+          "action": "order_exam",
+          "intent": null,
+          "result": {
+            "state": "pending"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "86270f15-9c81-46d3-8b7b-71f3107c810e",
+          "request_id": "r8",
+          "seq": 8,
+          "action": "order_exam",
+          "intent": null,
+          "result": {
+            "state": "pending"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "933d66fd-a89a-4a62-90dc-635de6272112",
+          "request_id": "r9",
+          "seq": 9,
+          "action": "order_exam",
+          "intent": null,
+          "result": {
+            "state": "pending"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "865d7874-1586-40eb-9c17-cae51178c1fa",
+          "request_id": "r10",
+          "seq": 10,
+          "action": "wait",
+          "intent": null,
+          "result": {
+            "advanced_minutes": 15,
+            "clinical_state": "initial",
+            "clinical_updates": [],
+            "exam_results": [
+              {
+                "name": "头颅CT平扫",
+                "result": "未见出血"
+              },
+              {
+                "name": "快速血糖",
+                "result": "正常范围"
+              },
+              {
+                "name": "心电图",
+                "result": "心房颤动"
+              }
+            ]
+          },
+          "sim_time": 15,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 15
+          }
+        },
+        {
+          "event_id": "a1331ecd-27c8-4ada-96b3-6fc9cf909091",
+          "request_id": "r11",
+          "seq": 11,
+          "action": "update_notes",
+          "intent": null,
+          "result": {
+            "submitted": true
+          },
+          "sim_time": 15,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 15
+          }
+        },
+        {
+          "event_id": "ca5790ae-1333-4daf-ac7c-2ca22f89ad65",
+          "request_id": "r12",
+          "seq": 12,
+          "action": "submit_differential",
+          "intent": null,
+          "result": {
+            "submitted": true,
+            "candidates": [
+              {
+                "candidate_id": "intracerebral_hemorrhage",
+                "supporting_evidence": [
+                  "高血压15年"
+                ],
+                "opposing_evidence": [
+                  "未见出血"
+                ],
+                "evidence_event_ids": [
+                  "61c873a3-2a79-4a2a-8da1-b35c9e589101",
+                  "865d7874-1586-40eb-9c17-cae51178c1fa"
+                ]
+              },
+              {
+                "candidate_id": "hypoglycemia",
+                "supporting_evidence": [],
+                "opposing_evidence": [
+                  "正常范围"
+                ],
+                "evidence_event_ids": [
+                  "865d7874-1586-40eb-9c17-cae51178c1fa"
+                ]
+              }
+            ]
+          },
+          "sim_time": 15,
+          "state_after": {
+            "workflow": "differential",
+            "clinical_state": "initial",
+            "sim_time_minutes": 15
+          }
+        },
+        {
+          "event_id": "ca2fdece-26c8-424e-afe9-1e988ec39a99",
+          "request_id": "r13",
+          "seq": 13,
+          "action": "submit_diagnosis",
+          "intent": null,
+          "result": {
+            "submitted": true,
+            "diagnosis": "急性缺血性卒中"
+          },
+          "sim_time": 15,
+          "state_after": {
+            "workflow": "diagnosis",
+            "clinical_state": "initial",
+            "sim_time_minutes": 15
+          }
+        },
+        {
+          "event_id": "1af5ed48-078c-4cf0-8aad-77b1ee8823f2",
+          "request_id": "r14",
+          "seq": 14,
+          "action": "execute_treatment",
+          "intent": null,
+          "result": {
+            "executed": true,
+            "clinical_state": "initial",
+            "clinical_updates": [],
+            "treatment": {
+              "treatment_id": "stroke_pathway",
+              "parameters": {},
+              "confirm_execution": true
+            }
+          },
+          "sim_time": 15,
+          "state_after": {
+            "workflow": "treatment",
+            "clinical_state": "initial",
+            "sim_time_minutes": 15
+          }
+        },
+        {
+          "event_id": "909b94bd-cd2c-4312-a8dd-6b7d6aa0674a",
+          "request_id": "r15",
+          "seq": 15,
+          "action": "execute_treatment",
+          "intent": null,
+          "result": {
+            "executed": true,
+            "clinical_state": "initial",
+            "clinical_updates": [],
+            "treatment": {
+              "treatment_id": "supportive_care",
+              "parameters": {},
+              "confirm_execution": true
+            }
+          },
+          "sim_time": 15,
+          "state_after": {
+            "workflow": "treatment",
+            "clinical_state": "initial",
+            "sim_time_minutes": 15
+          }
+        },
+        {
+          "event_id": "834f82cf-5ccf-4c89-93d9-29320b87d696",
+          "request_id": "r16",
+          "seq": 16,
+          "action": "seal",
+          "intent": null,
+          "result": {},
+          "sim_time": 15,
+          "state_after": {
+            "workflow": "submitted",
+            "clinical_state": "initial",
+            "sim_time_minutes": 15
+          }
+        }
+      ],
+      "sealed": true,
+      "seal_seq": 15,
+      "seal_sim_time": 15,
+      "state_version": 16
+    }
+  },
+  "checks": [
+    {
+      "name": "病历保存并重新读取一致",
+      "expected": "工程自测病历，非真实患者，未经医学审核。\n病史记录：\n问：起病是什么时候，当时在做什么，您记得清楚吗\n答：是上午9点半发生的，当时正在吃早饭，我记得很清楚。\n问：右手、右腿和嘴角分别有什么症状\n答：右手拿不住东西，右腿走路拖着，嘴角有点歪。\n问：有没有吃抗凝药，最近有没有手术或外伤，有没有出血\n答：没有吃抗凝药，最近没有手术，最近没有外伤，没有出血病史。\n问：有房颤吗，平时有没有规律吃药\n答：有房颤好几年，没有规律吃药，没有吃抗凝药。\n问：有高血压吗\n答：高血压15年，血压控制得不好。\n问：头痛呕吐吗\n答：没有明显头痛，没有呕吐。\n已回报检查：\n头颅CT平扫：\"未见出血\"\n快速血糖：\"正常范围\"\n心电图：\"心房颤动\"\n模拟时间：15分钟。",
+      "actual": "工程自测病历，非真实患者，未经医学审核。\n病史记录：\n问：起病是什么时候，当时在做什么，您记得清楚吗\n答：是上午9点半发生的，当时正在吃早饭，我记得很清楚。\n问：右手、右腿和嘴角分别有什么症状\n答：右手拿不住东西，右腿走路拖着，嘴角有点歪。\n问：有没有吃抗凝药，最近有没有手术或外伤，有没有出血\n答：没有吃抗凝药，最近没有手术，最近没有外伤，没有出血病史。\n问：有房颤吗，平时有没有规律吃药\n答：有房颤好几年，没有规律吃药，没有吃抗凝药。\n问：有高血压吗\n答：高血压15年，血压控制得不好。\n问：头痛呕吐吗\n答：没有明显头痛，没有呕吐。\n已回报检查：\n头颅CT平扫：\"未见出血\"\n快速血糖：\"正常范围\"\n心电图：\"心房颤动\"\n模拟时间：15分钟。",
+      "passed": true
+    },
+    {
+      "name": "现有量表各项均命中",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "现有量表总分匹配",
+      "expected": 17.0,
+      "actual": 17.0,
+      "passed": true
+    },
+    {
+      "name": "五环节评分存在",
+      "expected": 5,
+      "actual": 5,
+      "passed": true
+    },
+    {
+      "name": "反馈生成后可重新读取",
+      "expected": [
+        {
+          "stage": "病史采集",
+          "comment": "本环节得分 5/5。 已完成：询问起病的具体时间（已找到符合条件的事件证据） 已完成：询问具体症状表现（已找到符合条件的事件证据） 已完成：询问抗凝药、出血和手术外伤史（已找到符合条件的事件证据） 已完成：询问房颤等心脏病史（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "214e6ca6-3d35-4d8b-aafc-459d5ffa8ccb",
+            "3f2b83c4-a249-4a68-b0a9-cc66215f5a91",
+            "c519fef8-7140-4b58-91ba-e5041fbf612d",
+            "7796bb63-acfe-40a5-adc9-bc0f365d09e2"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "检查选择",
+          "comment": "本环节得分 5/5。 已完成：开立头颅CT平扫（已找到符合条件的事件证据） 已完成：开立快速血糖以排除低血糖（已找到符合条件的事件证据） 已完成：开立心电图评估心律（已找到符合条件的事件证据） 已完成：检查选择（未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 460 元））",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "89cc80ef-5e7f-4ee7-bef1-44fd0092023e",
+            "86270f15-9c81-46d3-8b7b-71f3107c810e",
+            "933d66fd-a89a-4a62-90dc-635de6272112"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "鉴别诊断",
+          "comment": "本环节得分 2/2。 已完成：提供脑出血的支持与反对证据（已找到符合病例规则的支持/反对证据） 已完成：提供低血糖的反对证据（已找到符合病例规则的支持/反对证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "61c873a3-2a79-4a2a-8da1-b35c9e589101",
+            "865d7874-1586-40eb-9c17-cae51178c1fa"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "诊断",
+          "comment": "本环节得分 2/2。 已完成：诊断结论（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "ca2fdece-26c8-424e-afe9-1e988ec39a99"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "治疗",
+          "comment": "本环节得分 3/3。 已完成：确认启动卒中绿色通道并评估再灌注（已找到符合条件的事件证据） 已完成：确认监护与支持治疗（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "1af5ed48-078c-4cf0-8aad-77b1ee8823f2",
+            "909b94bd-cd2c-4312-a8dd-6b7d6aa0674a"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        }
+      ],
+      "actual": [
+        {
+          "stage": "病史采集",
+          "comment": "本环节得分 5/5。 已完成：询问起病的具体时间（已找到符合条件的事件证据） 已完成：询问具体症状表现（已找到符合条件的事件证据） 已完成：询问抗凝药、出血和手术外伤史（已找到符合条件的事件证据） 已完成：询问房颤等心脏病史（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "214e6ca6-3d35-4d8b-aafc-459d5ffa8ccb",
+            "3f2b83c4-a249-4a68-b0a9-cc66215f5a91",
+            "c519fef8-7140-4b58-91ba-e5041fbf612d",
+            "7796bb63-acfe-40a5-adc9-bc0f365d09e2"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "检查选择",
+          "comment": "本环节得分 5/5。 已完成：开立头颅CT平扫（已找到符合条件的事件证据） 已完成：开立快速血糖以排除低血糖（已找到符合条件的事件证据） 已完成：开立心电图评估心律（已找到符合条件的事件证据） 已完成：检查选择（未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 460 元））",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "89cc80ef-5e7f-4ee7-bef1-44fd0092023e",
+            "86270f15-9c81-46d3-8b7b-71f3107c810e",
+            "933d66fd-a89a-4a62-90dc-635de6272112"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "鉴别诊断",
+          "comment": "本环节得分 2/2。 已完成：提供脑出血的支持与反对证据（已找到符合病例规则的支持/反对证据） 已完成：提供低血糖的反对证据（已找到符合病例规则的支持/反对证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "61c873a3-2a79-4a2a-8da1-b35c9e589101",
+            "865d7874-1586-40eb-9c17-cae51178c1fa"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "诊断",
+          "comment": "本环节得分 2/2。 已完成：诊断结论（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "ca2fdece-26c8-424e-afe9-1e988ec39a99"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "治疗",
+          "comment": "本环节得分 3/3。 已完成：确认启动卒中绿色通道并评估再灌注（已找到符合条件的事件证据） 已完成：确认监护与支持治疗（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "1af5ed48-078c-4cf0-8aad-77b1ee8823f2",
+            "909b94bd-cd2c-4312-a8dd-6b7d6aa0674a"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "反馈为本地模拟规则而非真实模型",
+      "expected": "local_rules",
+      "actual": "local_rules",
+      "passed": true
+    },
+    {
+      "name": "五环节反馈完整",
+      "expected": 5,
+      "actual": 5,
+      "passed": true
+    },
+    {
+      "name": "封存后仍可读取回放事件",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "回放事件按序排列",
+      "expected": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "actual": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "passed": true
+    }
+  ]
+}

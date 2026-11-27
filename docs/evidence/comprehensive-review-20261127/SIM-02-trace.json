@@ -1,0 +1,1137 @@
+{
+  "sample_id": "SIM-02",
+  "code_sha": "c11265d7c8aa85447cca6a2230dcd173cf463037",
+  "source_file": "local-only/comprehensive-review-20261127/samples/SIM-02.json",
+  "source_sha256": "7bd38edf1af27b8b302523bede924369d3fb8a4c4b6de4efcfbe82f23aec2d55",
+  "versions": {
+    "case_id": "APPY-001",
+    "case_version": 2,
+    "case_hash": "946d9248d3bad937ba89144010f3a52dc98a26897056981a284d18f0370583e5",
+    "case_review": "draft",
+    "rubric": [
+      {
+        "item_id": "f_pain_migration",
+        "stage": "病史采集",
+        "description": "询问疼痛部位及是否转移",
+        "evidence_type": "ask_event",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "建议询问疼痛最初出现的位置以及是否发生转移。"
+      },
+      {
+        "item_id": "f_onset",
+        "stage": "病史采集",
+        "description": "询问起病时间和诱因",
+        "evidence_type": "ask_event",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [
+          "f_onset#a1",
+          "f_onset#a3"
+        ],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "f_fever",
+        "stage": "病史采集",
+        "description": "询问是否发热",
+        "evidence_type": "ask_event",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "f_gi",
+        "stage": "病史采集",
+        "description": "询问恶心呕吐和食欲",
+        "evidence_type": "ask_event",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "f_hx",
+        "stage": "病史采集",
+        "description": "询问既往史、手术史和过敏史",
+        "evidence_type": "ask_event",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "拟手术或用药前应询问既往史、手术史和过敏史。"
+      },
+      {
+        "item_id": "ex_us",
+        "stage": "检查选择",
+        "description": "开立腹部超声",
+        "evidence_type": "exam_order",
+        "weight": 2.0,
+        "critical": true,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "右下腹痛伴发热时应开立腹部超声评估阑尾及周围情况。"
+      },
+      {
+        "item_id": "ex_cbc",
+        "stage": "检查选择",
+        "description": "开立血常规",
+        "evidence_type": "exam_order",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "ex_urine",
+        "stage": "检查选择",
+        "description": "开立尿常规以评估泌尿系统原因",
+        "evidence_type": "exam_order",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "ureteral_stone",
+        "stage": "鉴别诊断",
+        "description": "提供输尿管结石的反对证据",
+        "evidence_type": "ddx_evidence",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": {
+          "supporting_keys": [],
+          "opposing_keys": [
+            "f_urine",
+            "ex_urine",
+            "f_pain_migration"
+          ],
+          "min_supporting": 0,
+          "min_opposing": 1,
+          "medically_reviewed": false
+        },
+        "improvement": ""
+      },
+      {
+        "item_id": "gastroenteritis",
+        "stage": "鉴别诊断",
+        "description": "提供急性胃肠炎的支持与反对证据",
+        "evidence_type": "ddx_evidence",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": {
+          "supporting_keys": [
+            "f_gi"
+          ],
+          "opposing_keys": [
+            "f_bowel",
+            "f_pain_migration",
+            "ex_us"
+          ],
+          "min_supporting": 1,
+          "min_opposing": 1,
+          "medically_reviewed": false
+        },
+        "improvement": ""
+      },
+      {
+        "item_id": "acute_appendicitis",
+        "stage": "诊断",
+        "description": "提交急性阑尾炎",
+        "evidence_type": "diagnosis",
+        "weight": 2.0,
+        "critical": true,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": {
+          "names": [
+            "急性阑尾炎",
+            "阑尾炎"
+          ],
+          "extra_positive": [
+            "{name}已确诊，建议手术",
+            "{name}，考虑手术治疗"
+          ],
+          "leak_terms": []
+        },
+        "differential": null,
+        "improvement": "请直接写出明确诊断，并避免否定或不确定的表述。"
+      },
+      {
+        "item_id": "surgical_consult",
+        "stage": "治疗",
+        "description": "确认请普外科会诊并准备手术",
+        "evidence_type": "treatment_execution",
+        "weight": 2.0,
+        "critical": true,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "诊断明确后应尽早确认外科会诊；仅计划不计入执行。"
+      },
+      {
+        "item_id": "fluids_antibiotics",
+        "stage": "治疗",
+        "description": "确认禁食、补液并使用抗生素",
+        "evidence_type": "treatment_execution",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      }
+    ],
+    "knowledge_manifest_sha256": "e54a60672059175a65a44186b98f1ac343f3188e9e5a83b797cb13b4dda60b47",
+    "knowledge_status": "draft_unreviewed",
+    "basis_hashes": {
+      "kb_chest_pain_history": "63f477dbbe8f22236a85ae9c86097e6d6fc23e174470792832e9209a538d0814",
+      "kb_ecg_first": "3e31bc725357ba491745eb35a0feea66284a10b5cd970963f895601f7412efd2",
+      "kb_troponin_role": "66a87f0e102cceed74620dcda9d2bc38ed54f003991b0a9e456a7c3a936c9898",
+      "kb_stemi_ecg_criteria": "06cb0cf71b45937732b5ccf758b7e352f99c45af9b9f0bd8d5bde5549d9964bd",
+      "kb_ddx_aortic_dissection": "4d2a57cc2b645c4bc0eb4088082f5ccbc11e3d624af15d88ff199426c413765a",
+      "kb_ddx_pulmonary_embolism": "91adfefa83e4674180ad49cf58a07ed64231572a6629c967a36980ea81f55e77",
+      "kb_reperfusion_timing": "37eb98c13be2a12597812a19497db21430390cc2e1f39b81f3e6be7c75f9f593",
+      "kb_aspirin_consideration": "9ef8ada26e1ae626d6000b81597666d1f8f18898600ebf55b7bca9b0732aa932",
+      "kb_feedback_principles": "3c999eb08540601a870c0758bfbe437d0fc67a1b0751fd2d1e6b75c36508fd8c"
+    }
+  },
+  "engineering_pass": true,
+  "formal_acceptance": false,
+  "model": "deterministic simulator; zero real model calls",
+  "result": {
+    "score": {
+      "session_id": "301e38dd-fadc-465e-89f4-3572d6e797ce",
+      "seal_seq": 14,
+      "total_score": 17.0,
+      "max_score": 17.0,
+      "status": "complete",
+      "items": [
+        {
+          "item_id": "f_pain_migration",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "660f0658-f9ed-49e0-8c77-0aa2be7f98fd"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "f_onset",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "90882911-d984-4527-8d78-4ec6e4d29810"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "f_fever",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "2c196375-cfdc-4840-bc59-1576baf48256"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "f_gi",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "bc70c04b-51fc-4e13-b295-6edca8f3f85d"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "f_hx",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "4b9ef6ef-f377-41d0-9a02-3ffd7762cf43"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "ex_us",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 2.0,
+          "max_score": 2.0,
+          "evidence_event_ids": [
+            "77b006d9-472c-449d-be71-28eceeed5263"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "ex_cbc",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "f0e64fbf-34e3-45bf-a44b-daa420436f9f"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "ex_urine",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "18b3128f-858d-48d2-bf85-1170ed2d58af"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "ureteral_stone",
+          "stage": "鉴别诊断",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "660f0658-f9ed-49e0-8c77-0aa2be7f98fd"
+          ],
+          "reason": "已找到符合病例规则的支持/反对证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "gastroenteritis",
+          "stage": "鉴别诊断",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "bc70c04b-51fc-4e13-b295-6edca8f3f85d",
+            "e48a93e2-07e8-43c6-bd06-5a5643a40e14"
+          ],
+          "reason": "已找到符合病例规则的支持/反对证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "acute_appendicitis",
+          "stage": "诊断",
+          "hit": true,
+          "score": 2.0,
+          "max_score": 2.0,
+          "evidence_event_ids": [
+            "ab3df445-b2e2-4d60-84d2-ea1463521a83"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "surgical_consult",
+          "stage": "治疗",
+          "hit": true,
+          "score": 2.0,
+          "max_score": 2.0,
+          "evidence_event_ids": [
+            "5f1d59f5-e685-4017-ad75-59d362c62252"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "fluids_antibiotics",
+          "stage": "治疗",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "c78513c3-a14d-4565-b731-ebc5c2ab695e"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "exam_stewardship",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [],
+          "reason": "未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 200 元）",
+          "improvement": ""
+        }
+      ],
+      "generated_at": "2026-11-27T08:46:28.133321Z"
+    },
+    "feedback": {
+      "source": "local_rules",
+      "review_status": "local_rules",
+      "basis_status": "draft_unreviewed",
+      "items": [
+        {
+          "stage": "病史采集",
+          "comment": "本环节得分 5/5。 已完成：询问疼痛部位及是否转移（已找到符合条件的事件证据） 已完成：询问起病时间和诱因（已找到符合条件的事件证据） 已完成：询问是否发热（已找到符合条件的事件证据） 已完成：询问恶心呕吐和食欲（已找到符合条件的事件证据） 已完成：询问既往史、手术史和过敏史（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "660f0658-f9ed-49e0-8c77-0aa2be7f98fd",
+            "90882911-d984-4527-8d78-4ec6e4d29810",
+            "2c196375-cfdc-4840-bc59-1576baf48256",
+            "bc70c04b-51fc-4e13-b295-6edca8f3f85d",
+            "4b9ef6ef-f377-41d0-9a02-3ffd7762cf43"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "检查选择",
+          "comment": "本环节得分 5/5。 已完成：开立腹部超声（已找到符合条件的事件证据） 已完成：开立血常规（已找到符合条件的事件证据） 已完成：开立尿常规以评估泌尿系统原因（已找到符合条件的事件证据） 已完成：检查选择（未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 200 元））",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "77b006d9-472c-449d-be71-28eceeed5263",
+            "f0e64fbf-34e3-45bf-a44b-daa420436f9f",
+            "18b3128f-858d-48d2-bf85-1170ed2d58af"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "鉴别诊断",
+          "comment": "本环节得分 2/2。 已完成：提供输尿管结石的反对证据（已找到符合病例规则的支持/反对证据） 已完成：提供急性胃肠炎的支持与反对证据（已找到符合病例规则的支持/反对证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "660f0658-f9ed-49e0-8c77-0aa2be7f98fd",
+            "bc70c04b-51fc-4e13-b295-6edca8f3f85d",
+            "e48a93e2-07e8-43c6-bd06-5a5643a40e14"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "诊断",
+          "comment": "本环节得分 2/2。 已完成：诊断结论（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "ab3df445-b2e2-4d60-84d2-ea1463521a83"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "治疗",
+          "comment": "本环节得分 3/3。 已完成：确认请普外科会诊并准备手术（已找到符合条件的事件证据） 已完成：确认禁食、补液并使用抗生素（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "5f1d59f5-e685-4017-ad75-59d362c62252",
+            "c78513c3-a14d-4565-b731-ebc5c2ab695e"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        }
+      ],
+      "teaching_basis": [
+        {
+          "basis_id": "kb_feedback_principles",
+          "title": "训练反馈的撰写原则",
+          "sources": [
+            "项目自拟的反馈撰写规范"
+          ],
+          "restricted": false,
+          "revision": 1,
+          "content_hash": "3c999eb08540601a870c0758bfbe437d0fc67a1b0751fd2d1e6b75c36508fd8c"
+        }
+      ],
+      "basis_provenance": "snapshot",
+      "review_revision": 0,
+      "basis_coverage": {
+        "status": "draft_unreviewed",
+        "missing_clinical_stages": [
+          "病史采集",
+          "检查选择",
+          "鉴别诊断",
+          "诊断",
+          "治疗"
+        ],
+        "notice": "通用反馈规范不属于专科临床依据；存在条目不代表来源已核对或医学审核通过。"
+      },
+      "notice": "反馈基于原封存规则评分，教师评分裁定独立展示；反馈与教学依据均为未经医学审核的教学草稿。"
+    },
+    "replay_event_count": 15,
+    "state": {
+      "exam_cost_total": 200,
+      "session_id": "301e38dd-fadc-465e-89f4-3572d6e797ce",
+      "workflow": "submitted",
+      "clinical_state": "initial",
+      "sim_time_minutes": 45,
+      "case_notes": "工程自测病历，非真实患者，未经医学审核。\n病史记录：\n问：哪里痛，有没有转移\n答：一开始是肚脐周围隐隐作痛，后来逐渐转移到右下腹。\n问：什么时候开始的，有没有受伤或明显诱因\n答：大约24小时前开始的，没有受伤，没有明显诱因。\n问：发热多少度\n答：自己量过体温，37.8℃，有点发热。\n问：有没有恶心呕吐，食欲怎么样\n答：有恶心，吐过一次，食欲很差。\n问：既往身体怎么样，有没有做过手术或药物过敏\n答：既往体健，没有做过手术，没有药物过敏。\n已回报检查：\n腹部超声：\"阑尾增粗并周围渗出\"\n血常规：\"白细胞及中性粒细胞比例升高\"\n尿常规：\"未见红细胞\"\n模拟时间：45分钟。",
+      "submissions": {
+        "diagnosis": "急性阑尾炎",
+        "differential": [
+          {
+            "candidate_id": "ureteral_stone",
+            "supporting_evidence": [],
+            "opposing_evidence": [
+              "一开始是肚脐周围隐隐作痛，后来逐渐转移到右下腹"
+            ],
+            "evidence_event_ids": [
+              "660f0658-f9ed-49e0-8c77-0aa2be7f98fd"
+            ]
+          },
+          {
+            "candidate_id": "gastroenteritis",
+            "supporting_evidence": [
+              "有恶心，吐过一次"
+            ],
+            "opposing_evidence": [
+              "阑尾增粗并周围渗出"
+            ],
+            "evidence_event_ids": [
+              "bc70c04b-51fc-4e13-b295-6edca8f3f85d",
+              "e48a93e2-07e8-43c6-bd06-5a5643a40e14"
+            ]
+          }
+        ],
+        "treatment": {
+          "treatment_id": "fluids_antibiotics",
+          "parameters": {},
+          "confirm_execution": true,
+          "treatment_name": "禁食、补液并使用抗生素"
+        }
+      },
+      "disclosed_fact_count": 5,
+      "clinical_updates": [],
+      "orders": [
+        {
+          "state": "ready",
+          "exam_name": "腹部超声",
+          "category": "影像",
+          "cost": 160,
+          "catalog_id": "cat_029",
+          "ordered_sim_time": 0,
+          "sample_sim_time": 0,
+          "return_sim_time": 45,
+          "result": "阑尾增粗并周围渗出",
+          "viewed": false
+        },
+        {
+          "state": "ready",
+          "exam_name": "血常规",
+          "category": "床旁与基础检验",
+          "cost": 25,
+          "catalog_id": "cat_003",
+          "ordered_sim_time": 0,
+          "sample_sim_time": 0,
+          "return_sim_time": 30,
+          "result": "白细胞及中性粒细胞比例升高",
+          "viewed": false
+        },
+        {
+          "state": "ready",
+          "exam_name": "尿常规",
+          "category": "床旁与基础检验",
+          "cost": 15,
+          "catalog_id": "cat_004",
+          "ordered_sim_time": 0,
+          "sample_sim_time": 0,
+          "return_sim_time": 20,
+          "result": "未见红细胞",
+          "viewed": false
+        }
+      ],
+      "events": [
+        {
+          "event_id": "660f0658-f9ed-49e0-8c77-0aa2be7f98fd",
+          "request_id": "r1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "哪里痛，有没有转移",
+          "result": {
+            "answer": "一开始是肚脐周围隐隐作痛，后来逐渐转移到右下腹。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "90882911-d984-4527-8d78-4ec6e4d29810",
+          "request_id": "r2",
+          "seq": 2,
+          "action": "ask",
+          "intent": "什么时候开始的，有没有受伤或明显诱因",
+          "result": {
+            "answer": "大约24小时前开始的，没有受伤，没有明显诱因。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "2c196375-cfdc-4840-bc59-1576baf48256",
+          "request_id": "r3",
+          "seq": 3,
+          "action": "ask",
+          "intent": "发热多少度",
+          "result": {
+            "answer": "自己量过体温，37.8℃，有点发热。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "bc70c04b-51fc-4e13-b295-6edca8f3f85d",
+          "request_id": "r4",
+          "seq": 4,
+          "action": "ask",
+          "intent": "有没有恶心呕吐，食欲怎么样",
+          "result": {
+            "answer": "有恶心，吐过一次，食欲很差。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "4b9ef6ef-f377-41d0-9a02-3ffd7762cf43",
+          "request_id": "r5",
+          "seq": 5,
+          "action": "ask",
+          "intent": "既往身体怎么样，有没有做过手术或药物过敏",
+          "result": {
+            "answer": "既往体健，没有做过手术，没有药物过敏。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "77b006d9-472c-449d-be71-28eceeed5263",
+          "request_id": "r6",
+          "seq": 6,
+          "action": "order_exam",
+          "intent": null,
+          "result": {
+            "state": "pending"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "f0e64fbf-34e3-45bf-a44b-daa420436f9f",
+          "request_id": "r7",
+          "seq": 7,
+          "action": "order_exam",
+          "intent": null,
+          "result": {
+            "state": "pending"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "18b3128f-858d-48d2-bf85-1170ed2d58af",
+          "request_id": "r8",
+          "seq": 8,
+          "action": "order_exam",
+          "intent": null,
+          "result": {
+            "state": "pending"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "e48a93e2-07e8-43c6-bd06-5a5643a40e14",
+          "request_id": "r9",
+          "seq": 9,
+          "action": "wait",
+          "intent": null,
+          "result": {
+            "advanced_minutes": 45,
+            "clinical_state": "initial",
+            "clinical_updates": [],
+            "exam_results": [
+              {
+                "name": "腹部超声",
+                "result": "阑尾增粗并周围渗出"
+              },
+              {
+                "name": "血常规",
+                "result": "白细胞及中性粒细胞比例升高"
+              },
+              {
+                "name": "尿常规",
+                "result": "未见红细胞"
+              }
+            ]
+          },
+          "sim_time": 45,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 45
+          }
+        },
+        {
+          "event_id": "4d151f01-8593-4cde-a8d1-bbae5aced2f6",
+          "request_id": "r10",
+          "seq": 10,
+          "action": "update_notes",
+          "intent": null,
+          "result": {
+            "submitted": true
+          },
+          "sim_time": 45,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 45
+          }
+        },
+        {
+          "event_id": "b013d2af-7476-43e3-9ebd-6e30e50c07a5",
+          "request_id": "r11",
+          "seq": 11,
+          "action": "submit_differential",
+          "intent": null,
+          "result": {
+            "submitted": true,
+            "candidates": [
+              {
+                "candidate_id": "ureteral_stone",
+                "supporting_evidence": [],
+                "opposing_evidence": [
+                  "一开始是肚脐周围隐隐作痛，后来逐渐转移到右下腹"
+                ],
+                "evidence_event_ids": [
+                  "660f0658-f9ed-49e0-8c77-0aa2be7f98fd"
+                ]
+              },
+              {
+                "candidate_id": "gastroenteritis",
+                "supporting_evidence": [
+                  "有恶心，吐过一次"
+                ],
+                "opposing_evidence": [
+                  "阑尾增粗并周围渗出"
+                ],
+                "evidence_event_ids": [
+                  "bc70c04b-51fc-4e13-b295-6edca8f3f85d",
+                  "e48a93e2-07e8-43c6-bd06-5a5643a40e14"
+                ]
+              }
+            ]
+          },
+          "sim_time": 45,
+          "state_after": {
+            "workflow": "differential",
+            "clinical_state": "initial",
+            "sim_time_minutes": 45
+          }
+        },
+        {
+          "event_id": "ab3df445-b2e2-4d60-84d2-ea1463521a83",
+          "request_id": "r12",
+          "seq": 12,
+          "action": "submit_diagnosis",
+          "intent": null,
+          "result": {
+            "submitted": true,
+            "diagnosis": "急性阑尾炎"
+          },
+          "sim_time": 45,
+          "state_after": {
+            "workflow": "diagnosis",
+            "clinical_state": "initial",
+            "sim_time_minutes": 45
+          }
+        },
+        {
+          "event_id": "5f1d59f5-e685-4017-ad75-59d362c62252",
+          "request_id": "r13",
+          "seq": 13,
+          "action": "execute_treatment",
+          "intent": null,
+          "result": {
+            "executed": true,
+            "clinical_state": "initial",
+            "clinical_updates": [],
+            "treatment": {
+              "treatment_id": "surgical_consult",
+              "parameters": {},
+              "confirm_execution": true
+            }
+          },
+          "sim_time": 45,
+          "state_after": {
+            "workflow": "treatment",
+            "clinical_state": "initial",
+            "sim_time_minutes": 45
+          }
+        },
+        {
+          "event_id": "c78513c3-a14d-4565-b731-ebc5c2ab695e",
+          "request_id": "r14",
+          "seq": 14,
+          "action": "execute_treatment",
+          "intent": null,
+          "result": {
+            "executed": true,
+            "clinical_state": "initial",
+            "clinical_updates": [],
+            "treatment": {
+              "treatment_id": "fluids_antibiotics",
+              "parameters": {},
+              "confirm_execution": true
+            }
+          },
+          "sim_time": 45,
+          "state_after": {
+            "workflow": "treatment",
+            "clinical_state": "initial",
+            "sim_time_minutes": 45
+          }
+        },
+        {
+          "event_id": "c0e85560-4025-46e7-b9d3-2e2005c54122",
+          "request_id": "r15",
+          "seq": 15,
+          "action": "seal",
+          "intent": null,
+          "result": {},
+          "sim_time": 45,
+          "state_after": {
+            "workflow": "submitted",
+            "clinical_state": "initial",
+            "sim_time_minutes": 45
+          }
+        }
+      ],
+      "sealed": true,
+      "seal_seq": 14,
+      "seal_sim_time": 45,
+      "state_version": 15
+    }
+  },
+  "checks": [
+    {
+      "name": "病历保存并重新读取一致",
+      "expected": "工程自测病历，非真实患者，未经医学审核。\n病史记录：\n问：哪里痛，有没有转移\n答：一开始是肚脐周围隐隐作痛，后来逐渐转移到右下腹。\n问：什么时候开始的，有没有受伤或明显诱因\n答：大约24小时前开始的，没有受伤，没有明显诱因。\n问：发热多少度\n答：自己量过体温，37.8℃，有点发热。\n问：有没有恶心呕吐，食欲怎么样\n答：有恶心，吐过一次，食欲很差。\n问：既往身体怎么样，有没有做过手术或药物过敏\n答：既往体健，没有做过手术，没有药物过敏。\n已回报检查：\n腹部超声：\"阑尾增粗并周围渗出\"\n血常规：\"白细胞及中性粒细胞比例升高\"\n尿常规：\"未见红细胞\"\n模拟时间：45分钟。",
+      "actual": "工程自测病历，非真实患者，未经医学审核。\n病史记录：\n问：哪里痛，有没有转移\n答：一开始是肚脐周围隐隐作痛，后来逐渐转移到右下腹。\n问：什么时候开始的，有没有受伤或明显诱因\n答：大约24小时前开始的，没有受伤，没有明显诱因。\n问：发热多少度\n答：自己量过体温，37.8℃，有点发热。\n问：有没有恶心呕吐，食欲怎么样\n答：有恶心，吐过一次，食欲很差。\n问：既往身体怎么样，有没有做过手术或药物过敏\n答：既往体健，没有做过手术，没有药物过敏。\n已回报检查：\n腹部超声：\"阑尾增粗并周围渗出\"\n血常规：\"白细胞及中性粒细胞比例升高\"\n尿常规：\"未见红细胞\"\n模拟时间：45分钟。",
+      "passed": true
+    },
+    {
+      "name": "现有量表各项均命中",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "现有量表总分匹配",
+      "expected": 17.0,
+      "actual": 17.0,
+      "passed": true
+    },
+    {
+      "name": "五环节评分存在",
+      "expected": 5,
+      "actual": 5,
+      "passed": true
+    },
+    {
+      "name": "反馈生成后可重新读取",
+      "expected": [
+        {
+          "stage": "病史采集",
+          "comment": "本环节得分 5/5。 已完成：询问疼痛部位及是否转移（已找到符合条件的事件证据） 已完成：询问起病时间和诱因（已找到符合条件的事件证据） 已完成：询问是否发热（已找到符合条件的事件证据） 已完成：询问恶心呕吐和食欲（已找到符合条件的事件证据） 已完成：询问既往史、手术史和过敏史（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "660f0658-f9ed-49e0-8c77-0aa2be7f98fd",
+            "90882911-d984-4527-8d78-4ec6e4d29810",
+            "2c196375-cfdc-4840-bc59-1576baf48256",
+            "bc70c04b-51fc-4e13-b295-6edca8f3f85d",
+            "4b9ef6ef-f377-41d0-9a02-3ffd7762cf43"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "检查选择",
+          "comment": "本环节得分 5/5。 已完成：开立腹部超声（已找到符合条件的事件证据） 已完成：开立血常规（已找到符合条件的事件证据） 已完成：开立尿常规以评估泌尿系统原因（已找到符合条件的事件证据） 已完成：检查选择（未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 200 元））",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "77b006d9-472c-449d-be71-28eceeed5263",
+            "f0e64fbf-34e3-45bf-a44b-daa420436f9f",
+            "18b3128f-858d-48d2-bf85-1170ed2d58af"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "鉴别诊断",
+          "comment": "本环节得分 2/2。 已完成：提供输尿管结石的反对证据（已找到符合病例规则的支持/反对证据） 已完成：提供急性胃肠炎的支持与反对证据（已找到符合病例规则的支持/反对证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "660f0658-f9ed-49e0-8c77-0aa2be7f98fd",
+            "bc70c04b-51fc-4e13-b295-6edca8f3f85d",
+            "e48a93e2-07e8-43c6-bd06-5a5643a40e14"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "诊断",
+          "comment": "本环节得分 2/2。 已完成：诊断结论（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "ab3df445-b2e2-4d60-84d2-ea1463521a83"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "治疗",
+          "comment": "本环节得分 3/3。 已完成：确认请普外科会诊并准备手术（已找到符合条件的事件证据） 已完成：确认禁食、补液并使用抗生素（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "5f1d59f5-e685-4017-ad75-59d362c62252",
+            "c78513c3-a14d-4565-b731-ebc5c2ab695e"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        }
+      ],
+      "actual": [
+        {
+          "stage": "病史采集",
+          "comment": "本环节得分 5/5。 已完成：询问疼痛部位及是否转移（已找到符合条件的事件证据） 已完成：询问起病时间和诱因（已找到符合条件的事件证据） 已完成：询问是否发热（已找到符合条件的事件证据） 已完成：询问恶心呕吐和食欲（已找到符合条件的事件证据） 已完成：询问既往史、手术史和过敏史（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "660f0658-f9ed-49e0-8c77-0aa2be7f98fd",
+            "90882911-d984-4527-8d78-4ec6e4d29810",
+            "2c196375-cfdc-4840-bc59-1576baf48256",
+            "bc70c04b-51fc-4e13-b295-6edca8f3f85d",
+            "4b9ef6ef-f377-41d0-9a02-3ffd7762cf43"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "检查选择",
+          "comment": "本环节得分 5/5。 已完成：开立腹部超声（已找到符合条件的事件证据） 已完成：开立血常规（已找到符合条件的事件证据） 已完成：开立尿常规以评估泌尿系统原因（已找到符合条件的事件证据） 已完成：检查选择（未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 200 元））",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "77b006d9-472c-449d-be71-28eceeed5263",
+            "f0e64fbf-34e3-45bf-a44b-daa420436f9f",
+            "18b3128f-858d-48d2-bf85-1170ed2d58af"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "鉴别诊断",
+          "comment": "本环节得分 2/2。 已完成：提供输尿管结石的反对证据（已找到符合病例规则的支持/反对证据） 已完成：提供急性胃肠炎的支持与反对证据（已找到符合病例规则的支持/反对证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "660f0658-f9ed-49e0-8c77-0aa2be7f98fd",
+            "bc70c04b-51fc-4e13-b295-6edca8f3f85d",
+            "e48a93e2-07e8-43c6-bd06-5a5643a40e14"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "诊断",
+          "comment": "本环节得分 2/2。 已完成：诊断结论（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "ab3df445-b2e2-4d60-84d2-ea1463521a83"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "治疗",
+          "comment": "本环节得分 3/3。 已完成：确认请普外科会诊并准备手术（已找到符合条件的事件证据） 已完成：确认禁食、补液并使用抗生素（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "5f1d59f5-e685-4017-ad75-59d362c62252",
+            "c78513c3-a14d-4565-b731-ebc5c2ab695e"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "反馈为本地模拟规则而非真实模型",
+      "expected": "local_rules",
+      "actual": "local_rules",
+      "passed": true
+    },
+    {
+      "name": "五环节反馈完整",
+      "expected": 5,
+      "actual": 5,
+      "passed": true
+    },
+    {
+      "name": "封存后仍可读取回放事件",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "回放事件按序排列",
+      "expected": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "actual": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "passed": true
+    }
+  ]
+}

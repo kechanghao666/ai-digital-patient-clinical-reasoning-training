@@ -19,3 +19,7 @@
 /docs/evidence/official-20261127/*.md -text -whitespace
 /docs/evidence/official-20261127/upstream-LICENSE -text -whitespace
 /docs/evidence/official-20261127/sources.json text eol=lf
+# Preserve audit JSON layout and the original Windows test-log bytes.
+/docs/evidence/comprehensive-review-20261127/*.json text eol=lf
+/docs/evidence/comprehensive-review-20261127/pytest.log.txt -text -whitespace
+/docs/review-forms-20261127/*.json text eol=lf

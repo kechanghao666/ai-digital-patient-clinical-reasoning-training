@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-27",
+  "starting_commit": "c11265d7c8aa85447cca6a2230dcd173cf463037",
+  "tested_worktree": true,
+  "backend_product_changed": false,
+  "pytest": {
+    "passed": 863,
+    "failed": 0,
+    "seconds": 187.08,
+    "command": "python -m pytest -q -p no:cacheprovider",
+    "log_sha256": "797925b4636abb1dd1dac26b797b83a1e7f54033cce123bb189578360ad3c7cb"
+  },
+  "new_controlled_wait_cases": 3,
+  "frontend": {
+    "typecheck": "passed",
+    "build": "passed",
+    "npm_audit_high": "passed; 0 vulnerabilities reported"
+  },
+  "engineering_samples": {
+    "passed": 12,
+    "total": 12,
+    "code_sha": "c11265d7c8aa85447cca6a2230dcd173cf463037"
+  },
+  "real_model_calls": 0,
+  "formal_acceptance": false,
+  "implementation_commit": "ab5154de5d0f920c7ae14de8aae0e9c0138bad9f",
+  "browser_demo": {
+    "passed": 13,
+    "total": 13,
+    "evidence": "browser-demo.json"
+  }
+}

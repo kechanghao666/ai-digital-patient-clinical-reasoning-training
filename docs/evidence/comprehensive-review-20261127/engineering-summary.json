@@ -1,0 +1,172 @@
+{
+  "code_sha": "c11265d7c8aa85447cca6a2230dcd173cf463037",
+  "samples": 12,
+  "complete": 12,
+  "engineering_pass": 12,
+  "formal_acceptance": false,
+  "rows": [
+    {
+      "sample_id": "SIM-01",
+      "case": "CASE-001",
+      "scenario": "normal",
+      "complete": true,
+      "engineering_pass": true,
+      "requests": 20,
+      "checks": 9,
+      "limitations": [
+        "病例、量表与依据未经医学审核；不是正式学生或真实平台样本。"
+      ]
+    },
+    {
+      "sample_id": "SIM-02",
+      "case": "CASE-002",
+      "scenario": "normal",
+      "complete": true,
+      "engineering_pass": true,
+      "requests": 23,
+      "checks": 9,
+      "limitations": [
+        "病例、量表与依据未经医学审核；不是正式学生或真实平台样本。",
+        "缺适用专科临床依据：病史采集、检查选择、鉴别诊断、诊断、治疗"
+      ]
+    },
+    {
+      "sample_id": "SIM-03",
+      "case": "CASE-003",
+      "scenario": "normal",
+      "complete": true,
+      "engineering_pass": true,
+      "requests": 24,
+      "checks": 9,
+      "limitations": [
+        "病例、量表与依据未经医学审核；不是正式学生或真实平台样本。",
+        "缺适用专科临床依据：病史采集、检查选择、鉴别诊断、诊断、治疗"
+      ]
+    },
+    {
+      "sample_id": "SIM-04",
+      "case": "CASE-004",
+      "scenario": "normal",
+      "complete": true,
+      "engineering_pass": true,
+      "requests": 22,
+      "checks": 9,
+      "limitations": [
+        "病例、量表与依据未经医学审核；不是正式学生或真实平台样本。",
+        "缺适用专科临床依据：病史采集、检查选择、鉴别诊断、诊断、治疗"
+      ]
+    },
+    {
+      "sample_id": "SIM-05",
+      "case": "CASE-005",
+      "scenario": "normal",
+      "complete": true,
+      "engineering_pass": true,
+      "requests": 22,
+      "checks": 9,
+      "limitations": [
+        "病例、量表与依据未经医学审核；不是正式学生或真实平台样本。",
+        "缺适用专科临床依据：病史采集、检查选择、鉴别诊断、诊断、治疗",
+        "合并补液/胰岛素动作未充分判断安全证据与适用性。"
+      ]
+    },
+    {
+      "sample_id": "SIM-06",
+      "case": "CASE-001",
+      "scenario": "delay",
+      "complete": true,
+      "engineering_pass": true,
+      "requests": 13,
+      "checks": 11,
+      "limitations": [
+        "病例、量表与依据未经医学审核；不是正式学生或真实平台样本。",
+        "仅覆盖现有回报后延误工程阈值，不能据此声明错误分支100%或临床可安全等待时间。"
+      ]
+    },
+    {
+      "sample_id": "SIM-07",
+      "case": "CASE-002",
+      "scenario": "delay",
+      "complete": true,
+      "engineering_pass": true,
+      "requests": 13,
+      "checks": 11,
+      "limitations": [
+        "病例、量表与依据未经医学审核；不是正式学生或真实平台样本。",
+        "缺适用专科临床依据：病史采集、检查选择、鉴别诊断、诊断、治疗",
+        "仅覆盖现有回报后延误工程阈值，不能据此声明错误分支100%或临床可安全等待时间。"
+      ]
+    },
+    {
+      "sample_id": "SIM-08",
+      "case": "CASE-003",
+      "scenario": "delay",
+      "complete": true,
+      "engineering_pass": true,
+      "requests": 13,
+      "checks": 11,
+      "limitations": [
+        "病例、量表与依据未经医学审核；不是正式学生或真实平台样本。",
+        "缺适用专科临床依据：病史采集、检查选择、鉴别诊断、诊断、治疗",
+        "仅覆盖现有回报后延误工程阈值，不能据此声明错误分支100%或临床可安全等待时间。"
+      ]
+    },
+    {
+      "sample_id": "SIM-09",
+      "case": "CASE-004",
+      "scenario": "delay",
+      "complete": true,
+      "engineering_pass": true,
+      "requests": 13,
+      "checks": 11,
+      "limitations": [
+        "病例、量表与依据未经医学审核；不是正式学生或真实平台样本。",
+        "缺适用专科临床依据：病史采集、检查选择、鉴别诊断、诊断、治疗",
+        "仅覆盖现有回报后延误工程阈值，不能据此声明错误分支100%或临床可安全等待时间。"
+      ]
+    },
+    {
+      "sample_id": "SIM-10",
+      "case": "CASE-005",
+      "scenario": "delay",
+      "complete": true,
+      "engineering_pass": true,
+      "requests": 13,
+      "checks": 11,
+      "limitations": [
+        "病例、量表与依据未经医学审核；不是正式学生或真实平台样本。",
+        "缺适用专科临床依据：病史采集、检查选择、鉴别诊断、诊断、治疗",
+        "合并补液/胰岛素动作未充分判断安全证据与适用性。",
+        "仅覆盖现有回报后延误工程阈值，不能据此声明错误分支100%或临床可安全等待时间。"
+      ]
+    },
+    {
+      "sample_id": "SIM-11",
+      "case": "CASE-001",
+      "scenario": "boundary",
+      "complete": true,
+      "engineering_pass": true,
+      "requests": 12,
+      "checks": 9,
+      "limitations": [
+        "病例、量表与依据未经医学审核；不是正式学生或真实平台样本。"
+      ]
+    },
+    {
+      "sample_id": "SIM-12",
+      "case": "CASE-002",
+      "scenario": "boundary",
+      "complete": true,
+      "engineering_pass": true,
+      "requests": 13,
+      "checks": 10,
+      "limitations": [
+        "病例、量表与依据未经医学审核；不是正式学生或真实平台样本。",
+        "缺适用专科临床依据：病史采集、检查选择、鉴别诊断、诊断、治疗"
+      ]
+    }
+  ],
+  "original_database_unchanged": true,
+  "tested_worktree": true,
+  "change_note": "Only runner reporting changed: the historical stroke v1 warning is conditional on case version 1. Product cases unchanged."
+}
