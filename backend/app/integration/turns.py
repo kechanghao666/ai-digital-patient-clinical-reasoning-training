@@ -67,6 +67,8 @@ class Turn:
     submission: Any
     created_at: float
     cancel_reason: str | None = None
+    finalized_at: float | None = None
+    mode: str = "unknown"
 
 
 _SCHEMA = """
@@ -86,7 +88,9 @@ CREATE TABLE IF NOT EXISTS turns (
     expires_at REAL NOT NULL,
     submission_json TEXT,
     cancel_reason TEXT,
-    created_at REAL NOT NULL
+    created_at REAL NOT NULL,
+    finalized_at REAL,
+    mode TEXT NOT NULL DEFAULT 'unknown'
 );
 CREATE INDEX IF NOT EXISTS idx_turns_session ON turns(session_id, kind, created_at);
 CREATE TABLE IF NOT EXISTS turn_calls (
@@ -121,6 +125,13 @@ class TurnStore:
         # WAL is persistent in the file; switch once here. Switching needs an exclusive lock and does not
         # wait on the busy handler, so doing it on every connection fails under concurrent requests.
         _initialise(self._connect, _SCHEMA)
+        # Additive migration for stores created before observability fields existed.
+        with self._connect() as connection:
+            columns = {row["name"] for row in connection.execute("PRAGMA table_info(turns)")}
+            if "finalized_at" not in columns:
+                connection.execute("ALTER TABLE turns ADD COLUMN finalized_at REAL")
+            if "mode" not in columns:
+                connection.execute("ALTER TABLE turns ADD COLUMN mode TEXT NOT NULL DEFAULT 'unknown'")
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
@@ -151,6 +162,8 @@ class TurnStore:
             submission=submission,
             created_at=row["created_at"],
             cancel_reason=row["cancel_reason"],
+            finalized_at=row["finalized_at"],
+            mode=row["mode"],
         )
 
     def issue(
@@ -167,6 +180,7 @@ class TurnStore:
         candidate_fact_ids: Iterable[str] = (),
         ttl_s: float = 120.0,
         now: float | None = None,
+        mode: str = "unknown",
     ) -> tuple[Turn, str]:
         if kind not in {PATIENT, FEEDBACK}:
             raise ValueError("unknown turn kind")
@@ -183,12 +197,12 @@ class TurnStore:
             )
             connection.execute(
                 "INSERT INTO turns(turn_id, secret_hash, kind, owner_id, session_id, case_id, case_version, "
-                "request_id, state_version, question, candidates_json, status, expires_at, created_at) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "request_id, state_version, question, candidates_json, status, expires_at, created_at, mode) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     turn_id, _hash(secret), kind, owner_id, session_id, case_id, case_version,
                     request_id, state_version, question, json.dumps(list(candidate_fact_ids)),
-                    OPEN, now + ttl_s, now,
+                    OPEN, now + ttl_s, now, mode,
                 ),
             )
             row = connection.execute("SELECT * FROM turns WHERE turn_id=?", (turn_id,)).fetchone()
@@ -233,8 +247,8 @@ class TurnStore:
     def finalize(self, turn_id: str) -> bool:
         with self.lock, self._connect() as connection:
             updated = connection.execute(
-                "UPDATE turns SET status=? WHERE turn_id=? AND status=? AND expires_at>=?",
-                (FINALIZED, turn_id, SUBMITTED, time.time()),
+                "UPDATE turns SET status=?, finalized_at=? WHERE turn_id=? AND status=? AND expires_at>=?",
+                (FINALIZED, time.time(), turn_id, SUBMITTED, time.time()),
             )
             return updated.rowcount == 1
 
@@ -265,3 +279,54 @@ class TurnStore:
                 "SELECT tool, ok, detail, at FROM turn_calls WHERE turn_id=? ORDER BY call_id", (turn_id,)
             ).fetchall()
         return [{"tool": r["tool"], "ok": bool(r["ok"]), "detail": r["detail"], "at": r["at"]} for r in rows]
+
+    def stats(self) -> dict[str, Any]:
+        """Observability aggregate over recorded turns and tool calls.
+
+        Counts by kind/mode/status, tool-call failure rate, and finalized-turn latency. ``mode`` is
+        whatever the adapter recorded at issue time (e.g. "nexent" for the real platform, "simulator"
+        for the rule engine); token and price figures are intentionally absent and must not be
+        fabricated here.
+        """
+        with self.lock, self._connect() as connection:
+            turn_rows = connection.execute(
+                "SELECT kind, mode, status, created_at, finalized_at FROM turns"
+            ).fetchall()
+            call_rows = connection.execute("SELECT ok FROM turn_calls").fetchall()
+        turns_total = len(turn_rows)
+        by_kind: dict[str, int] = {}
+        by_mode: dict[str, int] = {}
+        by_status: dict[str, int] = {}
+        latencies: list[float] = []
+        for row in turn_rows:
+            by_kind[row["kind"]] = by_kind.get(row["kind"], 0) + 1
+            by_mode[row["mode"]] = by_mode.get(row["mode"], 0) + 1
+            by_status[row["status"]] = by_status.get(row["status"], 0) + 1
+            if row["finalized_at"] is not None and row["created_at"] is not None:
+                latencies.append(max(0.0, row["finalized_at"] - row["created_at"]))
+        calls_total = len(call_rows)
+        calls_failed = sum(1 for row in call_rows if not row["ok"])
+        latencies.sort()
+        median = latencies[len(latencies) // 2] if latencies else None
+
+        def _round_ms(value: float | None) -> int | None:
+            return None if value is None else round(value * 1000)
+
+        return {
+            "turns_total": turns_total,
+            "by_kind": by_kind,
+            "by_mode": by_mode,
+            "by_status": by_status,
+            "calls_total": calls_total,
+            "calls_failed": calls_failed,
+            "calls_failure_rate": round(calls_failed / calls_total, 4) if calls_total else 0.0,
+            "latency": {
+                "finalized_count": len(latencies),
+                "min_ms": _round_ms(latencies[0]) if latencies else None,
+                "median_ms": _round_ms(median),
+                "max_ms": _round_ms(latencies[-1]) if latencies else None,
+            },
+            # Token usage and billing are not available here and are deliberately not invented.
+            "token_usage": "unknown",
+            "cost": "unknown",
+        }

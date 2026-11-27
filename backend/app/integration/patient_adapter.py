@@ -39,6 +39,7 @@ class NexentPatientAdapter:
             question=request.question,
             candidate_fact_ids=[fact.fact_id for fact in request.candidates],
             ttl_s=self.settings.turn_ttl_s,
+            mode=self.settings.mode,
         )
         if self.settings.patient_protocol == "single":
             agent_name = self.settings.patient_agent_single or self.settings.patient_agent_name

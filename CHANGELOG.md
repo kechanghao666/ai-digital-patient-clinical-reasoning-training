@@ -1,9 +1,17 @@
 # 更新记录
 
+## 2026-11-27 时延结论复核、可控等待加固与回合观测
+
+- 撤回上批「无可单独去除的人工等待 / 8–10 秒全来自模型流程 / 只能换模型或改协议」的过强结论：三处受控暂停只能证明未提前显示正文、未提前保存训练事件，释放后流程完成；真实平台各阶段耗时与可优化等待仍未完整定位。
+- 强化浏览器可控等待探针：假 Nexent 先建 SSE 流再驱动可信提交，「提交后」屏障移到响应头/流已建立、可信提交已完成、仅完成事件暂停的位置；记录 request_id / 服务端阶段 / 适配器 trace / 浏览器时点 / 屏障记录并标注各自计时起点（不能跨时钟相减）；暂停期核对「请求未完成 + 无正文 + 无保存」，释放后核对 HTTP/API/DOM/持久正文一致；用同一 request_id 真重放并核对平台运行次数与持久事件数不增；新增停滞超时场景核对失败不显示未完成答案、不保存；顶层 try/finally 清理浏览器与服务，ask_stack.py 关闭清理临时目录。
+- 复核 `test_nexent_deadlines.py` 放宽：停止确认映射由确定性用例 `test_stop_http_status_is_not_assumed_success` 锁定，真实套接字集成用例改为断言 peer 收到停止 + 显式结果（排除 `no_conversation`）；首事件截止补功能性断言（`event_count=0`/`first_event_ms=None`）并保留墙钟上界 1.0s（证据：原始全量失败 `elapsed_ms=500`）；新增确定性「注释不算事件」用例。
+- M12 可观测性：`TurnStore` 增加 `finalized_at` 与 `mode`（含增量迁移），`finalize` 记录完成时刻，新增 `stats()` 聚合次数/失败率/时延并区分模式；token/价格显式 `unknown` 不捏造；新增只读 CLI `scripts/turn_stats.py`。
+- 全量 866 项通过；真实模型调用 0。
+
 ## 2026-11-27 时延观测语义更正与浏览器可控等待
 
 - 更正 `/ask` 阶段语义：`selected` 改为 `adapter_returned`，明确它是适配器返回（模型运行与 finalize 结束），不是模型 `submit_fact_selection` 落库；`trusted_completion_ms` 是「首次观察到提交」的检测时刻，落库发生在独立 MCP 进程（`turn_calls.at` 墙钟）。撤销「提交落库→绘制全链路逐段拆开」的过强表述。
-- 浏览器端到端可控等待（`web/e2e/controlled-wait.mjs` + `web/e2e/ask_stack.py`）：在提交前、提交后、校验后注入事件屏障，证明三处暂停期间均不提前显示、不提前保存，答案只在完整链路结束后出现；8–10 秒等待来自模型流程自身，无可单独去除的人工等待。证据 `docs/evidence/2026-11-27-controlled-wait.json`。
+- 浏览器端到端可控等待（`web/e2e/controlled-wait.mjs` + `web/e2e/ask_stack.py`）：在提交前、提交后、校验后注入事件屏障，证明三处暂停期间均未提前显示正文、未提前保存训练事件，释放后流程完成；真实平台各阶段耗时与可优化等待仍未定位（假平台 `await drive` 后才建流、平台步骤时长非提交时刻、跨时钟不能相减、双 rAF 仅估算）。证据 `docs/evidence/2026-11-27-controlled-wait.json`。
 - 修复 `tests/test_nexent_deadlines.py` 两个在全量套件下偶发的时序断言：`stop_outcome` 不再强求 `acknowledged`（符合「停止失败或缓慢不另加等待预算」的既定契约），首事件截止的墙钟上限改为负载鲁棒倍数。
 - 全量 864 项通过；真实模型调用 0。
 

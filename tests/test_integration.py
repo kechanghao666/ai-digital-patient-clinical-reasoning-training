@@ -424,7 +424,7 @@ def test_concurrent_change_during_model_call_discards_stale_answer(tmp_path, mon
 
 
 # ---------------------------------------------------------------------- token / tool boundary
-def _issue(env: Env, sid: str, *, kind=PATIENT, version=0, ttl=60.0):
+def _issue(env: Env, sid: str, *, kind=PATIENT, version=0, ttl=60.0, mode="simulator"):
     session = env.repository.get(sid, "demo-integration")
     return env.runtime.turns.issue(
         kind=kind,
@@ -437,7 +437,39 @@ def _issue(env: Env, sid: str, *, kind=PATIENT, version=0, ttl=60.0):
         question="有高血压吗",
         candidate_fact_ids=["f_hx_htn"],
         ttl_s=ttl,
+        mode=mode,
     )
+
+
+def test_turn_stats_aggregate_calls_latency_and_mode(tmp_path, monkeypatch):
+    env = Env(tmp_path, monkeypatch)
+    sid = env.new_session()
+    turns = env.runtime.turns
+
+    # A finalized real-platform turn with one ok and one failed tool call.
+    turn, _token = _issue(env, sid, kind=PATIENT, mode="nexent")
+    assert turns.submit(turn.turn_id, {"fact_ids": ["f_hx_htn"]})
+    turns.record_call(turn.turn_id, "get_turn_context", ok=True)
+    turns.record_call(turn.turn_id, "submit_fact_selection", ok=False, detail="rejected")
+    assert turns.finalize(turn.turn_id)
+
+    # An unfinalized simulator turn with no calls.
+    _issue(env, sid, kind=PATIENT, mode="simulator")
+
+    stats = turns.stats()
+    assert stats["turns_total"] == 2
+    assert stats["by_mode"] == {"nexent": 1, "simulator": 1}
+    assert stats["by_kind"] == {PATIENT: 2}
+    assert stats["calls_total"] == 2
+    assert stats["calls_failed"] == 1
+    assert stats["calls_failure_rate"] == 0.5
+    assert stats["latency"]["finalized_count"] == 1
+    assert stats["latency"]["min_ms"] is not None and stats["latency"]["min_ms"] >= 0
+    assert stats["latency"]["median_ms"] == stats["latency"]["max_ms"]
+    assert stats["token_usage"] == "unknown" and stats["cost"] == "unknown"
+    # The finalized turn carries the mode and a finalized_at timestamp.
+    assert turns.get(turn.turn_id).mode == "nexent"
+    assert turns.get(turn.turn_id).finalized_at is not None
 
 
 def test_tokens_are_bound_and_unforgeable(tmp_path, monkeypatch):

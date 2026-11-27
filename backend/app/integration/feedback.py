@@ -497,6 +497,7 @@ class FeedbackService:
             request_id=request_id,
             state_version=state.state_version,
             ttl_s=max(self.settings.turn_ttl_s, self.settings.total_timeout_s + 30),
+            mode=self.settings.mode,
         )
         query = self._compact_query(state, case) if self.settings.feedback_protocol == "compact" else (
             "训练已封存。一次调用 get_sealed_review 读取评分、事件和 stage_basis 中的五环节依据，"
