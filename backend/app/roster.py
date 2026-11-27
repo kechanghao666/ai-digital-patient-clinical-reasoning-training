@@ -71,6 +71,14 @@ class RosterStore:
                     note TEXT NOT NULL DEFAULT '', created_at REAL NOT NULL,
                     archived INTEGER NOT NULL DEFAULT 0
                 );
+                CREATE TABLE IF NOT EXISTS semesters (
+                    id TEXT PRIMARY KEY, teacher_id TEXT NOT NULL REFERENCES accounts(id),
+                    name TEXT NOT NULL, start_date TEXT, end_date TEXT, created_at REAL NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS courses (
+                    id TEXT PRIMARY KEY, teacher_id TEXT NOT NULL REFERENCES accounts(id),
+                    semester_id TEXT REFERENCES semesters(id), name TEXT NOT NULL, created_at REAL NOT NULL
+                );
             """)
             db.execute("BEGIN IMMEDIATE")
             columns = {row["name"] for row in db.execute("PRAGMA table_info(assignments)")}
@@ -79,6 +87,12 @@ class RosterStore:
                 # no foreign key: deleting a group must not be blocked by archived history, and a
                 # stale group id on an archived task only loses its display label.
                 db.execute("ALTER TABLE assignments ADD COLUMN group_id TEXT")
+            class_columns = {row["name"] for row in db.execute("PRAGMA table_info(classes)")}
+            if "course_id" not in class_columns:
+                # Course association is optional; legacy classes stay whole as-is. No foreign key:
+                # a course can only be deleted while no class points at it, so a stale id cannot
+                # be created through the API.
+                db.execute("ALTER TABLE classes ADD COLUMN course_id TEXT")
 
     # ------------------------------------------------------------ classes
     def owned_class(self, class_id: str, teacher_id: str):
@@ -91,15 +105,18 @@ class RosterStore:
     def classes(self, teacher_id: str) -> list[dict]:
         with self.accounts.connect() as db:
             rows = db.execute("""
-                SELECT c.*, (SELECT COUNT(*) FROM class_members m WHERE m.class_id=c.id) AS students,
+                SELECT c.*, co.name AS course_name,
+                       (SELECT COUNT(*) FROM class_members m WHERE m.class_id=c.id) AS students,
                        (SELECT COUNT(*) FROM assignments a WHERE a.class_id=c.id AND a.archived=0) AS assignments
-                FROM classes c WHERE c.teacher_id=? ORDER BY c.archived, c.created_at DESC""", (teacher_id,)).fetchall()
+                FROM classes c LEFT JOIN courses co ON co.id=c.course_id
+                WHERE c.teacher_id=? ORDER BY c.archived, c.created_at DESC""", (teacher_id,)).fetchall()
         return [dict(row) | {"archived": bool(row["archived"])} for row in rows]
 
     def create_class(self, teacher_id: str, name: str) -> dict:
         class_id = "class-" + uuid.uuid4().hex[:12]
         with self.accounts.connect() as db:
-            db.execute("INSERT INTO classes VALUES (?,?,?,?,0)", (class_id, name.strip(), teacher_id, time.time()))
+            db.execute("INSERT INTO classes (id, name, teacher_id, created_at, archived) VALUES (?,?,?,?,0)",
+                       (class_id, name.strip(), teacher_id, time.time()))
         return self.owned_class(class_id, teacher_id)
 
     def update_class(self, class_id: str, teacher_id: str, name: str | None, archived: bool | None) -> dict:
@@ -184,6 +201,111 @@ class RosterStore:
             db.execute("""DELETE FROM class_group_members WHERE account_id=? AND group_id IN
                 (SELECT id FROM class_groups WHERE class_id=?)""", (account_id, class_id))
             db.execute("DELETE FROM class_members WHERE class_id=? AND account_id=?", (class_id, account_id))
+
+    # --------------------------------------------------- semesters & courses
+    def semesters(self, teacher_id: str) -> list[dict]:
+        with self.accounts.connect() as db:
+            rows = db.execute("""SELECT s.*, (SELECT COUNT(*) FROM courses co WHERE co.semester_id=s.id) AS courses
+                FROM semesters s WHERE s.teacher_id=? ORDER BY s.created_at DESC""", (teacher_id,)).fetchall()
+        return [dict(row) for row in rows]
+
+    def create_semester(self, teacher_id: str, name: str, start_date: str | None, end_date: str | None) -> dict:
+        semester_id = "term-" + uuid.uuid4().hex[:12]
+        with self.accounts.connect() as db:
+            db.execute("INSERT INTO semesters VALUES (?,?,?,?,?,?)",
+                       (semester_id, teacher_id, name.strip(), start_date, end_date, time.time()))
+        return self._semester(semester_id, teacher_id)
+
+    def _semester(self, semester_id: str, teacher_id: str) -> dict:
+        with self.accounts.connect() as db:
+            row = db.execute("""SELECT s.*, (SELECT COUNT(*) FROM courses co WHERE co.semester_id=s.id) AS courses
+                FROM semesters s WHERE s.id=? AND s.teacher_id=?""", (semester_id, teacher_id)).fetchone()
+        if not row:
+            raise KeyError(semester_id)
+        return dict(row)
+
+    def delete_semester(self, semester_id: str, teacher_id: str) -> None:
+        self._semester(semester_id, teacher_id)
+        with self.accounts.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if db.execute("SELECT 1 FROM courses WHERE semester_id=?", (semester_id,)).fetchone():
+                raise ValueError("该学期仍有课程；先删除课程或换绑后再删除学期")
+            db.execute("DELETE FROM semesters WHERE id=?", (semester_id,))
+
+    def courses(self, teacher_id: str) -> list[dict]:
+        with self.accounts.connect() as db:
+            rows = db.execute("""SELECT co.*, s.name AS semester_name FROM courses co
+                LEFT JOIN semesters s ON s.id=co.semester_id WHERE co.teacher_id=?
+                ORDER BY co.created_at DESC""", (teacher_id,)).fetchall()
+            linked = db.execute("""SELECT cl.course_id, cl.id, cl.name,
+                (SELECT COUNT(*) FROM class_members m WHERE m.class_id=cl.id) AS students,
+                (SELECT COUNT(*) FROM assignments a WHERE a.class_id=cl.id AND a.archived=0) AS assignments
+                FROM classes cl JOIN courses co ON co.id=cl.course_id
+                WHERE co.teacher_id=? ORDER BY cl.created_at""", (teacher_id,)).fetchall()
+        by_course: dict[str, list[dict]] = {}
+        for row in linked:
+            by_course.setdefault(row["course_id"], []).append(
+                {"id": row["id"], "name": row["name"], "students": row["students"], "assignments": row["assignments"]})
+        return [dict(row) | {"classes": by_course.get(row["id"], [])} for row in rows]
+
+    def _course(self, course_id: str, teacher_id: str) -> dict:
+        with self.accounts.connect() as db:
+            row = db.execute("""SELECT co.*, s.name AS semester_name FROM courses co
+                LEFT JOIN semesters s ON s.id=co.semester_id WHERE co.id=? AND co.teacher_id=?""",
+                             (course_id, teacher_id)).fetchone()
+        if not row:
+            raise KeyError(course_id)
+        return dict(row)
+
+    def create_course(self, teacher_id: str, name: str, semester_id: str | None) -> dict:
+        if semester_id is not None:
+            self._semester(semester_id, teacher_id)  # a course can only bind a semester of the same teacher
+        course_id = "course-" + uuid.uuid4().hex[:12]
+        with self.accounts.connect() as db:
+            db.execute("INSERT INTO courses VALUES (?,?,?,?,?)", (course_id, teacher_id, semester_id, name.strip(), time.time()))
+        return self._course(course_id, teacher_id)
+
+    def delete_course(self, course_id: str, teacher_id: str) -> None:
+        self._course(course_id, teacher_id)
+        with self.accounts.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if db.execute("SELECT 1 FROM classes WHERE course_id=?", (course_id,)).fetchone():
+                raise ValueError("该课程仍关联班级；先解除关联后再删除课程")
+            db.execute("DELETE FROM courses WHERE id=?", (course_id,))
+
+    def set_class_course(self, class_id: str, teacher_id: str, course_id: str | None) -> None:
+        """Link or unlink a class to a course; setting the same value is a no-op."""
+        self.owned_class(class_id, teacher_id)
+        if course_id is not None:
+            self._course(course_id, teacher_id)
+        with self.accounts.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if db.execute("SELECT course_id FROM classes WHERE id=?", (class_id,)).fetchone()["course_id"] == course_id:
+                return
+            db.execute("UPDATE classes SET course_id=? WHERE id=?", (course_id, class_id))
+
+    def course_class_ids(self, course_id: str) -> list[str]:
+        with self.accounts.connect() as db:
+            return [row[0] for row in db.execute(
+                "SELECT id FROM classes WHERE course_id=? ORDER BY created_at", (course_id,))]
+
+    def reuse_course(self, teacher_id: str, course_id: str, source_class_id: str,
+                     target_class_ids: list[str], due_date: str | None, require_case: Callable) -> list[dict]:
+        """Copy one class's whole-course assignments to other classes of the SAME course.
+
+        Students, group structures, training records and scores belong to the original class and
+        are never copied; group-scoped tasks are reported as skipped by ``distribute``. The
+        same-course precondition is checked here; ownership and duplicates are re-checked inside
+        the atomic ``distribute`` write.
+        """
+        self._course(course_id, teacher_id)
+        linked = set(self.course_class_ids(course_id))
+        if source_class_id not in linked:
+            raise ValueError("源班级不在该课程中")
+        outside = [class_id for class_id in target_class_ids if class_id not in linked]
+        if outside:
+            raise ValueError("目标班级必须已关联该课程；请先关联后再复用")
+        return self.distribute(teacher_id, target_class_ids, due_date, require_case, source_class_id=source_class_id)
 
     # -------------------------------------------------------------- groups
     def groups(self, class_id: str) -> list[dict]:
@@ -449,6 +571,31 @@ class CopyAssignmentsBody(BaseModel):
     due_date: str | None = Field(default=None, max_length=10)
 
 
+class SemesterBody(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    name: str = Field(min_length=1, max_length=60)
+    start_date: str | None = Field(default=None, max_length=10)
+    end_date: str | None = Field(default=None, max_length=10)
+
+
+class CourseBody(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    name: str = Field(min_length=1, max_length=60)
+    semester_id: str | None = Field(default=None, max_length=64)
+
+
+class ClassCourseBody(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    course_id: str | None = Field(default=None, max_length=64)
+
+
+class CourseReuseBody(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    source_class_id: str = Field(min_length=1, max_length=64)
+    target_class_ids: list[str] = Field(min_length=1, max_length=50)
+    due_date: str | None = Field(default=None, max_length=10)
+
+
 def build_router(get_roster: Callable[[], RosterStore], get_accounts: Callable[[], AccountStore],
                  get_repository: Callable, get_cases: Callable, current_teacher: Callable, current_owner: Callable,
                  development: Callable[[], bool],
@@ -534,8 +681,8 @@ def build_router(get_roster: Callable[[], RosterStore], get_accounts: Callable[[
             member["sealed"] = len(sealed)
             member["average_ratio"] = round(sum(s.score_snapshot.total_score / s.score_snapshot.max_score for s in sealed)
                                             / len(sealed), 4) if sealed else None
-        return {**info, "archived": bool(info["archived"]), "members": members, "groups": groups,
-                "assignments": tasks}
+        return {**info, "archived": bool(info["archived"]), "course_name": course_name_of(info, teacher_id),
+                "members": members, "groups": groups, "assignments": tasks}
 
     @router.post("/teacher/classes/{class_id}/students")
     def add_students(class_id: str, body: StudentsBody, teacher_id: str = Depends(current_teacher)) -> dict:
@@ -590,6 +737,22 @@ def build_router(get_roster: Callable[[], RosterStore], get_accounts: Callable[[
         except ValueError as exc:
             raise HTTPException(422, "截止日期无效") from exc
         return due_date
+
+    def validated_semester_dates(start_date: str | None, end_date: str | None) -> tuple[str | None, str | None]:
+        start = validated_due_date(start_date)
+        end = validated_due_date(end_date)
+        if start and end and end < start:
+            raise HTTPException(422, "学期结束日期不能早于开始日期")
+        return start, end
+
+    def course_name_of(class_row: dict, teacher_id: str) -> str | None:
+        course_id = class_row.get("course_id")
+        if not course_id:
+            return None
+        try:
+            return roster()._course(course_id, teacher_id)["name"]
+        except KeyError:
+            return None
 
     def require_case(public_id: str) -> dict:
         case = case_title(public_id)
@@ -698,6 +861,70 @@ def build_router(get_roster: Callable[[], RosterStore], get_accounts: Callable[[
             raise HTTPException(404, "班级不存在或不属于当前教师") from exc
         return {"results": results,
                 "notice": "整班任务按病例复制；分组任务不跨班复制，已有同病例任务的班级跳过。"}
+
+    # --------------------------------------------------- semesters & courses
+    @router.get("/teacher/semesters")
+    def list_semesters(teacher_id: str = Depends(current_teacher)) -> list[dict]:
+        return roster().semesters(teacher_id)
+
+    @router.post("/teacher/semesters")
+    def create_semester(body: SemesterBody, teacher_id: str = Depends(current_teacher)) -> dict:
+        start, end = validated_semester_dates(body.start_date, body.end_date)
+        return roster().create_semester(teacher_id, body.name, start, end)
+
+    @router.delete("/teacher/semesters/{semester_id}")
+    def delete_semester(semester_id: str, teacher_id: str = Depends(current_teacher)) -> dict:
+        try:
+            roster().delete_semester(semester_id, teacher_id)
+        except KeyError as exc:
+            raise HTTPException(404, "学期不存在或不属于当前教师") from exc
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        return {"deleted": True}
+
+    @router.get("/teacher/courses")
+    def list_courses(teacher_id: str = Depends(current_teacher)) -> list[dict]:
+        return roster().courses(teacher_id)
+
+    @router.post("/teacher/courses")
+    def create_course(body: CourseBody, teacher_id: str = Depends(current_teacher)) -> dict:
+        try:
+            return roster().create_course(teacher_id, body.name, body.semester_id or None)
+        except KeyError as exc:
+            raise HTTPException(404, "学期不存在或不属于当前教师") from exc
+
+    @router.delete("/teacher/courses/{course_id}")
+    def delete_course(course_id: str, teacher_id: str = Depends(current_teacher)) -> dict:
+        try:
+            roster().delete_course(course_id, teacher_id)
+        except KeyError as exc:
+            raise HTTPException(404, "课程不存在或不属于当前教师") from exc
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        return {"deleted": True}
+
+    @router.put("/teacher/classes/{class_id}/course")
+    def set_class_course(class_id: str, body: ClassCourseBody, teacher_id: str = Depends(current_teacher)) -> dict:
+        owned(class_id, teacher_id)
+        try:
+            roster().set_class_course(class_id, teacher_id, body.course_id or None)
+        except KeyError as exc:
+            raise HTTPException(404, "课程不存在或不属于当前教师") from exc
+        return {"linked": body.course_id or None}
+
+    @router.post("/teacher/courses/{course_id}/reuse")
+    def reuse_course(course_id: str, body: CourseReuseBody, teacher_id: str = Depends(current_teacher)) -> dict:
+        store = roster()
+        due_date = validated_due_date(body.due_date)
+        try:
+            results = store.reuse_course(teacher_id, course_id, body.source_class_id,
+                                         body.target_class_ids, due_date, require_case)
+        except KeyError as exc:
+            raise HTTPException(404, "课程或班级不存在或不属于当前教师") from exc
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        return {"results": results,
+                "notice": "课程复用只复制任务设置（病例、标题、要求）；学生、分组与训练记录属于原班级，不随课程复制。"}
 
     # ---------------------------------------------------------------- student
     @router.get("/assignments")
