@@ -32,6 +32,7 @@ from .integration.config import data_directory
 from .integration.nexent_client import NexentError
 from .integration.runtime import IntegrationRuntime
 from .integration.tools import validate_feedback_record
+from .integration.turns import read_stats
 from .models import (
     ActionKind,
     ActionRequest,
@@ -130,7 +131,8 @@ app.include_router(build_teacher_router(lambda: CASE_STORE, current_teacher, lam
 app.include_router(build_feedback_review_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: RUNTIME, current_teacher))
 app.include_router(build_score_review_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: RUNTIME, current_teacher))
 app.include_router(build_dashboard_router(lambda: REPOSITORY, lambda: CASE_STORE, lambda: ACCOUNTS, current_teacher,
-                                          lambda: roster_for(ACCOUNTS)))
+                                          lambda: roster_for(ACCOUNTS),
+                                          lambda: read_stats(RUNTIME.settings.integration_db_path)))
 app.include_router(build_roster_router(lambda: roster_for(ACCOUNTS), lambda: ACCOUNTS, lambda: REPOSITORY, lambda: CASE_STORE,
                                        current_teacher, current_owner, _development,
                                        lambda case_id, version: RUNTIME.case_training.is_stopped(case_id, version),

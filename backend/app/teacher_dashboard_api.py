@@ -104,7 +104,7 @@ def build_dashboard(states, case_lookup, people) -> dict:
 
 
 def build_router(get_repository: Callable, get_cases: Callable, get_accounts: Callable, current_teacher: Callable,
-                 get_roster: Callable | None = None):
+                 get_roster: Callable | None = None, get_turn_stats: Callable | None = None):
     router = APIRouter(prefix="/api/teacher")
 
     @router.get("/dashboard")
@@ -120,5 +120,16 @@ def build_router(get_repository: Callable, get_cases: Callable, get_accounts: Ca
             states = [state for state in states if state.owner_id in members]
         people = get_accounts().directory(state.owner_id for state in states)
         return build_dashboard(states, get_cases().get, people)
+
+    @router.get("/observability")
+    def observability(teacher_id: str = Depends(current_teacher)) -> dict:
+        # Read-only, teacher-only observability over the trusted turn/call store. The store may not
+        # exist yet (no turn ever issued) — that is "no data", reported explicitly, not a 500.
+        if get_turn_stats is None:
+            raise HTTPException(404, "可观测统计未启用")
+        result = get_turn_stats()
+        if result.get("ok"):
+            return {"ok": True, "stats": result["stats"]}
+        return {"ok": False, "error": result.get("error", "turn store unavailable"), "stats": None}
 
     return router

@@ -1,8 +1,9 @@
-"""Print observability statistics over the trusted turn / tool-call store.
+"""Print observability statistics over the trusted turn / tool-call store (read-only).
 
-Counts by kind/mode/status, tool-call failure rate and finalized-turn latency. ``mode`` is whatever
-the adapter recorded at issue time (nexent = real platform, simulator = rule engine). Token usage and
-billing are intentionally reported as "unknown" and are never invented. Read-only; never writes.
+Opens the store with a read-only SQLite connection: it never creates the file, never initialises
+tables, never switches journal mode and never migrates. A missing path, an uninitialised file or a
+store that predates the observability columns is reported explicitly. Token usage and billing are
+reported as "unknown" and are never invented.
 """
 import argparse
 import json
@@ -13,18 +14,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
-from app.integration.turns import TurnStore
+from app.integration.turns import read_stats
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="打印可信回合与工具调用的观测统计")
+    parser = argparse.ArgumentParser(description="打印可信回合与工具调用的观测统计（只读）")
     parser.add_argument("--db", default=os.getenv("INTEGRATION_DB_PATH"),
                         help="集成库路径（默认取 INTEGRATION_DB_PATH）")
     args = parser.parse_args()
     if not args.db:
         parser.error("需要 --db 或设置 INTEGRATION_DB_PATH")
-    stats = TurnStore(args.db).stats()
-    print(json.dumps(stats, ensure_ascii=False, indent=2))
+    result = read_stats(args.db)
+    if not result.get("ok"):
+        print(json.dumps(result, ensure_ascii=False, indent=2), file=sys.stderr)
+        sys.exit(1)
+    print(json.dumps(result["stats"], ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ import hmac
 import json
 import secrets
 import sqlite3
+import statistics
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -24,6 +25,16 @@ EXPIRED = "expired"
 
 
 
+def _add_missing_columns(connection: sqlite3.Connection) -> None:
+    """Additive observability columns. Idempotent; a concurrent initialiser that added the column
+    between our check and ALTER is handled by the caller's retry on "duplicate column name"."""
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(turns)")}
+    if "finalized_at" not in columns:
+        connection.execute("ALTER TABLE turns ADD COLUMN finalized_at REAL")
+    if "mode" not in columns:
+        connection.execute("ALTER TABLE turns ADD COLUMN mode TEXT NOT NULL DEFAULT 'unknown'")
+
+
 def _initialise(connect, schema: str, attempts: int = 50) -> None:
     import time as _time
 
@@ -33,9 +44,14 @@ def _initialise(connect, schema: str, attempts: int = 50) -> None:
                 if connection.execute("PRAGMA journal_mode").fetchone()[0].lower() != "wal":
                     connection.execute("PRAGMA journal_mode=WAL")
                 connection.executescript(schema)
+                _add_missing_columns(connection)
             return
         except sqlite3.OperationalError as exc:
-            if "locked" not in str(exc) or attempt == attempts - 1:
+            message = str(exc).lower()
+            if "duplicate column name" in message:
+                # Another process (e.g. API and MCP sharing one store) migrated concurrently.
+                continue
+            if "locked" not in message or attempt == attempts - 1:
                 raise
             _time.sleep(0.05)
 
@@ -109,6 +125,66 @@ def _hash(secret: str) -> str:
     return hashlib.sha256(secret.encode("utf-8")).hexdigest()
 
 
+def _round_ms(value: float | None) -> int | None:
+    return None if value is None else round(value * 1000)
+
+
+def _aggregate(turn_rows: list[sqlite3.Row], call_rows: list[sqlite3.Row]) -> dict[str, Any]:
+    """Shared aggregation used by the in-process ``TurnStore.stats`` and the read-only ``read_stats``.
+
+    Semantics (do not overstate):
+    - Coverage is recorded *trusted turns* only — the Nexent adapter path issues a turn; the
+      rule-simulator path returns a selection directly and never issues one.
+    - ``mode`` is the adapter mode recorded at issue time ("nexent" means the Nexent adapter was
+      configured, NOT that a real vendor was called — a local fake Nexent uses the same mode).
+    - ``tool_calls_failure_rate`` is a tool-call failure rate, not a model-request failure rate.
+    - ``turn_completion`` is the wall-clock interval created_at -> finalized_at of one turn; it is
+      not first-word, model-inference or browser end-to-end latency.
+    - Negative intervals (wall clock moved backwards) are counted separately, never clamped to zero.
+    - token usage and cost stay "unknown"; nothing is invented.
+    """
+    turns_total = len(turn_rows)
+    by_kind: dict[str, int] = {}
+    by_mode: dict[str, int] = {}
+    by_status: dict[str, int] = {}
+    durations: list[float] = []
+    negative_count = 0
+    for row in turn_rows:
+        by_kind[row["kind"]] = by_kind.get(row["kind"], 0) + 1
+        by_mode[row["mode"]] = by_mode.get(row["mode"], 0) + 1
+        by_status[row["status"]] = by_status.get(row["status"], 0) + 1
+        if row["finalized_at"] is not None and row["created_at"] is not None:
+            duration = row["finalized_at"] - row["created_at"]
+            if duration < 0:
+                negative_count += 1
+            else:
+                durations.append(duration)
+    calls_total = len(call_rows)
+    calls_failed = sum(1 for row in call_rows if not row["ok"])
+    return {
+        "coverage": "recorded trusted turns only (Nexent adapter path); the simulator path returns a "
+                    "selection directly and never issues a turn",
+        "adapter_mode_semantics": "nexent means the Nexent adapter was configured, not that a real "
+                                  "vendor was called; a local fake Nexent uses the same mode",
+        "turns_total": turns_total,
+        "by_kind": by_kind,
+        "by_adapter_mode": by_mode,
+        "by_status": by_status,
+        "tool_calls_total": calls_total,
+        "tool_calls_failed": calls_failed,
+        "tool_calls_failure_rate": round(calls_failed / calls_total, 4) if calls_total else None,
+        "turn_completion": {
+            "measured_count": len(durations),
+            "negative_count": negative_count,
+            "min_ms": _round_ms(min(durations)) if durations else None,
+            "median_ms": _round_ms(statistics.median(durations)) if durations else None,
+            "max_ms": _round_ms(max(durations)) if durations else None,
+        },
+        "token_usage": "unknown",
+        "cost": "unknown",
+    }
+
+
 class TurnStore:
     """Registry of backend-issued, short-lived, single-purpose turn credentials.
 
@@ -124,14 +200,9 @@ class TurnStore:
         self.lock = RLock()
         # WAL is persistent in the file; switch once here. Switching needs an exclusive lock and does not
         # wait on the busy handler, so doing it on every connection fails under concurrent requests.
+        # Schema creation and the additive observability migration are inside the same retry loop, so a
+        # concurrent initialiser (API vs MCP on one old store) cannot fail on a duplicate column.
         _initialise(self._connect, _SCHEMA)
-        # Additive migration for stores created before observability fields existed.
-        with self._connect() as connection:
-            columns = {row["name"] for row in connection.execute("PRAGMA table_info(turns)")}
-            if "finalized_at" not in columns:
-                connection.execute("ALTER TABLE turns ADD COLUMN finalized_at REAL")
-            if "mode" not in columns:
-                connection.execute("ALTER TABLE turns ADD COLUMN mode TEXT NOT NULL DEFAULT 'unknown'")
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
@@ -281,52 +352,52 @@ class TurnStore:
         return [{"tool": r["tool"], "ok": bool(r["ok"]), "detail": r["detail"], "at": r["at"]} for r in rows]
 
     def stats(self) -> dict[str, Any]:
-        """Observability aggregate over recorded turns and tool calls.
-
-        Counts by kind/mode/status, tool-call failure rate, and finalized-turn latency. ``mode`` is
-        whatever the adapter recorded at issue time (e.g. "nexent" for the real platform, "simulator"
-        for the rule engine); token and price figures are intentionally absent and must not be
-        fabricated here.
-        """
+        """Observability aggregate over recorded turns and tool calls (see ``_aggregate``)."""
         with self.lock, self._connect() as connection:
             turn_rows = connection.execute(
                 "SELECT kind, mode, status, created_at, finalized_at FROM turns"
             ).fetchall()
             call_rows = connection.execute("SELECT ok FROM turn_calls").fetchall()
-        turns_total = len(turn_rows)
-        by_kind: dict[str, int] = {}
-        by_mode: dict[str, int] = {}
-        by_status: dict[str, int] = {}
-        latencies: list[float] = []
-        for row in turn_rows:
-            by_kind[row["kind"]] = by_kind.get(row["kind"], 0) + 1
-            by_mode[row["mode"]] = by_mode.get(row["mode"], 0) + 1
-            by_status[row["status"]] = by_status.get(row["status"], 0) + 1
-            if row["finalized_at"] is not None and row["created_at"] is not None:
-                latencies.append(max(0.0, row["finalized_at"] - row["created_at"]))
-        calls_total = len(call_rows)
-        calls_failed = sum(1 for row in call_rows if not row["ok"])
-        latencies.sort()
-        median = latencies[len(latencies) // 2] if latencies else None
+        return _aggregate(turn_rows, call_rows)
 
-        def _round_ms(value: float | None) -> int | None:
-            return None if value is None else round(value * 1000)
 
-        return {
-            "turns_total": turns_total,
-            "by_kind": by_kind,
-            "by_mode": by_mode,
-            "by_status": by_status,
-            "calls_total": calls_total,
-            "calls_failed": calls_failed,
-            "calls_failure_rate": round(calls_failed / calls_total, 4) if calls_total else 0.0,
-            "latency": {
-                "finalized_count": len(latencies),
-                "min_ms": _round_ms(latencies[0]) if latencies else None,
-                "median_ms": _round_ms(median),
-                "max_ms": _round_ms(latencies[-1]) if latencies else None,
-            },
-            # Token usage and billing are not available here and are deliberately not invented.
-            "token_usage": "unknown",
-            "cost": "unknown",
-        }
+def read_stats(path: str | Path) -> dict[str, Any]:
+    """Read-only aggregate over an *existing* turn store.
+
+    Never creates the file, never initialises tables, never switches journal mode and never
+    migrates. A missing path, an uninitialised file or a store that predates the observability
+    columns is reported explicitly rather than fixed here.
+
+    Returns ``{"ok": True, "stats": {...}}`` on success or ``{"ok": False, "error": "..."}``.
+    """
+    path = str(path)
+    if not Path(path).is_file():
+        return {"ok": False, "error": f"turn store not found: {path}"}
+    try:
+        connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    except sqlite3.OperationalError as exc:
+        return {"ok": False, "error": f"cannot open turn store read-only: {exc}"}
+    try:
+        connection.row_factory = sqlite3.Row
+        table = connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='turns'"
+        ).fetchone()
+        if table is None:
+            return {"ok": False, "error": "turns table not found (not an initialized turn store)"}
+        columns = {row["name"] for row in connection.execute("PRAGMA table_info(turns)")}
+        missing = [name for name in ("finalized_at", "mode") if name not in columns]
+        mode_expr = "mode" if "mode" in columns else "'unknown'"
+        finalized_expr = "finalized_at" if "finalized_at" in columns else "NULL"
+        turn_rows = connection.execute(
+            f"SELECT kind, {mode_expr} AS mode, status, created_at, {finalized_expr} AS finalized_at FROM turns"
+        ).fetchall()
+        call_rows = connection.execute("SELECT ok FROM turn_calls").fetchall()
+    finally:
+        connection.close()
+    stats = _aggregate(turn_rows, call_rows)
+    if missing:
+        stats["schema_note"] = (
+            "store predates observability columns; start the application once to migrate "
+            "(this read-only tool never migrates)"
+        )
+    return {"ok": True, "stats": stats}
