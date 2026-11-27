@@ -209,7 +209,7 @@ def main():
     app_main.RUNTIME = IntegrationRuntime(settings)
     api_server = LiveServer(app_main.app).start()
     print(
-        f"READY http://127.0.0.1:{api_server.port} http://127.0.0.1:{nexent_server.port}",
+        f"READY http://127.0.0.1:{api_server.port} http://127.0.0.1:{nexent_server.port} {data}",
         flush=True,
     )
     try:

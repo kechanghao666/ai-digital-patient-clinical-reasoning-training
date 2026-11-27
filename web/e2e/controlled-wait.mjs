@@ -12,7 +12,8 @@
 //   barrier reached / released          : this driver's `Date.now()` wall clock
 // These three clocks have different zero points and cannot be subtracted across origins.
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,27 +32,37 @@ const OWNER = "demo-controlled-wait";
 const PATIENT = ".turn.patient .text:not(.faint)";
 if (process.env.OUT) mkdirSync(OUT);
 
-// Requirement: use this round's built frontend, never a stale page or an inherited business service.
-if (!existsSync(path.join(ROOT, "web", "dist", "index.html"))) {
-  console.error("web/dist/index.html is missing — run `npm run build` in web/ first.");
-  process.exit(2);
-}
+// Pin the served frontend build and record a fingerprint, so the probe never inherits a stale
+// WEB_DIST_DIR or a pre-existing page. The stack is told to serve the same directory.
+const DIST = process.env.WEB_DIST_DIR || path.join(ROOT, "web", "dist");
+const build = (() => {
+  const index = path.join(DIST, "index.html");
+  if (!existsSync(index)) return { error: `web build missing: ${index} — run \`npm run build\` in web/` };
+  const mainJs = path.join(DIST, "assets", "main.js");
+  return {
+    dist: DIST,
+    index_html_exists: true,
+    main_js_sha256: existsSync(mainJs) ? createHash("sha256").update(readFileSync(mainJs)).digest("hex") : null,
+    main_js_bytes: existsSync(mainJs) ? statSync(mainJs).size : null,
+  };
+})();
+if (build.error) { console.error(build.error); process.exit(2); }
 
 function startStack() {
   return new Promise((resolve, reject) => {
     const child = spawn(PYTHON, [path.join(ROOT, "web", "e2e", "ask_stack.py")], {
-      cwd: ROOT, env: { ...process.env, PYTHONUNBUFFERED: "1" }, stdio: ["ignore", "pipe", "pipe"],
+      cwd: ROOT, env: { ...process.env, PYTHONUNBUFFERED: "1", WEB_DIST_DIR: DIST }, stdio: ["ignore", "pipe", "pipe"],
     });
     let output = "";
     let ready = false;
     const timer = setTimeout(() => { child.kill(); reject(new Error(`stack not ready\n${output}`)); }, 90000);
     child.stdout.on("data", (chunk) => {
       output += chunk.toString();
-      const match = output.match(/READY (\S+) (\S+)/);
+      const match = output.match(/READY (\S+) (\S+) (\S+)/);
       if (match && !ready) {
         ready = true;
         clearTimeout(timer);
-        resolve({ child, api: match[1], control: match[2] });
+        resolve({ child, api: match[1], control: match[2], dataDir: match[3] });
       }
     });
     child.stderr.on("data", (chunk) => { output += chunk.toString(); });
@@ -63,6 +74,7 @@ function startStack() {
 
 let stack;
 let browser = null;
+let cleanup = null;
 const rows = [];
 let passed = false;
 
@@ -143,17 +155,23 @@ async function runPause(position, question) {
     position, question,
     request_id: null,
     server_stages: null, adapter_trace: null,
-    clock_origins: {
-      clickT: "browser performance.now()", postT: "browser performance.now()",
-      visibleT: "browser performance.now()", paintT: "browser performance.now() (double rAF estimate)",
-      server_stages: "API-process monotonic", trace_ms: "API-process monotonic",
-      barrier: "driver Date.now() wall clock (not comparable to browser/API clocks)",
+    // Each field's actual zero point; "monotonic" does not mean the same zero point.
+    timing_origins: {
+      server_stages: "API process time.monotonic(), zero = ask handler entry",
+      "trace.first_event_ms/total_ms/trusted_completion_ms": "API process time.monotonic(), zero = Nexent client run() entry (a different zero)",
+      "trace.finalize_ms": "API process time.monotonic(), zero = select_facts() entry (a different zero)",
+      "trace.answer_validated_ms": "same zero as server_stages (ask handler entry)",
+      browser_timings: "browser performance.now() (a different clock, cannot subtract from the above)",
+      barrier: "driver Date.now() wall clock — the moment this driver's poll observed the pause / sent the release, not the server's exact barrier time",
     },
-    barrier: { reached_ms: null, released_ms: null },
+    barrier: { driver_observed_paused_after_ms: null, driver_release_sent_after_ms: null },
     paused_request_incomplete: null, paused_blocked_answer: null, paused_no_save: null,
     http_status: null, api_answer: null, dom_answer: null, persisted_answer: null, answers_consistent: null,
+    browser_timings: null, browser_timings_ordered: null,
     click_to_visible_ms: null, saved_events: null, settled_single: null,
     replay_status: null, replay_replayed: null, replay_same_event: null, replay_no_extra_call: null,
+    fake_platform: true, real_model_calls: 0,
+    adapter_trace_note: "adapter_trace.real_platform=true reflects the Nexent adapter path; this run used the local fake Nexent (zero real vendor calls)",
   };
   try {
     // Capture the frontend's own POST body so we learn the idempotency request_id it used.
@@ -181,14 +199,14 @@ async function runPause(position, question) {
     }
     const st = await controlStatus();
     if (!st.paused) throw new Error("pause barrier never reached for " + position);
-    row.barrier.reached_ms = Date.now() - barrierT0;
+    row.barrier.driver_observed_paused_after_ms = Date.now() - barrierT0;
     row.request_id = captured.request_id;
     // During pause: the ask POST must still be in flight, no answer, no saved event.
     row.paused_request_incomplete = !requestCompletedDuringPause;
     row.paused_blocked_answer = (await patientCount(page)) === before;
     row.paused_no_save = (await detail(sid)).state.events.length === 0;
     await setControl({ release: true });
-    row.barrier.released_ms = Date.now() - barrierT0;
+    row.barrier.driver_release_sent_after_ms = Date.now() - barrierT0;
     const response = await postPromise;
     row.http_status = response ? response.status() : null;
     const posted = response ? await response.json() : null;
@@ -201,6 +219,10 @@ async function runPause(position, question) {
     await page.waitForFunction(() => window.__o10a && window.__o10a.paintT !== null, null, { timeout: 15000 });
     const t = await page.evaluate(() => ({ ...window.__o10a }));
     row.dom_answer = t.visibleText;
+    row.browser_timings = { clickT: t.clickT, postT: t.postT, visibleT: t.visibleT, paintT: t.paintT };
+    const bt = row.browser_timings;
+    row.browser_timings_ordered = [bt.clickT, bt.postT, bt.visibleT, bt.paintT].every((v) => v !== null)
+      && bt.clickT <= bt.postT && bt.postT <= bt.visibleT && bt.visibleT <= bt.paintT;
     row.click_to_visible_ms = t.visibleT !== null && t.clickT !== null ? +(t.visibleT - t.clickT).toFixed(2) : null;
     const saved = await detail(sid);
     row.saved_events = saved.state.events.length;
@@ -208,14 +230,22 @@ async function runPause(position, question) {
     // Release consistency: HTTP status, API answer, DOM answer and persisted answer must all agree.
     row.answers_consistent = row.http_status === 200 && row.api_answer !== null && row.api_answer === row.dom_answer && row.api_answer === row.persisted_answer;
     // True idempotent replay: re-send the SAME request_id + question directly to the API. The
-    // backend must recognize the idempotency key, replay the existing event, and NOT start a new
-    // platform run or persist a second event.
+    // backend must recognize the idempotency key, replay the same event (same event_id/seq/answer),
+    // and NOT start a new platform run or persist a second event.
     const callsBefore = (await controlStatus()).calls;
     const replay = await api("POST", `/api/sessions/${sid}/ask`, { request_id: row.request_id, question: captured.question || question });
     row.replay_status = replay.status;
     row.replay_replayed = !!(replay.data && replay.data.timing && replay.data.timing.replayed);
     const afterReplay = await detail(sid);
-    row.replay_same_event = afterReplay.state.events.length === 1;
+    const replayEvent = replay.data && replay.data.event ? replay.data.event : null;
+    const persistedEvent = afterReplay.state.events[0] || null;
+    row.replay_event_id = replayEvent ? replayEvent.event_id : null;
+    row.persisted_event_id = persistedEvent ? persistedEvent.event_id : null;
+    row.replay_same_event = afterReplay.state.events.length === 1 && replayEvent && persistedEvent
+      && replayEvent.event_id === persistedEvent.event_id
+      && replayEvent.seq === persistedEvent.seq
+      && replayEvent.result && replayEvent.result.answer === persistedEvent.result.answer
+      && posted && posted.event && posted.event.event_id === persistedEvent.event_id;
     row.replay_no_extra_call = (await controlStatus()).calls === callsBefore;
     // After release + settle there must still be exactly one saved turn.
     await page.waitForTimeout(500);
@@ -275,6 +305,7 @@ try {
   const pauseOk = rows.filter((r) => r.position).every((r) =>
     r.paused_request_incomplete && r.paused_blocked_answer && r.paused_no_save &&
     r.http_status === 200 && r.answers_consistent && r.saved_events === 1 && r.settled_single &&
+    r.browser_timings_ordered &&
     r.replay_status === 200 && r.replay_replayed && r.replay_same_event && r.replay_no_extra_call
   );
   const timeoutOk = timeoutRow.http_status >= 400 && timeoutRow.blocked_answer && timeoutRow.no_save;
@@ -284,13 +315,35 @@ try {
   passed = false;
 } finally {
   if (browser) await browser.close().catch(() => {});
-  if (stack) {
-    await fetch(stack.control + "/__shutdown", { method: "POST" }).catch(() => {});
-    await new Promise((r) => setTimeout(r, 500));
-    stack.child.kill();
-  }
+  cleanup = await shutdownStack();
 }
 
-writeFileSync(path.join(OUT, "run.json"), JSON.stringify({ rows, passed }, null, 2), "utf-8");
+writeFileSync(path.join(OUT, "run.json"), JSON.stringify({ rows, passed, build, cleanup, real_model_calls: 0, fake_platform: true }, null, 2), "utf-8");
 console.log(passed ? "ALL CHECKS PASSED" : "REGRESSION DETECTED", "->", path.join(OUT, "run.json"));
 process.exit(passed ? 0 : 1);
+
+async function shutdownStack() {
+  const result = { shutdown_sent: false, process_exited: false, temp_dir: null, temp_dir_removed: null, force_killed: false };
+  if (!stack) return result;
+  result.temp_dir = stack.dataDir || null;
+  try {
+    await fetch(stack.control + "/__shutdown", { method: "POST" });
+    result.shutdown_sent = true;
+  } catch (e) {
+    result.shutdown_sent = false;
+  }
+  // Wait up to 5s for a graceful exit; only force-kill if it did not exit.
+  if (stack.child.exitCode === null && stack.child.signalCode === null) {
+    const exited = await new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(false), 5000);
+      stack.child.once("exit", () => { clearTimeout(timer); resolve(true); });
+    });
+    result.process_exited = exited;
+    if (!exited) { stack.child.kill(); result.force_killed = true; }
+  } else {
+    result.process_exited = true;
+  }
+  await new Promise((r) => setTimeout(r, 400));
+  if (result.temp_dir) result.temp_dir_removed = !existsSync(result.temp_dir);
+  return result;
+}
