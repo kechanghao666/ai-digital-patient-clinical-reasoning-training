@@ -115,12 +115,15 @@ def test_peer_receives_stop_and_ack_is_distinct_from_worker_exit(tmp_path, caplo
         assert raised.value.kind == "timeout"
         assert time.monotonic() - started < 1.65
         assert stop_called.is_set()
-        # The stop is a real peer interaction, distinct from the worker just exiting: the peer
-        # received the stop (stop_called) and the client reported an explicit outcome for the
-        # conversation id. The reserved stop budget is advisory and, per the documented contract,
-        # "停止失败或缓慢不另加等待预算", so under full-suite CPU load a late event-loop wakeup can
-        # legitimately leave "timeout"/"budget_exhausted". Only "no_conversation" — the worker
-        # exiting before the peer sent headers — must never occur here.
+        # Contract split. This is the real-socket integration half: after the total deadline the
+        # client must issue a stop that the peer actually receives (stop_called), so the outcome is a
+        # real peer interaction rather than the worker just exiting. The outcome *mapping*
+        # (200->acknowledged, non-2xx->rejected, past-deadline->budget_exhausted, no-conversation
+        # id->no_conversation) is deterministic and locked by test_stop_http_status_is_not_assumed_success.
+        # The advisory stop is "best effort" (停止失败或缓慢不另加等待预算): under full-suite load a
+        # late event-loop wakeup can exhaust the 0.25s reserve, so we accept acknowledged/rejected/
+        # timeout/budget_exhausted but never no_conversation (which would mean the worker exited
+        # before the peer sent headers — i.e. the stop was skipped entirely).
         assert "stop_outcome=no_conversation" not in caplog.text
         assert any(f"stop_outcome={outcome}" in caplog.text
                    for outcome in ("acknowledged", "rejected", "timeout", "budget_exhausted"))
@@ -178,15 +181,44 @@ def test_stop_http_status_is_not_assumed_success(tmp_path, status, outcome):
     assert paths == ["/nb/v1/chat/stop/73"]
 
 
-def test_first_event_deadline_rejects_comment_trickle(tmp_path):
+def test_comment_prefix_does_not_count_as_first_event(tmp_path):
+    # Deterministic (MockTransport, no real socket): an SSE comment is not a data event, so it must
+    # neither satisfy nor reset the first-event deadline; the following data event is the true first
+    # event. This locks the "comments are not events" half of the first-event-deadline contract
+    # without any wall-clock tolerance.
+    class CommentThenEvent(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            yield b":keep-alive comment\n\n"
+            yield b'data: {"type":"final_answer","answer_phase":"complete","content":"ok"}\n\n'
+        async def aclose(self):
+            pass
+
+    def handler(request):
+        return httpx.Response(200, headers={"conversation_id": "73"}, stream=CommentThenEvent())
+
+    client = NexentClient(settings_for(tmp_path, total_timeout_s=2, first_event_timeout_s=1.0), httpx.MockTransport(handler))
+    result = client.run(agent_name="a", query="q")
+    assert result.final_text == "ok"
+    assert result.first_event_ms is not None  # the data event, not the comment, was the first event
+    assert result.event_types == {"final_answer": 1}  # the comment was skipped, never parsed
+
+
+def test_first_event_deadline_rejects_comment_trickle(tmp_path, caplog):
     with platform("trickle") as (url, _, _, _):
         client = NexentClient(settings_for(tmp_path, nexent_base_url=url, total_timeout_s=2, first_event_timeout_s=0.2))
         started = time.monotonic()
         with pytest.raises(NexentError) as raised:
             client.run(agent_name="a", query="q")
         assert raised.value.kind == "timeout"
-        # The first-event deadline (0.2s) must fire well before the total deadline (2s); the
-        # wall-clock bound is a load-robust multiple, not a precise 0.2s target.
+        # Functional half: the comment trickle must never be counted as a data event, so the run
+        # records zero events and the first-event deadline (not a data event) is what fired.
+        assert "event_count=0" in caplog.text
+        assert "first_event_ms=None" in caplog.text
+        # Timing half: the first-event deadline (0.2s) must fire well before the total deadline
+        # (2s). Evidence: the original full-suite failure recorded elapsed_ms=500 for this case
+        # (0.2s timer plus stop/event-loop overhead), so a 0.4s bound flakes under load. 1.0s is
+        # still far below the 2s total, so it keeps catching "first-event deadline ignored" (which
+        # would wait ~2s) while tolerating scheduling latency.
         assert time.monotonic() - started < 1.0
 
 
