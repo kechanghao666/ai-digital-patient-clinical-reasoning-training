@@ -1,11 +1,19 @@
 # 更新记录
 
+## 2026-11-27 统计错误处理、教师授权范围与看板入口
+
+- `read_stats` 补齐查询期异常处理并始终关闭连接：非 SQLite 文件报 `corrupted`、缺 `turn_calls` 报 `incomplete`，都不当作正常空数据；错误信息只含简短 reason/message，不泄露绝对路径或 SQL 细节。CLI 非零退出且不改库；教师 API 区分「无数据」(not_found/not_initialized → 空统计) 与「统计不可用」(corrupted/incomplete → 503)。
+- 教师统计授权范围：`/api/teacher/observability` 改为按教师自有班级的学生成员过滤（`TurnStore.stats`/`read_stats` 新增 `owner_ids`，工具调用统计跟随同一批获准回合），不再全库读取；无班级的教师看到空聚合。两名教师、互不重叠班级的合成数据验证边界。
+- 教师界面补「模型调用观测」看板（React `Dashboard.tsx`）：记录回合数、工具调用失败率、回合完成区间中位、费用未知状态，并注明统计范围与口径；前端构建已重跑。
+- 超时竞态根因表述修正：原 `records[0]` IndexError 因空 body（`records.append` 在 `json.loads` 之后），是启动/拆连竞态，不是 `drive` 慢；原根因未完全定位。补「可信回合已 SUBMITTED 才取消」的显式断言，区分启动期超时与提交后超时取消。
+- 全量 873 项通过；真实模型调用 0。
+
 ## 2026-11-27 统计只读/口径修正、受控证据补齐与可观测端点
 
 - 统计只读与口径：`scripts/turn_stats.py` 改用只读 SQLite 连接（`mode=ro`），路径不存在明确失败、不建库不迁移不切 WAL；旧库缺观测列时给出兼容结果 + `schema_note` 提示走正式迁移，不偷偷 ALTER。`TurnStore.stats()` 中位数改用 `statistics.median`（修复偶数上中位数），负时延单列 `negative_count` 不再 `max(0)` 伪装；`by_mode` 改名 `by_adapter_mode` 并注明「nexent=适配器模式，非真实供应商调用（本地假平台同模式）」；`calls_*` 改名 `tool_calls_*`（工具调用失败率≠模型请求失败率）；`latency` 改名 `turn_completion`（created_at→finalized_at 为回合完成区间，非首字/推理/端到端时延）；空样本/未知模式/缺时延显式展示，token/费用恒为 `unknown`。已验证 simulator 路径不经 `TurnStore.issue`（只有 Nexent 适配器路径发回合）。
 - 迁移并发：观测列迁移并入 `_initialise` 重试，处理 `duplicate column name`，旧结构临时库 8 线程并发 `TurnStore` 启动不再因重复加列失败，原记录与结构不变。
 - 受控实验证据：保存 clickT/postT/visibleT/paintT 并检查顺序；stages/trace 各字段标明实际计时零点；屏障字段改名 `driver_observed_paused_after_ms`/`driver_release_sent_after_ms`；`fake_platform`/`real_model_calls=0` 标注假平台；重放比较 event_id/seq/正文一致；固定构建目录并记录 `main_js_sha256` 指纹；清理确认进程退出 + 临时目录移除。
-- 测试覆盖：新增「注释不算事件」确定性用例 +「注释不重置首事件截止」确定性用例（0.2s 首事件 vs 10s 总截止）。feedback 空 POST → IndexError 竞态根因是夹具顺序（平台先 `drive` 后建流）+ 0.3s 过紧；改为先建流发 thinking 再 `drive`，并把 deadline 提到 0.8s（理由：feedback 多工具 drive 慢），针对性复跑稳定。
+- 测试覆盖：新增「注释不算事件」确定性用例 +「注释不重置首事件截止」确定性用例（0.2s 首事件 vs 10s 总截止）。feedback 空 POST → `records[0]` IndexError：夹具里 `records.append(body)` 在 `json.loads` 之后，空 body 说明客户端在 POST body 完全到达前取消了请求（启动/拆连竞态），不是 `drive` 慢导致 `records` 为空；原根因未完全定位。改为先建流发 thinking 再 `drive` 并把 deadline 提到 0.8s，补「可信回合已 SUBMITTED 才取消」的显式断言后针对性复跑通过。
 - M12 延伸：新增教师只读 `/api/teacher/observability`（权限隔离，学生/匿名 403），无数据/未知费用显式展示。
 - 全量 866 项通过（本轮改动后待复跑确认）；真实模型调用 0。
 

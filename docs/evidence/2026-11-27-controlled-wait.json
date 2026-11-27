@@ -3,28 +3,28 @@
     {
       "position": "before_submission",
       "question": "有高血压吗？",
-      "request_id": "a671a3c9-736b-4121-ab95-a91b455129b9",
+      "request_id": "1fed2ecb-03dc-4acd-85e5-2d71f0dfa0f9",
       "server_stages": {
         "request_entry": 0,
         "classified": 0,
-        "adapter_returned": 719,
-        "validated": 719,
-        "saved": 734
+        "adapter_returned": 687,
+        "validated": 687,
+        "saved": 687
       },
       "adapter_trace": {
         "real_platform": true,
-        "turn_id": "e8d2dfacd4e84ca8a2d39132cd2cb960",
+        "turn_id": "182691861e7b4b3fb67751e0eadebd42",
         "conversation_id": null,
         "event_types": {
           "model_output_thinking": 1,
           "execution_result": 1
         },
-        "first_event_ms": 186,
-        "platform_first_event_ms": 186,
+        "first_event_ms": 172,
+        "platform_first_event_ms": 172,
         "platform_first_final_event_ms": null,
-        "total_ms": 639,
+        "total_ms": 610,
         "trusted_completion": true,
-        "trusted_completion_ms": 639,
+        "trusted_completion_ms": 610,
         "tool_calls": [
           {
             "tool": "get_turn_context",
@@ -35,8 +35,8 @@
             "ok": true
           }
         ],
-        "finalize_ms": 704,
-        "answer_validated_ms": 719
+        "finalize_ms": 671,
+        "answer_validated_ms": 687
       },
       "timing_origins": {
         "server_stages": "API process time.monotonic(), zero = ask handler entry",
@@ -47,8 +47,8 @@
         "barrier": "driver Date.now() wall clock — the moment this driver's poll observed the pause / sent the release, not the server's exact barrier time"
       },
       "barrier": {
-        "driver_observed_paused_after_ms": 724,
-        "driver_release_sent_after_ms": 742
+        "driver_observed_paused_after_ms": 691,
+        "driver_release_sent_after_ms": 721
       },
       "paused_request_incomplete": true,
       "paused_blocked_answer": true,
@@ -59,13 +59,13 @@
       "persisted_answer": "有高血压10年。",
       "answers_consistent": true,
       "browser_timings": {
-        "clickT": 311.20000000298023,
-        "postT": 1055.5,
-        "visibleT": 1057,
-        "paintT": 1067.5
+        "clickT": 318.4000000022352,
+        "postT": 1018.6000000014901,
+        "visibleT": 1020,
+        "paintT": 1030
       },
       "browser_timings_ordered": true,
-      "click_to_visible_ms": 745.8,
+      "click_to_visible_ms": 701.6,
       "saved_events": 1,
       "settled_single": true,
       "replay_status": 200,
@@ -75,34 +75,34 @@
       "fake_platform": true,
       "real_model_calls": 0,
       "adapter_trace_note": "adapter_trace.real_platform=true reflects the Nexent adapter path; this run used the local fake Nexent (zero real vendor calls)",
-      "replay_event_id": "091bd024-707d-4499-8701-aa08c948af20",
-      "persisted_event_id": "091bd024-707d-4499-8701-aa08c948af20"
+      "replay_event_id": "464200a8-e242-424b-9d32-9fee7c0c3c87",
+      "persisted_event_id": "464200a8-e242-424b-9d32-9fee7c0c3c87"
     },
     {
       "position": "after_submission",
       "question": "有糖尿病吗？",
-      "request_id": "04e6eb18-598d-4e08-a64b-a4812dbd8345",
+      "request_id": "dc34f6a0-0ffe-49fa-ac44-68cfa63308c9",
       "server_stages": {
         "request_entry": 0,
         "classified": 0,
-        "adapter_returned": 328,
-        "validated": 328,
-        "saved": 328
+        "adapter_returned": 281,
+        "validated": 281,
+        "saved": 281
       },
       "adapter_trace": {
         "real_platform": true,
-        "turn_id": "f362c6d42ad14248b3ecbd6abcf76f59",
+        "turn_id": "991f522ad36146b9aa7d428f1bd66341",
         "conversation_id": null,
         "event_types": {
           "model_output_thinking": 1,
           "execution_result": 1
         },
-        "first_event_ms": 30,
-        "platform_first_event_ms": 30,
+        "first_event_ms": 32,
+        "platform_first_event_ms": 32,
         "platform_first_final_event_ms": null,
-        "total_ms": 280,
+        "total_ms": 219,
         "trusted_completion": true,
-        "trusted_completion_ms": 280,
+        "trusted_completion_ms": 219,
         "tool_calls": [
           {
             "tool": "get_turn_context",
@@ -113,8 +113,8 @@
             "ok": true
           }
         ],
-        "finalize_ms": 328,
-        "answer_validated_ms": 328
+        "finalize_ms": 281,
+        "answer_validated_ms": 281
       },
       "timing_origins": {
         "server_stages": "API process time.monotonic(), zero = ask handler entry",
@@ -125,8 +125,8 @@
         "barrier": "driver Date.now() wall clock — the moment this driver's poll observed the pause / sent the release, not the server's exact barrier time"
       },
       "barrier": {
-        "driver_observed_paused_after_ms": 278,
-        "driver_release_sent_after_ms": 310
+        "driver_observed_paused_after_ms": 221,
+        "driver_release_sent_after_ms": 251
       },
       "paused_request_incomplete": true,
       "paused_blocked_answer": true,
@@ -137,13 +137,13 @@
       "persisted_answer": "有糖尿病5年。",
       "answers_consistent": true,
       "browser_timings": {
-        "clickT": 170.80000000074506,
-        "postT": 508.30000000074506,
-        "visibleT": 509.69999999925494,
-        "paintT": 519.1000000014901
+        "clickT": 174.19999999925494,
+        "postT": 464,
+        "visibleT": 465.6000000014901,
+        "paintT": 477.19999999925494
       },
       "browser_timings_ordered": true,
-      "click_to_visible_ms": 338.9,
+      "click_to_visible_ms": 291.4,
       "saved_events": 1,
       "settled_single": true,
       "replay_status": 200,
@@ -153,34 +153,34 @@
       "fake_platform": true,
       "real_model_calls": 0,
       "adapter_trace_note": "adapter_trace.real_platform=true reflects the Nexent adapter path; this run used the local fake Nexent (zero real vendor calls)",
-      "replay_event_id": "244d2f76-6f9d-488e-bd91-73b970e6b515",
-      "persisted_event_id": "244d2f76-6f9d-488e-bd91-73b970e6b515"
+      "replay_event_id": "9763e63f-534d-4148-8861-d58e590cd0e3",
+      "persisted_event_id": "9763e63f-534d-4148-8861-d58e590cd0e3"
     },
     {
       "position": "after_validation",
       "question": "以前做过手术吗？",
-      "request_id": "39f2a8b4-1e6e-4cef-86ae-2682a2b87243",
+      "request_id": "d8d144de-787f-4388-a3f1-8cb2190abd67",
       "server_stages": {
         "request_entry": 0,
         "classified": 0,
-        "adapter_returned": 171,
-        "validated": 280,
-        "saved": 280
+        "adapter_returned": 313,
+        "validated": 360,
+        "saved": 375
       },
       "adapter_trace": {
         "real_platform": true,
-        "turn_id": "e6e4f9f0555a47e698f73fda8cd3215c",
+        "turn_id": "6b77b9c83bef4c4e8ef1c31ce6462200",
         "conversation_id": null,
         "event_types": {
           "model_output_thinking": 1,
           "execution_result": 1
         },
-        "first_event_ms": 14,
-        "platform_first_event_ms": 14,
+        "first_event_ms": 32,
+        "platform_first_event_ms": 32,
         "platform_first_final_event_ms": null,
-        "total_ms": 125,
+        "total_ms": 235,
         "trusted_completion": true,
-        "trusted_completion_ms": 109,
+        "trusted_completion_ms": 219,
         "tool_calls": [
           {
             "tool": "get_turn_context",
@@ -191,8 +191,8 @@
             "ok": true
           }
         ],
-        "finalize_ms": 171,
-        "answer_validated_ms": 280
+        "finalize_ms": 313,
+        "answer_validated_ms": 360
       },
       "timing_origins": {
         "server_stages": "API process time.monotonic(), zero = ask handler entry",
@@ -203,8 +203,8 @@
         "barrier": "driver Date.now() wall clock — the moment this driver's poll observed the pause / sent the release, not the server's exact barrier time"
       },
       "barrier": {
-        "driver_observed_paused_after_ms": 295,
-        "driver_release_sent_after_ms": 318
+        "driver_observed_paused_after_ms": 378,
+        "driver_release_sent_after_ms": 400
       },
       "paused_request_incomplete": true,
       "paused_blocked_answer": true,
@@ -215,13 +215,13 @@
       "persisted_answer": "没做过手术。",
       "answers_consistent": true,
       "browser_timings": {
-        "clickT": 160.30000000074506,
-        "postT": 457.3999999985099,
-        "visibleT": 458.8999999985099,
-        "paintT": 469
+        "clickT": 203.29999999701977,
+        "postT": 576.8999999985099,
+        "visibleT": 578.5999999977648,
+        "paintT": 585.3999999985099
       },
       "browser_timings_ordered": true,
-      "click_to_visible_ms": 298.6,
+      "click_to_visible_ms": 375.3,
       "saved_events": 1,
       "settled_single": true,
       "replay_status": 200,
@@ -231,8 +231,8 @@
       "fake_platform": true,
       "real_model_calls": 0,
       "adapter_trace_note": "adapter_trace.real_platform=true reflects the Nexent adapter path; this run used the local fake Nexent (zero real vendor calls)",
-      "replay_event_id": "c725307e-8c57-4ffc-b99d-baa7b111aae6",
-      "persisted_event_id": "c725307e-8c57-4ffc-b99d-baa7b111aae6"
+      "replay_event_id": "33c373f0-4435-4d68-9f62-d81f9e787c49",
+      "persisted_event_id": "33c373f0-4435-4d68-9f62-d81f9e787c49"
     },
     {
       "scenario": "timeout",
@@ -246,13 +246,13 @@
   "build": {
     "dist": "E:\\AI数字病人临床思维训练\\web\\dist",
     "index_html_exists": true,
-    "main_js_sha256": "591cb95c0bc9c01d114072435dd2bd0b00da2356b817a527b7450f2eaea9740f",
-    "main_js_bytes": 324517
+    "main_js_sha256": "cc402ba298dd404473b03d93b6aa7608e477c24752d87d21dafad05951353994",
+    "main_js_bytes": 326616
   },
   "cleanup": {
     "shutdown_sent": true,
     "process_exited": true,
-    "temp_dir": "C:\\Users\\21658\\AppData\\Local\\Temp\\ask-saved-answer-_bqolbrq",
+    "temp_dir": "C:\\Users\\21658\\AppData\\Local\\Temp\\ask-saved-answer-l4d6vb7p",
     "temp_dir_removed": true,
     "force_killed": false
   },

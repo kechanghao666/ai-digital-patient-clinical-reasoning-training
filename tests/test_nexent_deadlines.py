@@ -274,10 +274,17 @@ def test_deadline_cancels_submitted_turn_and_same_request_retries_once(tmp_path,
         agent(httpx.Request("POST", "http://local.test"), body, env.service)
 
     with platform(drive=drive, slow_stop=True) as (url, records, _, script):
-        # total_timeout_s must outlive the (slow, multi-tool) drive so the turn is actually
-        # SUBMITTED before the deadline fires and can then be cancelled; it must still fire inside
-        # the 0.9s stall. 0.3s races the feedback drive (whose agent runs get_sealed_review + two
-        # searches + submit_feedback), which previously surfaced as an empty POST body -> IndexError.
+        # This is the *post-submit* timeout scenario: the platform streams thinking, runs the drive
+        # (which submits the trusted turn), then stalls, and the client deadline fires during the
+        # stall. The 0.8s budget is only a pragmatic margin so the drive can finish; the real
+        # precondition is the explicit SUBMITTED assertion below, not the timing.
+        #
+        # Root-cause note: the original full-suite failure was `records[0]` IndexError. In this
+        # fixture `records.append(body)` runs *after* `json.loads`, so an empty `records` means the
+        # client cancelled the POST before its body was fully received (a startup/teardown race), NOT
+        # that a slow drive emptied `records`. Reordering the fixture (stream thinking before drive)
+        # plus the larger budget makes the targeted rerun pass; the exact original trigger is not
+        # claimed to be fully established.
         settings = replace(env.settings, mode="nexent", nexent_base_url=url, total_timeout_s=0.8, first_event_timeout_s=2)
         runtime = IntegrationRuntime(settings)
         monkeypatch.setattr(main, "RUNTIME", runtime)
@@ -288,6 +295,11 @@ def test_deadline_cancels_submitted_turn_and_same_request_retries_once(tmp_path,
         failed = env.client.post(path, headers=env.headers, json=payload)
         assert failed.status_code == 504, failed.text
         token = token_of(records[0])
+        # Explicit precondition: the trusted turn reached SUBMITTED (its submission is recorded) and
+        # is now CANCELLED with the run-failure reason, before we assert late submission is refused.
+        turn = env.runtime.turns.get(token.split(".")[0])
+        assert turn.submission is not None
+        assert turn.status == "cancelled" and turn.cancel_reason == "run_failed"
         late = (env.service.submit_fact_selection(token, ["f_hx_htn"]) if role == "patient"
                 else env.service.get_sealed_review(token))
         assert not late["ok"] and late["error"] == "turn_cancelled"
