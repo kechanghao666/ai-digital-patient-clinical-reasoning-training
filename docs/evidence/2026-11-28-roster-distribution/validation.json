@@ -1,0 +1,13 @@
+{
+  "code_sha": "55e5c71b0dc862e2c10a604c2b8614c34597d3ff",
+  "pytest_passed": 939,
+  "pytest_seconds": 347.52,
+  "roster_tests": 17,
+  "browser_checks": 39,
+  "engineering_samples": 12,
+  "real_provider_calls": 0,
+  "official_main": "0f3403ff87215a34e8c32e16a1b86536d811e960",
+  "official_announcement_markdown_sha256": "34f82c6d3aa6ea220e84279f3aa1aed310dba03002921dd768c0911a27d7db00",
+  "official_checked": "2026-11-28 Asia/Shanghai",
+  "historical_trickle_failure": "only node and batch summary retained; exact assertion and cause unknown"
+}

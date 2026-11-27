@@ -25,14 +25,14 @@
       "samples": 12,
       "complete": 12,
       "engineering_pass": 12,
-      "code_sha_note": "本批在提交 9dc0c6e 前的干净工作树上运行（脚本记录 HEAD=5d7f5f5）；最终 SHA 的 CI 将再次运行",
+      "code_sha_note": "原始摘要 20261128-005839 记录 5d7f5f5，20261128-005924 记录 9dc0c6e；两批各 12/12，互不相加。",
       "original_database_unchanged": true
     },
     "browser": {
       "probe": "web/e2e/teacher-panel.mjs",
-      "checks_total": 39,
-      "passed": 39,
-      "new_m3m11_checks": 10,
+      "checks_total": 38,
+      "passed": 38,
+      "new_m3m11_checks": 9,
       "evidence": "docs/evidence/2026-11-28-m3m11-templates/teacher-panel-run.json",
       "screenshot": "docs/evidence/2026-11-28-m3m11-templates/class-templates-groups.png",
       "main_js_sha256": "见 run.json"
