@@ -1,0 +1,9 @@
+exit_code: 0 (offline_verified=True)
+max_tokens after NEW sanitisation: 512
+get_turn_context properties after NEW: {"turn_token": {"type": "string"}}
+get_turn_context required after NEW: ["turn_token"]
+submit_fact_selection required after NEW: ["turn_token", "fact_ids"]
+api_key after NEW: '<redacted>'
+redaction kinds: ['secret_key']
+human flags: ['instance_specific_value']
+stderr bytes: 0

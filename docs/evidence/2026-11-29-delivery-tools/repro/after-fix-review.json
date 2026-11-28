@@ -1,0 +1,75 @@
+{
+  "ok": true,
+  "exports": [
+    {
+      "source_file": "patient-export.json",
+      "source_sha256_of_original_bytes": "d0c38a7a32f585fd7c316f8a060e2d0c287f8ced664c6c4e26b4dfd98578fdd8",
+      "bom_present": false,
+      "newline_style": "crlf",
+      "destination": "deliverables/AgentsHub/行业智能体/医疗/AI数字病人临床思维训练/agent.json",
+      "structure": {
+        "agent_id": 7,
+        "name": "digital_patient_stemi",
+        "display_name": "合成导出",
+        "max_steps": 4,
+        "prompt_sha256": "b56f3cb6fe2092b13f4821b042cc5f2d2b26158fe8b5f337e34ad155f1043224"
+      },
+      "redactions": [
+        {
+          "path": "$.agent_info.7.api_key",
+          "kind": "secret_key"
+        }
+      ],
+      "human_review_flags": [
+        {
+          "path": "$.agent_info.7.tenant_id",
+          "kind": "instance_specific_value"
+        }
+      ],
+      "note": "本副本为脱敏生成件；平台导出原件保留在受保护目录，导出真实性、角色绑定与目标实例导入仍须人工审查。"
+    },
+    {
+      "source_file": "feedback-export.json",
+      "source_sha256_of_original_bytes": "ca54ccc088e390bf8105b3cef7ea218e0c1ccb5f0db99ed571d0cae232dc13b4",
+      "bom_present": false,
+      "newline_style": "crlf",
+      "destination": "deliverables/AgentsHub/行业智能体/医疗/AI数字病人临床思维训练/feedback/agent.json",
+      "structure": {
+        "agent_id": 9,
+        "name": "feedback_reviewer",
+        "display_name": "合成导出",
+        "max_steps": 4,
+        "prompt_sha256": "b56f3cb6fe2092b13f4821b042cc5f2d2b26158fe8b5f337e34ad155f1043224"
+      },
+      "redactions": [
+        {
+          "path": "$.agent_info.9.api_key",
+          "kind": "secret_key"
+        }
+      ],
+      "human_review_flags": [
+        {
+          "path": "$.agent_info.9.tenant_id",
+          "kind": "instance_specific_value"
+        }
+      ],
+      "note": "本副本为脱敏生成件；平台导出原件保留在受保护目录，导出真实性、角色绑定与目标实例导入仍须人工审查。"
+    }
+  ],
+  "package_verification": {
+    "problems": [],
+    "exports": {
+      "agent.json": "structure_checked",
+      "feedback/agent.json": "structure_checked"
+    },
+    "offline_verified": true,
+    "scope": "File checks only. Export provenance, role bindings, disclosure and target import require separate review."
+  },
+  "pending_human_review": [
+    "平台导出真实性与版本授权",
+    "工具/知识库/allow_chat_metadata 角色绑定逐项核对",
+    "human_review_flags 中实例专属资源的映射",
+    "目标实例导入与五病例闭环"
+  ]
+}
+

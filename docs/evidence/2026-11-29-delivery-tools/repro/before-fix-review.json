@@ -1,0 +1,90 @@
+{
+  "ok": true,
+  "exports": [
+    {
+      "source_file": "patient-export.json",
+      "source_sha256": "fbd687dd42757d3187438e93ed92f87aa634e775c958c8b9a4a5740b6e764658",
+      "destination": "deliverables/AgentsHub/行业智能体/医疗/AI数字病人临床思维训练/agent.json",
+      "structure": {
+        "agent_id": 7,
+        "name": "digital_patient_stemi",
+        "display_name": "合成导出",
+        "max_steps": 4,
+        "prompt_sha256": "b56f3cb6fe2092b13f4821b042cc5f2d2b26158fe8b5f337e34ad155f1043224"
+      },
+      "redactions": [
+        {
+          "path": "$.agent_info.7.max_tokens",
+          "kind": "secret_key"
+        },
+        {
+          "path": "$.agent_info.7.tools[0].parameters.properties.turn_token",
+          "kind": "secret_key"
+        },
+        {
+          "path": "$.agent_info.7.tools[1].parameters.properties.turn_token",
+          "kind": "secret_key"
+        },
+        {
+          "path": "$.agent_info.7.api_key",
+          "kind": "secret_key"
+        }
+      ],
+      "human_review_flags": [
+        {
+          "path": "$.agent_info.7.tenant_id",
+          "kind": "instance_specific_value"
+        }
+      ],
+      "note": "本副本为脱敏生成件；平台导出原件保留在受保护目录，导出真实性、角色绑定与目标实例导入仍须人工审查。"
+    },
+    {
+      "source_file": "feedback-export.json",
+      "source_sha256": "9e59b087b87d52a8cf21ae92cc5c5f8165805163244df2c6ed0a34a3fcbbd9d0",
+      "destination": "deliverables/AgentsHub/行业智能体/医疗/AI数字病人临床思维训练/feedback/agent.json",
+      "structure": {
+        "agent_id": 9,
+        "name": "feedback_reviewer",
+        "display_name": "合成导出",
+        "max_steps": 4,
+        "prompt_sha256": "b56f3cb6fe2092b13f4821b042cc5f2d2b26158fe8b5f337e34ad155f1043224"
+      },
+      "redactions": [
+        {
+          "path": "$.agent_info.9.max_tokens",
+          "kind": "secret_key"
+        },
+        {
+          "path": "$.agent_info.9.tools[0].parameters.properties.review_token",
+          "kind": "secret_key"
+        },
+        {
+          "path": "$.agent_info.9.api_key",
+          "kind": "secret_key"
+        }
+      ],
+      "human_review_flags": [
+        {
+          "path": "$.agent_info.9.tenant_id",
+          "kind": "instance_specific_value"
+        }
+      ],
+      "note": "本副本为脱敏生成件；平台导出原件保留在受保护目录，导出真实性、角色绑定与目标实例导入仍须人工审查。"
+    }
+  ],
+  "package_verification": {
+    "problems": [],
+    "exports": {
+      "agent.json": "structure_checked",
+      "feedback/agent.json": "structure_checked"
+    },
+    "offline_verified": true,
+    "scope": "File checks only. Export provenance, role bindings, disclosure and target import require separate review."
+  },
+  "pending_human_review": [
+    "平台导出真实性与版本授权",
+    "工具/知识库/allow_chat_metadata 角色绑定逐项核对",
+    "human_review_flags 中实例专属资源的映射",
+    "目标实例导入与五病例闭环"
+  ]
+}

@@ -31,18 +31,40 @@ prepare_exports = _load("prepare_delivery_exports")
 summarize_forms = _load("summarize_evaluation_forms")
 
 
-def _protected_export(name: str, *, with_secrets: bool = True) -> dict:
-    # auth_note carries a credential-pattern VALUE (not just a secret-named key) to exercise
-    # substring redaction inside otherwise meaningful text.
-    tools = [{"name": "get_turn_context"}, {"name": "submit_fact_selection"}]
+def _protected_export(name: str, *, with_secrets: bool = True, role: str = "patient") -> dict:
+    # Shape mirrors a real Nexent export closely enough to catch sanitisation that breaks
+    # importability: tool parameter definitions (turn_token / max_tokens) must survive.
+    if role == "patient":
+        tools = [
+            {"name": "get_turn_context", "description": "读取本轮可信上下文",
+             "parameters": {"type": "object", "properties": {"turn_token": {"type": "string"}},
+                            "required": ["turn_token"]}},
+            {"name": "submit_fact_selection", "description": "提交事实选择",
+             "parameters": {"type": "object", "properties": {
+                 "turn_token": {"type": "string"},
+                 "fact_ids": {"type": "array", "items": {"type": "string"}}},
+                 "required": ["turn_token", "fact_ids"]}},
+        ]
+    else:
+        tools = [
+            {"name": "get_sealed_review", "parameters": {"type": "object",
+             "properties": {"review_token": {"type": "string"}}, "required": ["review_token"]}},
+            {"name": "search_teaching_basis", "parameters": {"type": "object",
+             "properties": {"query": {"type": "string"}}, "required": ["query"]}},
+            {"name": "submit_feedback", "parameters": {"type": "object",
+             "properties": {"review_token": {"type": "string"}, "items": {"type": "array"}},
+             "required": ["review_token", "items"]}},
+        ]
     agent = {
         "agent_id": 7,
         "name": name,
         "display_name": "数字病人（合成导出）",
+        "description": "合成导出；病例和依据未经医学审核",
         "prompt": "你是教学模拟患者。只依据工具返回的事实作答，不泄露诊断。",
         "max_steps": 4,
+        "max_tokens": 512,
         "tenant_id": "tenant-synthetic-1234",
-        "knowledge_bases": [],
+        "knowledge_bases": ["teaching_basis" if role != "patient" else ""],
         "tools": tools,
         "allow_chat_metadata": True,
     }
@@ -77,7 +99,7 @@ def test_prepare_writes_sanitised_public_copies_and_review_artifact(delivery_dir
     patient = tmp_path / "protected-patient.json"
     feedback = tmp_path / "protected-feedback.json"
     patient.write_text(json.dumps(_protected_export("digital_patient_stemi"), ensure_ascii=False), encoding="utf-8")
-    feedback.write_text(json.dumps(_protected_export("feedback_reviewer", with_secrets=True), ensure_ascii=False),
+    feedback.write_text(json.dumps(_protected_export("feedback_reviewer", role="feedback"), ensure_ascii=False),
                         encoding="utf-8")
     summary_patient = prepare_exports.prepare(patient, delivery_dir / "agent.json")
     summary_feedback = prepare_exports.prepare(feedback, delivery_dir / "feedback" / "agent.json")
@@ -103,6 +125,56 @@ def test_prepare_writes_sanitised_public_copies_and_review_artifact(delivery_dir
     assert "sk-synthetic" not in (tmp_path / "review.json").read_text(encoding="utf-8")
 
 
+def test_tool_definitions_survive_sanitisation(delivery_dir, tmp_path):
+    """``max_tokens`` and the ``turn_token`` parameter are configuration, not credentials: the
+    exported tool wiring must remain importable after sanitisation."""
+    source = tmp_path / "protected-patient.json"
+    source.write_text(json.dumps(_protected_export("digital_patient_stemi"), ensure_ascii=False), encoding="utf-8")
+    summary = prepare_exports.prepare(source, delivery_dir / "agent.json")
+    public = json.loads((delivery_dir / "agent.json").read_text(encoding="utf-8"))
+    agent = public["agent_info"]["7"]
+
+    assert agent["max_tokens"] == 512  # not redacted as a secret
+    get_context = next(tool for tool in agent["tools"] if tool["name"] == "get_turn_context")
+    assert get_context["parameters"]["properties"]["turn_token"] == {"type": "string"}
+    assert get_context["parameters"]["required"] == ["turn_token"]
+    submit = next(tool for tool in agent["tools"] if tool["name"] == "submit_fact_selection")
+    assert submit["parameters"]["required"] == ["turn_token", "fact_ids"]
+    assert submit["parameters"]["properties"]["fact_ids"]["items"] == {"type": "string"}
+
+    # A credential-shaped VALUE inside the definition subtree would still be redacted; here none
+    # exists, so no tool wiring changed at all.
+
+
+def test_secret_named_tool_parameter_is_preserved_and_flagged(delivery_dir, tmp_path):
+    """A tool parameter literally named ``password`` must keep its definition (import wiring) and
+    be flagged for human review instead of being silently redacted into a broken schema."""
+    export = _protected_export("digital_patient_stemi")
+    export["agent_info"]["7"]["tools"][1]["parameters"]["properties"]["password"] = {
+        "type": "string", "description": "合成参数定义；实际导出中如出现须人工确认"}
+    source = tmp_path / "protected.json"
+    source.write_text(json.dumps(export, ensure_ascii=False), encoding="utf-8")
+    summary = prepare_exports.prepare(source, delivery_dir / "agent.json")
+    public = json.loads((delivery_dir / "agent.json").read_text(encoding="utf-8"))
+    submit = next(tool for tool in public["agent_info"]["7"]["tools"] if tool["name"] == "submit_fact_selection")
+    assert submit["parameters"]["properties"]["password"]["type"] == "string"
+    assert {"path": "$.agent_info.7.tools[1].parameters.properties.password",
+            "kind": "secret_named_parameter_preserved"} in summary["human_review_flags"]
+
+
+def test_provenance_hashes_original_bytes_and_records_bom_and_newlines(delivery_dir, tmp_path):
+    source = tmp_path / "protected-bom.json"
+    export = json.dumps(_protected_export("digital_patient_stemi"), ensure_ascii=False, indent=2)
+    source.write_bytes(b"\xef\xbb\xbf" + export.replace("\n", "\r\n").encode("utf-8"))
+    import hashlib
+    raw_sha = hashlib.sha256(source.read_bytes()).hexdigest()
+    summary = prepare_exports.prepare(source, delivery_dir / "agent.json")
+    assert summary["source_sha256_of_original_bytes"] == raw_sha
+    assert summary["bom_present"] is True and summary["newline_style"] == "crlf"
+    # The public copy is normalised UTF-8 without BOM, parseable as-is.
+    assert not (delivery_dir / "agent.json").read_bytes().startswith(b"\xef\xbb\xbf")
+
+
 def test_prepare_refuses_bad_structure_and_existing_targets(delivery_dir, tmp_path):
     bad = tmp_path / "bad.json"
     bad.write_text(json.dumps({"note": "not an export"}), encoding="utf-8")
@@ -120,6 +192,66 @@ def test_prepare_refuses_bad_structure_and_existing_targets(delivery_dir, tmp_pa
     invalid.write_text("{not json", encoding="utf-8")
     with pytest.raises(ValueError, match="不是有效的 JSON"):
         prepare_exports.prepare(invalid, delivery_dir / "feedback" / "agent.json")
+
+
+def test_second_source_failure_rolls_back_the_first_copy(delivery_dir, tmp_path, monkeypatch, capsys):
+    """A corrupted second input must leave NO public copy behind — a failed run never produces a
+    half-generated package that a retry would then refuse. The rollback is the CLI transaction's
+    responsibility (single-step prepare() claims its one file by design)."""
+    good = tmp_path / "good-patient.json"
+    good.write_text(json.dumps(_protected_export("digital_patient_stemi"), ensure_ascii=False), encoding="utf-8")
+    corrupt = tmp_path / "corrupt-feedback.json"
+    corrupt.write_text("{not json", encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["prepare_delivery_exports.py", "--patient", str(good),
+                                      "--feedback", str(corrupt)])
+    with pytest.raises(SystemExit) as exit_info:
+        prepare_exports.main()
+    assert exit_info.value.code == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["rolled_back"] == [str(delivery_dir / "agent.json")]
+    assert not (delivery_dir / "agent.json").exists()
+    assert not (delivery_dir / "feedback" / "agent.json").exists()
+
+
+def test_review_artifact_failure_rolls_back_written_copies(delivery_dir, tmp_path, monkeypatch):
+    patient = tmp_path / "good-patient.json"
+    feedback = tmp_path / "good-feedback.json"
+    patient.write_text(json.dumps(_protected_export("digital_patient_stemi"), ensure_ascii=False), encoding="utf-8")
+    feedback.write_text(json.dumps(_protected_export("feedback_reviewer", role="feedback"), ensure_ascii=False),
+                        encoding="utf-8")
+
+    # Simulate "review artifact cannot be written": the destination already exists.
+    review_out = tmp_path / "review.json"
+    review_out.write_text("{}", encoding="utf-8")
+    argv = ["prepare_delivery_exports.py", "--patient", str(patient), "--feedback", str(feedback),
+            "--review-out", str(review_out)]
+    monkeypatch.setattr(sys, "argv", argv)
+    with pytest.raises(SystemExit) as exit_info:
+        prepare_exports.main()
+    assert exit_info.value.code == 2
+    assert not (delivery_dir / "agent.json").exists()
+    assert not (delivery_dir / "feedback" / "agent.json").exists()
+    assert review_out.read_text(encoding="utf-8") == "{}"  # untouched
+
+
+def test_package_verification_failure_rolls_back_written_copies(delivery_dir, tmp_path, monkeypatch, capsys):
+    patient = tmp_path / "good-patient.json"
+    feedback = tmp_path / "good-feedback.json"
+    patient.write_text(json.dumps(_protected_export("digital_patient_stemi"), ensure_ascii=False), encoding="utf-8")
+    feedback.write_text(json.dumps(_protected_export("feedback_reviewer", role="feedback"), ensure_ascii=False),
+                        encoding="utf-8")
+    monkeypatch.setattr(prepare_exports, "verify",
+                        lambda directory: {"offline_verified": False, "problems": ["simulated"],
+                                           "exports": {}, "scope": "x"})
+    argv = ["prepare_delivery_exports.py", "--patient", str(patient), "--feedback", str(feedback)]
+    monkeypatch.setattr(sys, "argv", argv)
+    with pytest.raises(SystemExit) as exit_info:
+        prepare_exports.main()
+    assert exit_info.value.code == 2
+    assert not (delivery_dir / "agent.json").exists()
+    assert not (delivery_dir / "feedback" / "agent.json").exists()
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["rolled_back"] == [str(delivery_dir / "agent.json"), str(delivery_dir / "feedback" / "agent.json")]
 
 
 def test_prepare_survives_credentials_inside_prompt_text(delivery_dir, tmp_path):
@@ -159,76 +291,166 @@ def _write_forms(directory: Path, qa_rows, student_rows, error_rows):
             writer.writerows(rows)
 
 
+def _run_summarizer(tmp_path, capsys, *extra):
+    summarize_forms.main.__globals__["sys"].argv = [
+        "summarize_evaluation_forms.py", "--forms-dir", str(tmp_path), *extra]
+    with pytest.raises(SystemExit) as exit_info:
+        summarize_forms.main()
+    assert exit_info.value.code == 0
+    return json.loads(capsys.readouterr().out)
+
+
 def test_summarizer_computes_rates_without_fabricating_verdicts(tmp_path, capsys):
     qa_rows = [
         ["QA-01", "APPY-001", "2", "s1", "r1", "有高血压吗", "有10年", "", "", "是", "否", "评审甲", "", "2026-12-01"],
         ["QA-02", "APPY-001", "2", "s1", "r2", "有糖尿病吗", "没有", "", "", "否", "否", "评审甲", "", "2026-12-01"],
-        ["QA-03", "APPY-001", "2", "s1", "r3", "有外伤吗", "", "", "", "未定", "是", "评审甲", "超时", "2026-12-01"],
-        ["QA-04", "APPY-999", "9", "", "", "", "", "", "", "", "", "", "", ""],  # blank + unfrozen case
+        ["QA-03", "APPY-001", "2", "s1", "r3", "有外伤吗", "", "", "", "", "是", "评审甲", "超时", "2026-12-01"],
+        ["QA-04", "APPY-001", "2", "s1", "r4", "以前疼过吗", "没有", "", "", "是", "是", "评审甲", "", "2026-12-01"],
+        ["QA-05", "APPY-001", "2", "s1", "r5", "有呕吐吗", "有", "", "", "可能", "否", "评审甲", "", ""],
+        ["QA-06", "APPY-999", "9", "s1", "r6", "有腹泻吗", "没有", "", "", "是", "否", "评审甲", "", ""],
     ]
     student_rows = [
-        [f"待招募-1", "S-A", "APPY-001@2", "第3轮", stage, "4", "4", "", "是", "", "评审乙", ""]
-        for stage in ("病史采集", "检查选择", "鉴别诊断", "诊断", "治疗")
+        ["待招募-1", "S-A", "APPY-001@2", "第3轮", "病史采集", "4", "4", "±0.5", "是", "", "评审乙", ""],
+        ["待招募-1", "S-A", "APPY-001@2", "第3轮", "病史采集", "4", "4", "±0.5", "是", "", "评审乙", ""],
+        ["待招募-1", "S-A", "APPY-001@2", "", "检查选择", "4", "4", "±0.5", "", "", "评审乙", ""],
+        ["待招募-1", "S-A", "APPY-001@2", "", "鉴别诊断", "4", "", "±0.5", "是", "", "评审乙", ""],
+        ["待招募-1", "S-A", "APPY-001@2", "", "诊断", "4", "4", "", "是", "", "评审乙", ""],
+        ["待招募-1", "S-A", "APPY-001@9", "", "治疗", "4", "4", "±0.5", "是", "", "评审乙", ""],
+        ["待招募-1", "S-A", "APPY-001", "", "治疗", "4", "4", "±0.5", "是", "", "评审乙", ""],
     ]
     error_rows = [
         ["APPY-001-1", "APPY-001", "2", "正常对照", "", "", "", "", "", "否", "", "", "", "", ""],
         ["APPY-001-2", "APPY-001", "2", "漏检查", "", "", "", "", "", "是", "恶化", "是", "是", "审核人", ""],
         ["APPY-001-3", "APPY-001", "2", "检查后延误", "", "", "", "", "", "是", "恶化", "是", "否", "审核人", ""],
+        ["APPY-001-4", "APPY-001", "2", "不当检查", "", "", "", "", "", "是", "恶化", "", "", "审核人", ""],
+        ["APPY-001-5", "APPY-999", "9", "其他", "", "", "", "", "", "", "", "", "", "审核人", ""],
     ]
     _write_forms(tmp_path, qa_rows, student_rows, error_rows)
 
-    summarize_forms.main.__globals__["sys"].argv = ["summarize_evaluation_forms.py", "--forms-dir", str(tmp_path)]
-    with pytest.raises(SystemExit) as exit_info:
-        summarize_forms.main()
-    assert exit_info.value.code == 0
-    report = json.loads(capsys.readouterr().out)
-
+    report = _run_summarizer(tmp_path, capsys)
     qa = report["summaries"]["qa_20rounds"]
-    assert qa["filled_rows"] == 3 and qa["consistent"] == 1 and qa["inconsistent"] == 1
-    assert qa["failed_or_timeout"] == 1 and qa["judgement_missing"] == 1
-    assert qa["agreement_rate_excluding_failures"] == 1.0  # 1 consistent / (2 judged - 1 failed)
-    assert qa["unfrozen_case_references"] == ["APPY-999@9"]
+    assert qa["filled_rows"] == 6 and qa["consistent"] == 2 and qa["inconsistent"] == 1
+    assert qa["failed_or_timeout"] == 1 and qa["contradictory"] == 1
+    assert qa["invalid_marker_rows"] == 1 and qa["judgement_missing"] == 0
+    excluding = qa["agreement_rate_excluding_failures"]
+    assert (excluding["numerator"], excluding["denominator"]) == (2, 3) and excluding["value"] == 0.6667
+    as_miss = qa["agreement_rate_failures_as_miss"]
+    assert (as_miss["numerator"], as_miss["denominator"]) == (2, 6) and as_miss["value"] == 0.3333
+    assert "评审确认前不作为正式一致率" in excluding["policy"]
+    assert qa["unfrozen_or_invalid_case_references"] == ["非冻结版本:APPY-999@9"]
+
     student = report["summaries"]["student_expert"]
-    assert student["complete_students"] == 1
-    assert student["students"][0]["agreement_rate_as_recorded"] == 1.0
+    assert student["students_recorded"] == 1 and student["complete_students"] == 0
+    assert student["overall_complete_students_rate_as_recorded"]["display"] == "未知（分母为 0）"
+    reasons = {row["reason"] for row in student["invalid_rows"]}
+    assert "重复行（同一学生/病例/轨迹/环节）" in reasons
+    assert any(r.startswith("一致性判断为空或非法") for r in reasons)
+    assert "缺少专家或系统原分" in reasons and "缺少事先确认容差" in reasons
+    assert "非冻结版本:APPY-001@9" in reasons and "格式错误:APPY-001" in reasons
+
     error = report["summaries"]["error_evolution"]
-    assert error["in_denominator"] == 2 and error["triggered"] == 2
-    assert error["trigger_rate_as_recorded"] == 1.0
-    assert error["feedback_accuracy_among_triggered"] == 0.5
+    assert error["in_denominator"] == 3 and error["triggered"] == 2 and error["not_triggered"] == 0
+    assert error["trigger_undecided"] == 1
+    assert error["trigger_rate_as_recorded"]["display"] == "2/3"
+    assert error["feedback_accuracy_detail"] == {"accurate": 1, "inaccurate": 1, "undecided": 0}
+    assert error["accuracy_marked_on_not_triggered_rows"] == 0
+    assert {"row": 6, "reason": "非冻结版本:APPY-999@9"} in error["invalid_rows"]
     assert report["verdicts_as_recorded"] is None  # no policy confirmation -> no pass/fail wording
 
 
-def test_summarizer_emits_as_recorded_verdicts_only_with_confirmed_policy(tmp_path, capsys):
+def test_qa_repro_nineteen_consistent_one_failed_is_19_over_19_and_19_over_20(tmp_path, capsys):
+    """The handoff repro: 19 consistent, 1 failed/timeout with judgment left blank.
+
+    Excluding failures must read 19/19; counting the failure as a miss must read 19/20. Neither
+    rate may be presented without its numerator, denominator and policy.
+    """
     qa_rows = [[f"QA-{i:02d}", "APPY-001", "2", "s1", f"r{i}", "问", "答", "", "", "是", "否", "评审甲", "", ""]
-               for i in range(1, 21)]  # 20/20 consistent
-    student_rows = [[f"待招募-{n}", f"S-{n}", "APPY-001@2", "", stage, "4", "4", "", "是", "", "评审乙", ""]
+               for i in range(1, 20)]
+    qa_rows.append(["QA-20", "APPY-001", "2", "s1", "r20", "问", "", "", "", "", "是", "评审甲", "超时", ""])
+    _write_forms(tmp_path, qa_rows, [], [])
+
+    report = _run_summarizer(tmp_path, capsys)
+    qa = report["summaries"]["qa_20rounds"]
+    assert qa["filled_rows"] == 20 and qa["consistent"] == 19 and qa["failed_or_timeout"] == 1
+    excluding = qa["agreement_rate_excluding_failures"]
+    assert (excluding["numerator"], excluding["denominator"], excluding["value"]) == (19, 19, 1.0)
+    as_miss = qa["agreement_rate_failures_as_miss"]
+    assert (as_miss["numerator"], as_miss["denominator"], as_miss["value"]) == (19, 20, 0.95)
+
+
+def test_policy_confirmation_cannot_bless_insufficient_material(tmp_path, capsys):
+    qa_rows = [["QA-01", "APPY-001", "2", "s1", "r1", "问", "答", "", "", "是", "否", "评审甲", "", ""]]
+    student_rows = [["待招募-1", "S-A", "APPY-001@2", "", stage, "4", "4", "±0.5", "是", "", "评审乙", ""]
+                    for stage in ("病史采集", "检查选择", "鉴别诊断", "诊断", "治疗")]
+    error_rows = [["APPY-001-1", "APPY-001", "2", "漏检查", "", "", "", "", "", "是", "恶化", "是", "是",
+                   "审核人", ""]]
+    _write_forms(tmp_path, qa_rows, student_rows, error_rows)
+
+    report = _run_summarizer(tmp_path, capsys, "--policy-confirmed-by", "评审组长",
+                             "--failure-policy", "excluding")
+    verdict = report["verdicts_as_recorded"]
+    assert verdict["verdict"] == "verdict_withheld"
+    assert any("问答已尝试轮次 1 < 20" in reason for reason in verdict["reasons"])
+    assert any("完整五环节学生 1 < 3" in reason for reason in verdict["reasons"])
+    assert verdict["scope"].startswith("as_recorded only")
+
+
+def test_policy_with_sufficient_material_and_recorded_failure_policy(tmp_path, capsys):
+    qa_rows = [[f"QA-{i:02d}", "APPY-001", "2", "s1", f"r{i}", "问", "答", "", "", "是", "否", "评审甲", "", ""]
+               for i in range(1, 21)]
+    student_rows = [[f"待招募-{n}", f"S-{n}", "APPY-001@2", "", stage, "4", "4", "±0.5", "是", "", "评审乙", ""]
                     for n in (1, 2, 3) for stage in ("病史采集", "检查选择", "鉴别诊断", "诊断", "治疗")]
     error_rows = [[f"APPY-001-{i}", "APPY-001", "2", "漏检查", "", "", "", "", "", "是", "恶化", "是", "是",
                    "审核人", ""] for i in range(1, 11)]
     _write_forms(tmp_path, qa_rows, student_rows, error_rows)
 
-    summarize_forms.main.__globals__["sys"].argv = [
-        "summarize_evaluation_forms.py", "--forms-dir", str(tmp_path), "--policy-confirmed-by", "评审组长"]
-    with pytest.raises(SystemExit) as exit_info:
-        summarize_forms.main()
-    assert exit_info.value.code == 0
-    report = json.loads(capsys.readouterr().out)
-    assert report["verdicts_as_recorded"]["qa_20rounds_agreement_excluding_failures"] == "meets_target_as_recorded"
-    assert report["verdicts_as_recorded"]["student_expert_overall"] == "meets_target_as_recorded"
-    assert report["verdicts_as_recorded"]["error_evolution_trigger"] == "meets_target_as_recorded"
-    assert "not a certification" in report["verdicts_as_recorded"]["scope"]
+    report = _run_summarizer(tmp_path, capsys, "--policy-confirmed-by", "评审组长",
+                             "--failure-policy", "as_miss")
+    verdict = report["verdicts_as_recorded"]
+    assert verdict["verdict"] == "meets_target_as_recorded"
+    assert verdict["failure_policy"] == "as_miss" and verdict["confirmed_by"] == "评审组长"
+    assert verdict["applied_rates"]["qa"]["policy"].startswith("失败或超时的轮次按未命中计入分母")
 
-    # Below target: two inconsistent QA rows flip the verdict (18/20 = 0.9 < 0.95), still "as recorded".
-    qa_rows[0][9] = "否"
-    qa_rows[1][9] = "否"
+    # The same 20 rounds with one failure read 19/20 under as_miss and 19/19 under excluding:
+    # the recorded policy decides which rate applies, never the tool.
+    qa_rows[-1][10] = "是"
+    qa_rows[-1][9] = ""
     _write_forms(tmp_path, qa_rows, student_rows, error_rows)
-    summarize_forms.main.__globals__["sys"].argv = [
-        "summarize_evaluation_forms.py", "--forms-dir", str(tmp_path), "--policy-confirmed-by", "评审组长"]
+    report = _run_summarizer(tmp_path, capsys, "--policy-confirmed-by", "评审组长",
+                             "--failure-policy", "as_miss")
+    applied = report["verdicts_as_recorded"]["applied_rates"]["qa"]
+    assert (applied["numerator"], applied["denominator"]) == (19, 20)
+    report = _run_summarizer(tmp_path, capsys, "--policy-confirmed-by", "评审组长",
+                             "--failure-policy", "excluding")
+    applied = report["verdicts_as_recorded"]["applied_rates"]["qa"]
+    assert (applied["numerator"], applied["denominator"]) == (19, 19)
+
+
+def test_all_failed_and_zero_denominator_show_unknown(tmp_path, capsys):
+    qa_rows = [[f"QA-{i:02d}", "APPY-001", "2", "s1", f"r{i}", "问", "", "", "", "", "是", "评审甲", "超时", ""]
+               for i in range(1, 21)]
+    _write_forms(tmp_path, qa_rows, [], [])
+    report = _run_summarizer(tmp_path, capsys)
+    qa = report["summaries"]["qa_20rounds"]
+    assert qa["consistent"] == 0 and qa["failed_or_timeout"] == 20
+    excluding = qa["agreement_rate_excluding_failures"]
+    assert excluding["denominator"] == 0 and excluding["value"] is None
+    assert excluding["display"] == "未知（分母为 0）"
+    as_miss = qa["agreement_rate_failures_as_miss"]
+    assert (as_miss["numerator"], as_miss["denominator"]) == (0, 20) and as_miss["value"] == 0.0
+
+
+def test_structural_header_errors_are_actionable(tmp_path, capsys):
+    _write_forms(tmp_path, [], [], [])
+    path = tmp_path / "问答抽检_20轮_待填写.csv"
+    text = path.read_text(encoding="utf-8-sig")
+    path.write_text(text.replace("是否一致", "一致与否"), encoding="utf-8-sig")
+    summarize_forms.main.__globals__["sys"].argv = ["summarize_evaluation_forms.py", "--forms-dir", str(tmp_path)]
     with pytest.raises(SystemExit) as exit_info:
         summarize_forms.main()
-    assert exit_info.value.code == 0
-    report = json.loads(capsys.readouterr().out)
-    assert report["verdicts_as_recorded"]["qa_20rounds_agreement_excluding_failures"] == "below_target_as_recorded"
+    assert exit_info.value.code == 2
+    problems = json.loads(capsys.readouterr().out)["problems"]
+    assert any("缺少列 ['是否一致']" in item and "review-forms-20261127" in item for item in problems)
 
 
 def test_summarizer_reports_missing_forms_and_writes_report_once(tmp_path, capsys):
@@ -238,7 +460,7 @@ def test_summarizer_reports_missing_forms_and_writes_report_once(tmp_path, capsy
     with pytest.raises(SystemExit) as excinfo:
         summarize_forms.main()
     assert excinfo.value.code == 2
-    assert "missing" in capsys.readouterr().out
+    assert "缺少 学生专家评分_至少3人_待填写.csv" in capsys.readouterr().out
 
     _write_forms(tmp_path, [], [], [])
     (tmp_path / "report.json").write_text("{}", encoding="utf-8")
