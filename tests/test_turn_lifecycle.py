@@ -66,3 +66,20 @@ def test_finalization_rejects_expired_submissions(tmp_path, monkeypatch, finishe
     assert store.submit(turn.turn_id, {"fact_ids": []})
     monkeypatch.setattr(turns.time, "time", lambda: finished_at)
     assert store.finalize(turn.turn_id) is accepted
+
+
+def test_boundary_write_failure_rolls_back_selection_and_retry_records_once(tmp_path):
+    store = turns.TurnStore(tmp_path / 'turns.db')
+    turn, _ = issue(store)
+    with sqlite3.connect(store.path) as db:
+        db.execute("CREATE TRIGGER reject_sample BEFORE INSERT ON turn_boundaries BEGIN SELECT RAISE(ABORT, 'sample'); END")
+    with pytest.raises(sqlite3.IntegrityError):
+        store.submit(turn.turn_id, {"fact_ids": []}, observe_patient_submit=True)
+    assert store.get(turn.turn_id).status == turns.OPEN
+    assert store.get(turn.turn_id).submission is None and store.boundaries(turn.turn_id) == []
+    with sqlite3.connect(store.path) as db:
+        db.execute('DROP TRIGGER reject_sample')
+    assert store.submit(turn.turn_id, {"fact_ids": []}, observe_patient_submit=True)
+    assert not store.submit(turn.turn_id, {"fact_ids": []}, observe_patient_submit=True)
+    sample, = store.boundaries(turn.turn_id)
+    assert (sample['semantic'], sample['request_id']) == ('submit_fact_selection_before_commit', turn.request_id)

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import sqlite3
 from typing import Any, Callable
 
 from ..adapters import diagnosis_leak_terms
@@ -51,9 +53,9 @@ class TrustedToolService:
         try:
             state = self.repository.get(turn.session_id, turn.owner_id)
         except KeyError as exc:
-            raise TurnError("session_missing", "session is not available") from exc
+            raise TurnError("session_missing", "session is not available", turn.turn_id) from exc
         if state.case_id != turn.case_id or state.case_version != turn.case_version:
-            raise TurnError("case_mismatch", "session case no longer matches the turn")
+            raise TurnError("case_mismatch", "session case no longer matches the turn", turn.turn_id)
         try:
             self.cases.reload()
         except (ValueError, OSError) as exc:
@@ -67,13 +69,13 @@ class TrustedToolService:
         if kind == turn_states.PATIENT:
             if state.sealed:
                 self.turns.cancel(turn.turn_id, "session_sealed")
-                raise TurnError("session_sealed", "session is sealed")
+                raise TurnError("session_sealed", "session is sealed", turn.turn_id)
             if state.state_version != turn.state_version:
                 self.turns.cancel(turn.turn_id, "state_changed")
-                raise TurnError("state_changed", "session changed after this turn began")
+                raise TurnError("state_changed", "session changed after this turn began", turn.turn_id)
         else:
             if not state.sealed:
-                raise TurnError("not_sealed", "feedback is only available after sealing")
+                raise TurnError("not_sealed", "feedback is only available after sealing", turn.turn_id)
         return turn, state, case
 
     def _guard(self, token: str, kind: str, tool: str, body: Callable[[Turn, SessionState, CaseDefinition], dict[str, Any]], allow: tuple[str, ...] = (turn_states.OPEN,)) -> dict[str, Any]:
@@ -90,25 +92,10 @@ class TrustedToolService:
             audited = turn_id or exc.turn_id
             if audited:
                 self.turns.record_call(audited, tool, False, exc.code)
-                # request_id may not be available if binding failed; store empty string when unknown.
-                request_id = ""
-                try:
-                    if turn_id:
-                        turn = self.turns.get(turn_id)
-                        request_id = turn.request_id
-                except KeyError:
-                    pass
-                # Distinguish a duplicate/expired turn from other binding failures.
-                if tool == "submit_fact_selection" and exc.code == "turn_submitted":
-                    semantic = "submit_fact_selection_not_open"
-                elif tool == "submit_fact_selection" and exc.code == "turn_expired":
-                    semantic = "submit_fact_selection_not_open"
-                else:
-                    semantic = "submit_fact_selection_failed"
-                self.turns.record_boundary(
-                    audited, request_id, semantic,
-                    detail=f"{exc.code}: {str(exc)}",
-                )
+                if tool == "submit_fact_selection":
+                    closed = exc.code in {"turn_submitted", "turn_expired", "turn_finalized", "turn_cancelled"}
+                    semantic = "submit_fact_selection_not_open" if closed else "submit_fact_selection_failed"
+                    self.turns.record_boundary(audited, semantic, exc.code)
             return _fail(exc.code, str(exc))
         detail = ""
         if not result.get("ok"):
@@ -146,7 +133,7 @@ class TrustedToolService:
         def body(turn: Turn, state: SessionState, case: CaseDefinition) -> dict[str, Any]:
             if not isinstance(fact_ids, list) or not all(isinstance(item, str) for item in fact_ids):
                 self.turns.record_boundary(
-                    turn.turn_id, turn.request_id, "submit_fact_selection_rejected",
+                    turn.turn_id, "submit_fact_selection_rejected",
                     detail="invalid_selection: fact_ids must be a list of strings",
                 )
                 return _fail("invalid_selection", "fact_ids must be a list of strings")
@@ -154,20 +141,21 @@ class TrustedToolService:
             allowed = set(turn.candidate_fact_ids)
             if any(item not in allowed for item in unique):
                 self.turns.record_boundary(
-                    turn.turn_id, turn.request_id, "submit_fact_selection_rejected",
+                    turn.turn_id, "submit_fact_selection_rejected",
                     detail="unauthorized_fact: selection contains a fact that is not a candidate for this turn",
                 )
                 return _fail("unauthorized_fact", "selection contains a fact that is not a candidate for this turn")
-            if not self.turns.submit(turn.turn_id, {"fact_ids": unique}):
+            if not self.turns.submit(turn.turn_id, {"fact_ids": unique}, observe_patient_submit=True):
                 self.turns.record_boundary(
-                    turn.turn_id, turn.request_id, "submit_fact_selection_not_open",
+                    turn.turn_id, "submit_fact_selection_not_open",
                     detail="turn_not_open: selection was already submitted or the turn closed",
                 )
                 return _fail("turn_not_open", "selection was already submitted or the turn closed")
-            self.turns.record_boundary(
-                turn.turn_id, turn.request_id, "submit_fact_selection_committed",
-                detail=f"selected={len(unique)} fact_ids",
-            )
+            try:
+                self.turns.record_boundary(turn.turn_id, "submit_fact_selection_committed")
+            except sqlite3.Error:
+                # The selection is already committed. Its atomic pre-commit sample remains available.
+                logging.getLogger(__name__).warning("MCP post-commit sample unavailable")
             return {
                 "ok": True,
                 "selected": unique,

@@ -45,9 +45,8 @@ class NexentRun:
     stopped: bool = False
     trusted_completion: bool = False
     # Monotonic milliseconds since this run started, at the moment this client first observed the
-    # trusted local turn as submitted. This is a detection time, not the moment the model's
-    # submit_fact_selection landed in the turn store (that is wall-clock `turn_calls.at` in the
-    # separate MCP process). None when the run ended by the model stream completing instead.
+    # trusted local turn as submitted. MCP records separate wall-clock samples around commit.
+    # None when the run ended by the model stream completing instead.
     trusted_completion_ms: int | None = None
 
 

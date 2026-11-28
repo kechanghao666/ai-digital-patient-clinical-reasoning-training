@@ -463,9 +463,7 @@ def ask(session_id: str, request: AskRequest, owner_id: str = Depends(current_ow
     # Monotonic stage stamps for this request, all in the API process on one clock. These mark when
     # this handler reached a point, not when an upstream event happened: "adapter_returned" is when
     # the patient adapter returned (after the model run and turn finalize), NOT when the model's
-    # submit_fact_selection landed in the turn store — that landing is wall-clock `turn_calls.at` in
-    # the (separate) MCP process and cannot be subtracted from these values. Never a credential,
-    # token or model text.
+    # selection committed. MCP samples around commit use its own wall clock; turn_calls.at is a later audit sample.
     stage_ms: dict[str, int] = {"request_entry": 0}
 
     def mark(stage: str) -> None:

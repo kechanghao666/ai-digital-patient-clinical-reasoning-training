@@ -1,22 +1,14 @@
 #!/usr/bin/env python3
-"""Verify submit_fact_selection boundary recording in an isolated MCP process.
-
-This script starts the trusted MCP server in a background thread (real HTTP sockets, separate
-FastMCP instance) and drives it with the FastMCP client, exactly as a fake Nexent agent would.
-It records:
-
-* successful submit -> "submit_fact_selection_committed" boundary with request_id and wall clock;
-* unauthorized fact -> "submit_fact_selection_rejected" boundary;
-* duplicate submit -> "submit_fact_selection_not_open" boundary;
-* TurnError/binding failures -> "submit_fact_selection_failed" boundary.
-
-The evidence is written to the directory supplied on the command line. No real vendor is called.
-"""
+"""Verify patient-submit observations over HTTP in a separate local MCP process with temporary stores."""
 from __future__ import annotations
 
 import json
 import sys
-import threading
+import multiprocessing
+import os
+import socket
+import tempfile
+from contextlib import contextmanager
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,69 +21,65 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from app.case_store import CaseStore
-from app.integration.config import IntegrationSettings
-from app.integration.knowledge import KnowledgeStore
-from app.integration.tools import TrustedToolService
 from app.integration.turns import TurnStore
-from app.mcp_server import BearerGate, build_mcp
+from app.integration.config import IntegrationSettings
+from app.mcp_server import build_asgi_app
 from app.storage import SessionRepository
 
 
 MCP_TOKEN = "verify-mcp-token-000000000000"
 
 
-class LiveServer:
-    def __init__(self, app):
-        self.server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=0, log_level="error"))
-        self.thread = threading.Thread(target=self.server.run, daemon=True)
+def serve(sock, tmp):
+    os.environ.update(APP_DATA_DIR=str(tmp), INTEGRATION_DB_PATH=str(tmp / "integration.db"),
+                      KNOWLEDGE_DIR=str(ROOT / "knowledge"), MCP_SERVICE_TOKEN=MCP_TOKEN, NEXENT_MODE="simulator")
+    app = build_asgi_app(IntegrationSettings.from_env())
+    uvicorn.Server(uvicorn.Config(app, log_level="error")).run(sockets=[sock])
 
-    def __enter__(self):
-        self.thread.start()
-        deadline = time.time() + 15
-        while not self.server.started:
-            if time.time() > deadline:
-                raise RuntimeError("server did not start")
-            time.sleep(0.02)
-        self.port = self.server.servers[0].sockets[0].getsockname()[1]
-        return self
 
-    def __exit__(self, *exc):
-        self.server.should_exit = True
-        self.thread.join(timeout=10)
+@contextmanager
+def live_server(tmp):
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        address = sock.getsockname()
+        process = multiprocessing.get_context("spawn").Process(target=serve, args=(sock, tmp))
+        process.start()
+        try:
+            deadline = time.monotonic() + 30
+            while process.is_alive():
+                try:
+                    with socket.create_connection(address, timeout=0.2):
+                        break
+                except OSError:
+                    if time.monotonic() >= deadline:
+                        raise RuntimeError("MCP startup timed out")
+                    time.sleep(0.05)
+            else:
+                raise RuntimeError("MCP exited during startup")
+            yield address[1], process.pid
+        finally:
+            if process.is_alive():
+                process.terminate()
+            process.join(10)
+            if process.is_alive():
+                process.kill()
+                process.join(5)
+            process.close()
 
 
 def run(out_dir: Path) -> dict:
-    import shutil
+    out_dir.mkdir(parents=True, exist_ok=False)
+    with tempfile.TemporaryDirectory(prefix="patient-mcp-boundary-") as tmp:
+        report = verify(Path(tmp))
+    report["temporary_data_removed"] = not Path(tmp).exists()
+    (out_dir / "mcp-submit-boundary.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return report
 
-    out_dir = out_dir.resolve()
-    out_dir.mkdir(parents=True, exist_ok=True)
-    tmp = out_dir / "mcp-verify-data"
-    if tmp.exists():
-        shutil.rmtree(tmp)
-    tmp.mkdir()
 
+def verify(tmp: Path) -> dict:
     cases = CaseStore(ROOT / "cases")
-    repository = SessionRepository(tmp / "sessions.db")
-    settings = IntegrationSettings(
-        mode="nexent",
-        nexent_base_url="",
-        nexent_api_key="unused",
-        patient_agent_name="unused",
-        feedback_agent_name="unused",
-        connect_timeout_s=2.0,
-        first_event_timeout_s=1.5,
-        total_timeout_s=10.0,
-        turn_ttl_s=60.0,
-        mcp_service_token=MCP_TOKEN,
-        integration_db_path=tmp / "integration.db",
-        knowledge_dir=ROOT / "knowledge",
-    )
-
-    # Build service with its own handles, as a real separate MCP process would.
-    turns = TurnStore(settings.integration_db_path)
-    service = TrustedToolService(turns, repository, cases, KnowledgeStore(settings.knowledge_dir))
-    mcp_app = BearerGate(build_mcp(service).http_app(path="/mcp", transport="streamable-http"), MCP_TOKEN)
-
+    repository = SessionRepository(tmp / "app.db")
+    turns = TurnStore(tmp / "integration.db")
     owner_id = "verify-owner"
     session_id = "verify-session"
     case_id = "APPY-001"
@@ -112,8 +100,8 @@ def run(out_dir: Path) -> dict:
     case = cases.get(case_id, case_version)
     candidate_fact_ids = [fact.fact_id for fact in case.facts if fact.disclosure_level == "on_inquiry"][:4]
 
-    with LiveServer(mcp_app) as mcp_server:
-        mcp_url = f"http://127.0.0.1:{mcp_server.port}/mcp"
+    with live_server(tmp) as (port, child_pid):
+        mcp_url = f"http://127.0.0.1:{port}/mcp"
 
         # Issue a patient turn from the API side.
         turn, token = turns.issue(
@@ -162,6 +150,14 @@ def run(out_dir: Path) -> dict:
                 )
                 bad = (await client.call_tool("submit_fact_selection", {"turn_token": token2, "fact_ids": ["not_a_candidate"]})).data
                 results["unauthorized_submit"] = bad
+                # Calling a different tool on a closed turn must not add a submit boundary.
+                await client.call_tool("get_turn_context", {"turn_token": token})
+                missing, missing_token = turns.issue(kind="patient", owner_id=owner_id, session_id="absent",
+                    case_id=case_id, case_version=case_version, request_id="verify-missing", state_version=0,
+                    candidate_fact_ids=[], ttl_s=60)
+                failed = (await client.call_tool("submit_fact_selection", {"turn_token": missing_token, "fact_ids": []})).data
+                results["failed_code"] = failed.get("error")
+                results["missing_id"] = missing.turn_id
                 results["turn2_id"] = turn2.turn_id
             return results
 
@@ -172,7 +168,7 @@ def run(out_dir: Path) -> dict:
     boundaries1 = turns.boundaries(turn.turn_id)
     boundaries2 = turns.boundaries(tool_results["turn2_id"])
     calls1 = turns.calls(turn.turn_id)
-    calls2 = turns.boundaries(tool_results["turn2_id"])
+    calls2 = turns.calls(tool_results["turn2_id"])
 
     report = {
         "schema_version": 1,
@@ -181,7 +177,8 @@ def run(out_dir: Path) -> dict:
         "environment": {
             "os": __import__("platform").platform(),
             "python": sys.version.split()[0],
-            "timing_source": "mcp_process_wall_clock (MCP server thread, real HTTP sockets)",
+            "timing_source": "mcp_process_wall_clock",
+            "driver_pid": os.getpid(), "server_pid": child_pid,
             "real_provider_calls": 0,
         },
         "turns": {
@@ -212,16 +209,22 @@ def run(out_dir: Path) -> dict:
             "committed_request_id_matches": next((b["request_id"] for b in boundaries1 if b["semantic"] == "submit_fact_selection_committed"), None) == request_id,
             "duplicate_boundary_present": any(b["semantic"] == "submit_fact_selection_not_open" for b in boundaries1),
             "unauthorized_boundary_present": any(b["semantic"] == "submit_fact_selection_rejected" for b in boundaries2),
-            "boundary_timestamps_monotonic_within_turn": all(
-                boundaries1[i]["at"] <= boundaries1[i + 1]["at"]
-                for i in range(len(boundaries1) - 1)
-            ) if len(boundaries1) >= 2 else True,
+            "separate_process": child_pid != os.getpid(),
+            "exact_first_turn_events": [b["semantic"] for b in boundaries1] == [
+                "submit_fact_selection_before_commit", "submit_fact_selection_committed", "submit_fact_selection_not_open"],
+            "all_events_correlated": all(b["request_id"] == request_id for b in boundaries1)
+                and all(b["request_id"] == "verify-q2" for b in boundaries2),
+            "binding_failure": tool_results["failed_code"] == "session_missing" and
+                [(b["request_id"], b["semantic"]) for b in turns.boundaries(tool_results["missing_id"])] ==
+                [("verify-missing", "submit_fact_selection_failed")],
+            "submission_outcomes": tool_results["first_submit"].get("ok") is True and
+                tool_results["duplicate_submit"].get("ok") is False and tool_results["unauthorized_submit"].get("ok") is False
+                and turns.get(turn.turn_id).submission == {"fact_ids": candidate_fact_ids[:1]}
+                and turns.get(tool_results["turn2_id"]).submission is None,
         },
     }
     report["all_checks_pass"] = all(report["checks"].values())
 
-    report_path = out_dir / "mcp-submit-boundary.json"
-    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return report
 
 

@@ -346,13 +346,19 @@ class TurnStore:
             refreshed = connection.execute("SELECT * FROM turns WHERE turn_id=?", (turn_id,)).fetchone()
         return self._row_to_turn(refreshed)
 
-    def submit(self, turn_id: str, submission: Any) -> bool:
+    def submit(self, turn_id: str, submission: Any, *, observe_patient_submit: bool = False) -> bool:
         """Atomically move open -> submitted. Returns False if the turn was no longer open."""
         with self.lock, self._connect() as connection:
+            if observe_patient_submit:
+                connection.execute("BEGIN IMMEDIATE")
             updated = connection.execute(
                 "UPDATE turns SET status=?, submission_json=? WHERE turn_id=? AND status=? AND expires_at>=?",
                 (SUBMITTED, json.dumps(submission, ensure_ascii=False), turn_id, OPEN, time.time()),
             )
+            if observe_patient_submit and updated.rowcount:
+                # Readers see the selection and its pre-commit sample together, even if MCP exits after commit.
+                self._insert_boundary(connection, turn_id, "submit_fact_selection_before_commit", "", time.time())
+                connection.commit()
             return updated.rowcount == 1
 
     def finalize(self, turn_id: str) -> bool:
@@ -384,22 +390,18 @@ class TurnStore:
                 (turn_id, tool, 1 if ok else 0, detail[:200], time.time()),
             )
 
-    def record_boundary(
-        self,
-        turn_id: str,
-        request_id: str,
-        semantic: str,
-        timing_source: str = "mcp_process_wall_clock",
-        detail: str = "",
-        at: float | None = None,
-    ) -> None:
-        """Record a semantic boundary event for a turn (e.g. submit_fact_selection committed)."""
+    @staticmethod
+    def _insert_boundary(connection, turn_id: str, semantic: str, detail: str, at: float) -> None:
+        connection.execute(
+            "INSERT INTO turn_boundaries(turn_id, request_id, semantic, timing_source, at, detail) "
+            "SELECT turn_id, request_id, ?, 'mcp_process_wall_clock', ?, ? FROM turns WHERE turn_id=?",
+            (semantic, at, detail, turn_id),
+        )
+
+    def record_boundary(self, turn_id: str, semantic: str, detail: str = "") -> None:
+        observed_at = time.time()
         with self.lock, self._connect() as connection:
-            connection.execute(
-                "INSERT INTO turn_boundaries(turn_id, request_id, semantic, timing_source, at, detail) "
-                "VALUES (?,?,?,?,?,?)",
-                (turn_id, request_id, semantic, timing_source, at if at is not None else time.time(), detail[:200]),
-            )
+            self._insert_boundary(connection, turn_id, semantic, detail, observed_at)
 
     def boundaries(self, turn_id: str) -> list[dict[str, Any]]:
         with self.lock, self._connect() as connection:
