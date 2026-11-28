@@ -32,6 +32,10 @@
       }
     }
   },
+  "ci_after_push": {
+    "status": "push_blocked",
+    "note": "2026-12-01 多次 push 均因无法连接 github.com:443 失败；本地提交已准备好，待网络恢复后推送并等待 CI"
+  },
   "open_blockers": {
     "agent_json_export": "须从 Nexent 平台实际导出 agent.json 并脱敏",
     "real_instance_import": "须在独立 Nexent 实例注册 MCP、导入智能体、重新发布并验证五病例闭环",
@@ -39,6 +43,7 @@
     "first_word_5s": "真实候选 0/3，需新预算复测",
     "clinical_review": "未开展",
     "student_expert_evaluation": "未开展",
-    "official_pr_merge": "未合入"
+    "official_pr_merge": "未合入",
+    "network_push": "github.com:443 当前不可达，本地提交无法推送"
   }
 }
