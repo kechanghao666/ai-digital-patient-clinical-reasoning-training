@@ -56,6 +56,58 @@ def configure_isolated_environment(temp_root: Path) -> None:
     os.environ.update(env)
 
 
+def grade_disclosure(row, item, case):
+    from app.adapters import FALLBACK_ANSWER, NON_FACT_REPLIES, join_fact_contents
+    from app.patient_answers import fact_fragments, render_fragments
+
+    flags = row["flags"]
+    facts = set(row["actual_fact_ids"])
+    ids = row["actual_answer_atom_ids"]
+    catalog = {atom.atom_id: atom for fact in case.facts for atom in fact_fragments(fact)}
+    atoms = [catalog[key] for key in ids if key in catalog]
+    parents = {atom.fact_id for atom in atoms}
+    actual = facts | parents
+    answer = row["answer"]
+    expected = item.get("required_answer")
+    row["answer_check"] = "exact" if expected is not None else "fact scope and rendered text"
+    if len(atoms) != len(ids) or len(set(ids)) != len(ids):
+        flags.append("interface_failure")
+    if actual.intersection(item.get("prohibited_fact_ids", [])):
+        flags.append("unauthorized_disclosure")
+    # Exact-answer rounds may intentionally leave allowed_fact_ids empty for partial disclosures.
+    allowed = set(item["allowed_fact_ids"])
+    if facts - allowed or ((expected is None or bool(allowed)) and parents - allowed):
+        flags.append("over_answer")
+    fact_free = not facts and not ids
+    accepted = fact_free and answer in item.get("acceptable_no_fact_answers", [])
+    if set(item["required_fact_ids"]) - actual and not accepted:
+        flags.append("omission")
+        if fact_free and isinstance(answer, str) and (answer == FALLBACK_ANSWER or answer in NON_FACT_REPLIES):
+            flags.append("inappropriate_refusal")
+    if not isinstance(answer, str) or not answer.strip():
+        flags.append("interface_failure")
+    elif fact_free and not item["required_fact_ids"] and not accepted:
+        flags.append("nonfact_response_not_accepted")
+    if atoms and answer != render_fragments(atoms):
+        flags.append("over_answer")
+    elif facts and not ids and answer != join_fact_contents([f.content for f in case.facts if f.fact_id in facts]):
+        flags.append("over_answer")
+    if isinstance(answer, str) and expected is not None:
+        missing_answer = [fragment for fragment in item.get("required_answer_fragments", [])
+                          if fragment not in answer]
+        prohibited_answer = [fragment for fragment in item.get("prohibited_answer_fragments", [])
+                             if fragment and fragment in answer]
+        row["exact_answer_matches"] = answer == expected
+        row["missing_answer_fragments"] = missing_answer
+        row["prohibited_answer_matches"] = prohibited_answer
+        if missing_answer:
+            row["flags"].append("omission")
+        if prohibited_answer:
+            row["flags"].append("over_answer")
+        if answer != expected and not missing_answer and not prohibited_answer:
+            row["flags"].append("over_answer")
+
+
 def run(dataset_path: Path, report_path: Path) -> dict[str, Any]:
     dataset_bytes = dataset_path.read_bytes()
     dataset = json.loads(dataset_bytes.decode("utf-8"))
@@ -77,7 +129,6 @@ def run(dataset_path: Path, report_path: Path) -> dict[str, Any]:
         from app import main
         from app.department_catalog import map_legacy_specialty
         from app.department_config import config_path_for_case_store, save_department_config
-        from app.adapters import join_fact_contents
 
         selected_cases = {}
         for case_id, spec in expected_case_specs.items():
@@ -259,57 +310,7 @@ def run(dataset_path: Path, report_path: Path) -> dict[str, Any]:
                 )):
                     row["flags"].append("interface_failure")
 
-                # 原子回答只记录 answer_atom_ids；为兼容要求父事实 ID 的历史探针，
-                # 原子所属父事实仅用于满足 required_fact_ids，不加入 allowed/unexpected 判定，
-                # 避免破坏以 required_answer 为准且 allowed_fact_ids 留空的原子评测集。
-                atom_parent_fact_ids = {atom_id.split("#", 1)[0] for atom_id in row["actual_answer_atom_ids"]}
-                actual_facts = set(row["actual_fact_ids"])
-                actual_for_required = actual_facts | atom_parent_fact_ids
-                actual = actual_facts
-                required = set(item["required_fact_ids"])
-                allowed = set(item["allowed_fact_ids"])
-                prohibited = set(item.get("prohibited_fact_ids", []))
-                missing = required - actual_for_required
-                unexpected = actual - allowed
-                if actual.intersection(prohibited):
-                    row["flags"].append("unauthorized_disclosure")
-                if unexpected:
-                    row["flags"].append("over_answer")
-                answer = row["answer"]
-                acceptable_no_fact = item.get("acceptable_no_fact_answers", [])
-                is_acceptable_no_fact = isinstance(answer, str) and answer in acceptable_no_fact
-                if missing and not is_acceptable_no_fact:
-                    row["flags"].append("omission")
-                if not isinstance(answer, str) or not answer.strip():
-                    row["flags"].append("interface_failure")
-                elif (not required and not actual and not row["actual_answer_atom_ids"]
-                      and not is_acceptable_no_fact):
-                    row["flags"].append("nonfact_response_not_accepted")
-                # acceptable_no_fact_answers 中的答复视为合法无事实回答，不额外标记
-
-                semantic_expected = item.get("required_answer")
-                if isinstance(answer, str) and semantic_expected is not None:
-                    missing_answer = [fragment for fragment in item.get("required_answer_fragments", [])
-                                      if fragment not in answer]
-                    prohibited_answer = [fragment for fragment in item.get("prohibited_answer_fragments", [])
-                                         if fragment and fragment in answer]
-                    row["exact_answer_matches"] = answer == semantic_expected
-                    row["missing_answer_fragments"] = missing_answer
-                    row["prohibited_answer_matches"] = prohibited_answer
-                    if missing_answer:
-                        row["flags"].append("omission")
-                    if prohibited_answer:
-                        row["flags"].append("over_answer")
-                    if answer != semantic_expected and not missing_answer and not prohibited_answer:
-                        row["flags"].append("over_answer")
-                elif actual_facts and saved_event is not None:
-                    # 只有服务端明确返回父事实 ID 时才做整句文本核对；
-                    # 纯原子回答（actual_fact_ids 为空）由 required_answer 语义校验，避免误报。
-                    expected_text = join_fact_contents(
-                        [fact.content for fact in case.facts if fact.fact_id in actual_facts]
-                    )
-                    if answer != expected_text:
-                        row["flags"].append("over_answer")
+                grade_disclosure(row, item, case)
                 if saved_event is None or not row["persisted_event_matches_api"]:
                     if "interface_failure" not in row["flags"]:
                         row["flags"].append("interface_failure")
