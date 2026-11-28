@@ -62,27 +62,27 @@
     "o3_atomic_replay": {
       "result": "20/20",
       "file": "docs/evidence/2026-11-29-agent-handoff/o3-atomic-replay.json",
-      "note": "原子语义复跑 20 轮，通用随机 ≥3 条之一"
+      "note": "开发者预设的 20 轮工程复跑；未进行评审现场抽取"
     },
     "o3_atomic_reproduction": {
       "result": "4/4",
       "file": "docs/evidence/2026-11-29-agent-handoff/o3-atomic-reproduction.json",
-      "note": "原子复现 4 探针，通用随机 ≥3 条之二"
+      "note": "4 个预设的工程探针；未进行评审现场抽取"
     },
     "o3_old_reproduction": {
       "result": "3/4",
-      "note": "旧版 4 探针（o3_reproduction_probes_20261125.json）第 3 轮要求 f_care，但当前病例内容未给发现时间触发器，属于数据集/病例内容口径差异，保留失败批次；原子版 4 探针已更新并通过。",
+      "note": "旧版 4 探针（o3_reproduction_probes_20261125.json）第 3 轮要求 f_care，实际回答“具体是什么时候发现的我说不准。”未满足旧探针；两份探针对可接受回答的定义不同，未据此认定病例缺陷，保留失败批次；原子版 4 探针已更新并通过。",
       "detail_log": "local-only/2026-11-29-o3-reproduction-verify.json"
     },
     "appy_trauma_boundary": {
       "result": "8/8",
       "file": "docs/evidence/2026-11-29-agent-handoff/appy-trauma.json",
-      "note": "课题专项随机 1 病例（APPY-001 v1/v2 外伤问答边界）"
+      "note": "预选 APPY-001 v1/v2 的外伤问答边界；未进行评审现场抽取"
     },
     "mcp_submit_boundary": {
       "result": "all_checks_pass",
       "file": "docs/evidence/2026-11-29-agent-handoff/mcp-submit-boundary.json",
-      "note": "隔离 MCP 进程中 submit_fact_selection 成功提交、重复提交、未授权事实均记录边界；committed 边界 request_id 与 turn.request_id 一致。",
+      "note": "同一进程的 MCP 服务线程通过真实 HTTP 套接字运行，submit_fact_selection 成功提交、重复提交、未授权事实均记录边界；committed 边界 request_id 与 turn.request_id 一致。",
       "detail_log": "local-only/2026-11-29-mcp-boundary/"
     },
     "o10a_latency": {
