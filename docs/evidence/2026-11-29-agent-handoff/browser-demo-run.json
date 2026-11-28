@@ -1,0 +1,71 @@
+{
+  "base": "http://127.0.0.1:6069",
+  "steps": [
+    {
+      "name": "登录页与合规提示",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "教师建班并导入学生，获得一次性初始密码",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "布置训练任务",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "首次登录强制改密后进入我的任务",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "问诊 10 轮全部得到回答",
+      "ok": true,
+      "detail": "兜底 0"
+    },
+    {
+      "name": "检查从全院目录选择，不预先给出答案",
+      "ok": true,
+      "detail": "目录 46 项"
+    },
+    {
+      "name": "开单、推进时间、结果回报；无关检查只返回中性结果",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "病历、鉴别与诊断提交",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "提交后评分、扣分说明与反馈；多余检查被指出",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "班级完成情况显示学生成绩",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "从学情进入评分复核并自动载入",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "病例管理可打开病例",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "无前端脚本错误",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "console_errors": []
+}

@@ -1,0 +1,207 @@
+{
+  "schema_version": 1,
+  "title": "O3 复合事实问答多答修复前 API 复现探针",
+  "run_at": "2026-11-28T16:48:25+00:00",
+  "authorship": "开发者编写的修复前工程复现样例；非独立评审、盲测或医学审核",
+  "git_head_sha": "fbc9fcf275a8e508284b408caafd687ded346c2d",
+  "git_branch": "codex/feedback-protocol-fix",
+  "worktree_status": "M scripts/run_o3_spotcheck.py",
+  "environment": {
+    "os": "Windows-10-10.0.26300-SP0",
+    "python": "3.11.18",
+    "python_executable": "python.exe",
+    "auth_mode": "local",
+    "app_environment": "development (draft visibility enabled only for this isolated synthetic run)",
+    "patient_adapter": "simulator",
+    "database_scope": "temporary APP_DATA_DIR and INTEGRATION_DB_PATH; removed after run",
+    "real_provider_calls": 0
+  },
+  "dataset_file": "evaluation/o3_atomic_reproduction_probes_20261125.json",
+  "dataset_sha256": "4fe6b133c21e09ef90eb58e738f6433204ad9b06cd439b984742b088245130b5",
+  "baseline_sha": "51901bd644519df4d57042eff4a684abaf2ee628",
+  "round_count": 4,
+  "student_case_entry": {
+    "source": "GET /api/cases and POST /api/sessions via local synthetic student bearer session",
+    "visible_case_count": 3,
+    "http_status": 200,
+    "health_http_status": 200
+  },
+  "counts": {
+    "round_count": 4,
+    "correct": 4,
+    "omission": 0,
+    "over_answer": 0,
+    "unauthorized_disclosure": 0,
+    "inappropriate_refusal": 0,
+    "interface_failure": 0,
+    "primary_results": {
+      "correct": 4,
+      "omission": 0,
+      "over_answer": 0,
+      "unauthorized_disclosure": 0,
+      "inappropriate_refusal": 0,
+      "interface_failure": 0,
+      "nonfact_response_not_accepted": 0
+    }
+  },
+  "category_counts_are_overlapping": true,
+  "category_rule": "错误标记可重叠；primary_results 按每轮一个主结果汇总。所有轮次保留在分母中。",
+  "temporary_data_removed": true,
+  "rounds": [
+    {
+      "index": 1,
+      "round_id": "appendicitis-surgery-single",
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "appendicitis-surgery-single",
+      "session_policy": "四个探针分别新建训练，避免会话历史影响结果",
+      "question": "以前做过手术吗？",
+      "http_status": 200,
+      "answer": "没有做过手术。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_hx"
+      ],
+      "allowed_fact_ids": [
+        "f_hx"
+      ],
+      "prohibited_fact_ids": [],
+      "required_answer": null,
+      "required_answer_fragments": [],
+      "prohibited_answer_fragments": [],
+      "actual_answer_atom_ids": [
+        "f_hx#a2"
+      ],
+      "actual_fact_ids": [],
+      "persisted_answer": "没有做过手术。",
+      "persisted_answer_matches_api": true,
+      "persisted_event_id": "0e50e015-ee50-44bb-860c-06cc732769d1",
+      "persisted_event_matches_api": true,
+      "replay_http_status": 200,
+      "replay_answer_matches_api": true,
+      "replay_event_matches_api": true,
+      "single_saved_event_after_replay": true,
+      "adapter_source": "simulator",
+      "flags": [],
+      "primary_result": "correct",
+      "student_case_entry_visible": true
+    },
+    {
+      "index": 2,
+      "round_id": "appendicitis-allergy-single",
+      "case_id": "APPY-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "appendicitis-allergy-single",
+      "session_policy": "四个探针分别新建训练，避免会话历史影响结果",
+      "question": "您有药物过敏吗？",
+      "http_status": 200,
+      "answer": "没有药物过敏。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_hx"
+      ],
+      "allowed_fact_ids": [
+        "f_hx"
+      ],
+      "prohibited_fact_ids": [],
+      "required_answer": null,
+      "required_answer_fragments": [],
+      "prohibited_answer_fragments": [],
+      "actual_answer_atom_ids": [
+        "f_hx#a3"
+      ],
+      "actual_fact_ids": [],
+      "persisted_answer": "没有药物过敏。",
+      "persisted_answer_matches_api": true,
+      "persisted_event_id": "7e721c2b-7364-4bb8-8120-795d0d97a442",
+      "persisted_event_matches_api": true,
+      "replay_http_status": 200,
+      "replay_answer_matches_api": true,
+      "replay_event_matches_api": true,
+      "single_saved_event_after_replay": true,
+      "adapter_source": "simulator",
+      "flags": [],
+      "primary_result": "correct",
+      "student_case_entry_visible": true
+    },
+    {
+      "index": 3,
+      "round_id": "stroke-discovery-time",
+      "case_id": "STROKE-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "stroke-discovery-time",
+      "session_policy": "四个探针分别新建训练，避免会话历史影响结果",
+      "question": "家里人什么时候发现症状的？",
+      "http_status": 200,
+      "answer": "具体是什么时候发现的我说不准。",
+      "turn_kind": "time_not_recorded",
+      "required_fact_ids": [
+        "f_care"
+      ],
+      "allowed_fact_ids": [
+        "f_care"
+      ],
+      "prohibited_fact_ids": [],
+      "required_answer": null,
+      "required_answer_fragments": [],
+      "prohibited_answer_fragments": [],
+      "actual_answer_atom_ids": [],
+      "actual_fact_ids": [],
+      "persisted_answer": "具体是什么时候发现的我说不准。",
+      "persisted_answer_matches_api": true,
+      "persisted_event_id": "199aef3d-e969-4169-b657-f3d47f9bf9bb",
+      "persisted_event_matches_api": true,
+      "replay_http_status": 200,
+      "replay_answer_matches_api": true,
+      "replay_event_matches_api": true,
+      "single_saved_event_after_replay": true,
+      "adapter_source": "local_no_candidates",
+      "flags": [],
+      "primary_result": "correct",
+      "student_case_entry_visible": true
+    },
+    {
+      "index": 4,
+      "round_id": "cap-family-disease-single",
+      "case_id": "CAP-001",
+      "case_version": 2,
+      "review_status": "draft",
+      "session_group": "cap-family-disease-single",
+      "session_policy": "四个探针分别新建训练，避免会话历史影响结果",
+      "question": "家族里有人得过相似的病吗？",
+      "http_status": 200,
+      "answer": "家里人没有类似的病。",
+      "turn_kind": "fact",
+      "required_fact_ids": [
+        "f_family"
+      ],
+      "allowed_fact_ids": [
+        "f_family"
+      ],
+      "prohibited_fact_ids": [],
+      "required_answer": null,
+      "required_answer_fragments": [],
+      "prohibited_answer_fragments": [],
+      "actual_answer_atom_ids": [
+        "f_family#a1"
+      ],
+      "actual_fact_ids": [],
+      "persisted_answer": "家里人没有类似的病。",
+      "persisted_answer_matches_api": true,
+      "persisted_event_id": "bf4464a5-8133-4af0-b23e-1efd1e2f7af2",
+      "persisted_event_matches_api": true,
+      "replay_http_status": 200,
+      "replay_answer_matches_api": true,
+      "replay_event_matches_api": true,
+      "single_saved_event_after_replay": true,
+      "adapter_source": "simulator",
+      "flags": [],
+      "primary_result": "correct",
+      "student_case_entry_visible": true
+    }
+  ],
+  "evidence_boundary": "本报告只证明该提交代码在本机 FastAPI 学生 API、本地认证、隔离合成数据库及确定性模拟器上的工程行为；不证明真实模型、临床正确性、专家/学生评价或官方 20 轮验收。"
+}
