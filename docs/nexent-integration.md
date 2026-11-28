@@ -1,5 +1,35 @@
 # Nexent集成：接口契约、环境核实与验证状态
 
+## 患者链可信完成
+
+患者回答由服务端按获准事实渲染，模型结束语从不作为患者内容。收到execution_logs/execution_result后，患者适配器现在复用本地可信SUBMITTED检查结束读取；finalize仍校验有效期，API保存仍校验并发版本，授权与出站过滤保持。执行事件只唤醒检查，不能伪造事实选择。停止通知沿用0.25秒上限及原总预算，不证明远端worker已经退出。
+
+trace增加trusted_completion；未读取最终文本时platform_first_final_event_ms为null，不填0。演示病人使用[分轮提示](patient-selection-prompt.txt)，只启用get_turn_context和submit_fact_selection。普通review_tool仍需原完成流程。2026-11-12三次新训练问诊已真实验证，稳定性和5秒性能未据此关闭，见[证据](evidence/2026-11-12-patient-completion-browser.json)。
+
+## 学生反馈接口：生成与复核分开
+
+`GET/POST /api/sessions/{id}/feedback`返回200只表示请求成功。模型草稿通过原有安全校验后返回`source=nexent`、`review_status=pending_teacher_review`、`review_revision=0`，`items`和`teaching_basis`为空；两种协议和历史模型记录都适用。调用方显示待教师复核，不据200显示“已获得审核反馈”，也不对空列表判定五环节生成失败或自动重复生成。
+
+教师原件读取和修订接口保持；合法教师版本返回`source=teacher_review`及`review_status=teacher_reviewed`，学生刷新后展示。本地规则仍为`local_rules`，不代表人工审核。所有版本先走原安全校验，非法旧记录继续409；待复核草稿保留在集成库。前端另拦截旧缓存中的nexent草稿。此状态不改变分数，也不构成正式身份或医学认可。
+
+2026-11-12新合成训练首轮患者调用502，重试后真实问诊与反馈提交完成（7.922秒/6.468秒），学生展示限制通过；详见[本轮证据](evidence/2026-11-12-feedback-review-gate.json)。以下按批次保留配置与历史结果。
+
+## 封存反馈紧凑协议
+
+当前演示反馈v13使用[分轮提示](compact-feedback-prompt.txt)。同一模型响应不能同时包含代码动作和完成声明；必须先完成工具调用。后端在`execution_logs`或`execution_result`事件到达时核查本地可信回合，compact模式下已提交即可结束北向读取，仍须通过原有内容、依据快照与有效期校验后保存。远端事件内容不具有授权效力；普通review_tool和病人链继续要求原完成流程。
+
+停止请求为有界的尽力通知，最多0.25秒且不延长55秒总预算；不能据停止回执断言远端工作进程已经退出。记录`trusted_completion=true`，未收到最终文本时其时间为空。当前已连续3次重新生成成功（24.49、16.72、27.52秒），另一次模型首块超时仍失败；这些是接口工程结果，模型的临床恰当性表述仍需教师复核。见[本轮证据](evidence/2026-11-12-trusted-feedback-completion.json)。
+
+NEXENT_FEEDBACK_PROTOCOL 默认 review_tool，可在隔离实例将其设为 compact，并为反馈智能体配置匹配的提示词。紧凑协议仅在北向请求中提供过滤后的分环节数值评分，不把量表描述、教学依据原文或依据节选放进初始提示；可信服务端按封存病例版本和环节绑定教学依据及封存事件。智能体用 submit_feedback(turn_token, items, use_stage_basis=True) 提交五条，每条只包含 stage、comment、improvement。更新 MCP 后确认工具列表已识别该可选参数。review_tool 提示中要求调用的工具名为 search_teaching_basis，与 MCP 实际注册名一致。
+
+紧凑反馈智能体只启用`submit_feedback`；不挂接封存量表读取、知识库搜索或其他会返回参考答案原文的工具。更新MCP后先扫描工具，再检查智能体导出参数含`use_stage_basis`，最后重新发布并复核启用工具列表。仅验证MCP实时列表不能证明平台缓存和已发布版本同步。紧凑提示仅供评价得分及完成程度，不能仅凭分数断言诊疗合理性。
+
+可信工具按当前病例版本和五个环节绑定依据，并从封存评分提取对应事件引用。保存前沿用五环节、引用有效性、依据版本一致性、回合有效期及防泄露校验。`review_tool`保留独立的原工具流程和参数，不套用紧凑智能体的单工具配置。紧凑流程由后端绑定教学依据，不让模型检索原文；这不代表医学审核或真实平台反馈已通过。
+
+## 2026-11-12 早期真实平台结果（历史）
+
+实际发现平台旧导出缺少`use_stage_basis`，重新扫描、发布后已修复；最终演示反馈智能体版本12、模型`spark-x2.6-4b`、仅启用`submit_feedback`。同一隔离封存训练共7次复测仍为6次504、1次502，可信工具调用及反馈记录均为0。原分、封存拒写、身份隔离和业务原库哈希均通过检查。模型连接/首块超时与实时动作解析拒绝仍待定位，不能把模型健康200等同于真实闭环。具体版本与耗时见[证据](evidence/2026-11-12-compact-feedback-retest.json)。下方为历史结果。
+
 ## 2026-11-11 当前真实平台结果
 
 星火 spark-x2.6-4b 已分别完成真实问诊（病人v9，39.34秒）和另一条已封存训练的五环节反馈（反馈v15，51.53秒）。同一STEMI训练已实际走到封存评分与10条事件回放；两次反馈均约54.84秒返回504，可信工具只完成封存读取，回合取消，未写入反馈。封存后写入400，其他身份读反馈404。单例完整闭环仍未稳定跑通，首字≤5秒未达标。 [同一训练复测](evidence/2026-11-11-stemi-same-session.json)与[独立反馈成功](evidence/2026-11-11-real-stemi-feedback.json)分别留档。下方旧模型403与部署状态是历史记录。

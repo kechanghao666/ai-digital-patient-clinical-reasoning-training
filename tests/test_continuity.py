@@ -1,0 +1,274 @@
+"""Continuous consultation: bare follow-ups carry the previous turn's topic forward.
+
+Engineering checks over synthetic draft cases only; they say nothing about clinical correctness.
+"""
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from app import disclosure
+from app.case_store import CaseStore
+from app.disclosure import _is_continuation, classify_turn, non_fact_reply
+from app.models import ActionKind, Event, Fact, SessionState
+from app.patient_answers import select_answer_fragments
+from test_cases_config import Api
+
+ROOT = Path(__file__).parents[1]
+CASES = CaseStore(ROOT / "cases")
+
+
+def _classify(public_id: str, question: str, disclosed: set[str]):
+    case = CASES.resolve_for_student(public_id, include_unpublished=True)
+    state = SessionState(owner_id="t", case_id=case.case_id, case_version=case.version,
+                         disclosed_fact_ids=list(disclosed))
+    return classify_turn(state, question, case.facts)
+
+
+def _fact_ids(public_id: str, question: str, disclosed: set[str]) -> list[str]:
+    return [fact.fact_id for fact in _classify(public_id, question, disclosed)[0]]
+
+
+def _ask(api: Api, sid: str, question: str) -> dict:
+    response = api.client.post(
+        f"/api/sessions/{sid}/ask",
+        headers=api.headers,
+        json={"request_id": api.rid(), "question": question},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+# --- detection ---------------------------------------------------------------
+
+@pytest.mark.parametrize("question", [
+    "后来呢", "然后呢", "接着呢", "接下来呢", "之后呢", "继续", "继续说", "继续讲", "还有吗", "还有呢",
+])
+def test_continuation_cues_are_recognised(question):
+    assert _is_continuation(question)
+
+
+@pytest.mark.parametrize("question", [
+    "然后你有没有发烧", "然后吃什么药", "还有别的症状吗", "然后呢今天天气怎么样",
+])
+def test_content_or_clinical_questions_are_not_continuation(question):
+    assert not _is_continuation(question)
+
+
+# --- the two CASE-001 non-sequiturs -----------------------------------------
+
+def test_when_question_answers_the_time_not_the_trigger():
+    # "什么时候开始的" asks for the onset *time*; the case's time ("两个小时前") lives in the chief
+    # complaint, not in the trigger/course fact f_pain_onset ("休息时突然发作").
+    assert _fact_ids("CASE-001", "什么时候开始的", set()) == ["f_cc"]
+    assert _fact_ids("CASE-001", "什么时候开始的", {"f_cc"}) == ["f_cc"]
+
+
+def test_trigger_question_still_answers_the_manner():
+    # "当时在干什么" asks how it started, so it still discloses the trigger/course fact.
+    assert _fact_ids("CASE-001", "当时在干什么", {"f_cc"}) == ["f_pain_onset"]
+
+
+def test_location_question_answers_location():
+    assert _fact_ids("CASE-001", "具体是哪里疼", {"f_cc"}) == ["f_location"]
+
+
+def test_where_question_after_complaint_answers_location_not_the_complaint():
+    # "哪里不舒服" is opening-shaped but asks for the *site*. Before any complaint it is answered with
+    # the chief complaint; once the complaint is on the table it discloses the pain-location fact
+    # instead of repeating the complaint.
+    assert _fact_ids("CASE-001", "哪里不舒服", set()) == ["f_cc"]
+    assert _fact_ids("CASE-001", "哪里不舒服", {"f_cc"}) == ["f_location"]
+    assert _fact_ids("CASE-001", "哪儿不舒服", {"f_cc"}) == ["f_location"]
+    assert _fact_ids("CASE-001", "什么地方不舒服", {"f_cc"}) == ["f_location"]
+
+
+def test_where_question_without_a_location_fact_keeps_the_complaint():
+    chief = Fact(fact_id="f_cc", field="主诉", content="我肚子疼。")
+    state = SessionState(owner_id="t", case_id="t", case_version=1, disclosed_fact_ids=["f_cc"])
+    assert [fact.fact_id for fact in classify_turn(state, "哪里不舒服", [chief])[0]] == ["f_cc"]
+
+
+# --- topic-aware continuation (integration, real session state) --------------
+
+def test_later_after_onset_answers_course_not_location(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start("CASE-001")
+    first = _ask(api, sid, "什么时候开始的？")["answer"]
+    later = _ask(api, sid, "后来呢？")["answer"]
+    assert "两个小时前" in first  # the onset time
+    assert "持续没有缓解" in later  # the course, not the location
+    assert "胸口正中间" not in later
+
+
+def test_later_after_past_history_stays_in_past_history(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start("CASE-001")
+    htn = _ask(api, sid, "有高血压吗？")["answer"]
+    later = _ask(api, sid, "后来呢？")["answer"]
+    assert "高血压" in htn
+    assert "糖尿病" in later  # the next past-history item, not a pain symptom
+    assert "胸痛" not in later and "放射" not in later
+
+
+def test_later_after_exam_return_does_not_fabricate(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start("CASE-001")
+    _ask(api, sid, "怎么了？")
+    api.act(sid, "order_exam", {"exam_id": "ex_ecg"})
+    api.wait(sid, 5)  # ECG result is now ready
+    later = _ask(api, sid, "后来呢？")["answer"]
+    # The patient never volunteers an exam result; a continuation after a non-question turn clarifies.
+    assert later == "您想了解哪方面的情况？"
+    assert "ST段" not in later and "抬高" not in later
+
+
+def test_three_consecutive_laters_do_not_unlock_unrelated_symptoms(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start("CASE-001")
+    _ask(api, sid, "什么时候开始的？")
+    replies = [_ask(api, sid, "后来呢？")["answer"] for _ in range(3)]
+    # All three follow the present-illness thread (course -> location -> character), never the
+    # background history (hypertension/diabetes/smoking) and never the diagnosis.
+    for reply in replies:
+        assert "高血压" not in reply and "糖尿病" not in reply and "吸烟" not in reply
+        assert "ST段" not in reply
+    assert any("持续" in r for r in replies)
+
+
+@pytest.mark.parametrize("case_id", ["CASE-001", "CASE-005"])
+def test_later_after_allergy_does_not_leak_surgery_and_keeps_fact_incomplete(case_id, tmp_path, monkeypatch):
+    """A bare follow-up inherits the allergy topic, not the surgery clause of the same fact.
+
+    The compound fact is "没有药物过敏，也没做过手术". After the allergy atom is answered, the
+    remaining surgery atom belongs to another topic and must not be volunteered by "后来呢".
+    The patient therefore closes the topic, and the parent fact stays partially disclosed until
+    the student explicitly asks about surgery. CASE-005 is a different specialty case with the
+    same structure, proving the rule is shared rather than keyed to one case id.
+    """
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start(case_id)
+    first = _ask(api, sid, "有药物过敏吗？")
+    later = _ask(api, sid, "后来呢？")
+    assert first["answer"] == "没有药物过敏。"
+    assert later["answer"] == "暂时就这些了。"
+    assert "手术" not in later["answer"]
+
+    state = api.repository.get(sid, "demo-cfg")
+    assert "f_allergy" not in state.disclosed_fact_ids
+    assert state.events[-1].result["answer_atom_ids"] == []
+    assert state.events[-1].payload["matched_fact_ids"] == []
+
+    surgery = _ask(api, sid, "以前做过手术吗？")
+    assert surgery["answer"] == "没做过手术。"
+    state = api.repository.get(sid, "demo-cfg")
+    assert "f_allergy" in state.disclosed_fact_ids
+    assert state.events[-1].result["answer_atom_ids"] == ["f_allergy#a2"]
+
+
+def test_explicit_double_question_discloses_both_atoms_in_one_turn(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start("CASE-001")
+    answer = _ask(api, sid, "有药物过敏吗？以前做过手术吗？")["answer"]
+    assert "没有药物过敏" in answer and "没做过手术" in answer
+    state = api.repository.get(sid, "demo-cfg")
+    assert "f_allergy" in state.disclosed_fact_ids
+    assert set(state.events[-1].result["answer_atom_ids"]) == {"f_allergy#a1", "f_allergy#a2"}
+
+
+def test_same_topic_allergy_continuation_still_answers_remaining_atom():
+    """The fix must not block a genuine same-topic continuation."""
+    allergy = Fact(fact_id="f_allergy_a", field="过敏史", content="没有药物过敏。",
+                   disclosure_triggers=["过敏"])
+    food = Fact(fact_id="f_allergy_b", field="过敏史", content="也没有食物过敏。",
+                disclosure_triggers=["过敏"])
+    previous = Event(
+        request_id="r1", seq=1, actor="student", action=ActionKind.ASK,
+        intent="有药物过敏吗？",
+        payload={"question": "有药物过敏吗？", "matched_fact_ids": ["f_allergy_a"]},
+        result={"answer_atom_ids": ["f_allergy_a#a1"]},
+        sim_time=0, state_before={}, state_after={}, fact_ids_revealed=["f_allergy_a"],
+    )
+    state = SessionState(owner_id="t", case_id="t", case_version=1,
+                         disclosed_fact_ids=["f_allergy_a"], events=[previous])
+    selected, kind = classify_turn(state, "后来呢", [allergy, food])
+    assert kind == "fact" and [fact.fact_id for fact in selected] == ["f_allergy_b"]
+    fragments = select_answer_fragments("后来呢", selected, {"f_allergy_a#a1"})
+    assert [fragment.content for fragment in fragments] == ["没有食物过敏"]
+    assert "手术" not in "".join(fragment.content for fragment in fragments)
+
+
+@pytest.mark.parametrize(("field", "question", "expected"), [
+    ("过敏史", None, "clarify_topic"),
+    ("起病经过", "有药物过敏吗？", "clarify_done"),
+])
+def test_unrelated_remaining_atom_cannot_reenter_continuation(field, question, expected):
+    fact = Fact(fact_id="f_partial", field=field, content="没有药物过敏，也没做过手术。",
+                disclosure_triggers=["过敏", "手术"])
+    event = Event(request_id="r1", seq=1, actor="student", action=ActionKind.ASK,
+                  intent=question, payload={}, result={"answer_atom_ids": ["f_partial#a1"]},
+                  sim_time=0, state_before={}, state_after={})
+    state = SessionState(owner_id="t", case_id="t", case_version=1, events=[event])
+    assert classify_turn(state, "后来呢", [fact]) == ([], expected)
+
+
+def test_repeated_allergy_request_replays_without_adding_atoms(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start("CASE-001")
+    body = {"request_id": "same-allergy", "question": "有药物过敏吗？"}
+    first = api.client.post(f"/api/sessions/{sid}/ask", headers=api.headers, json=body)
+    replay = api.client.post(f"/api/sessions/{sid}/ask", headers=api.headers, json=body)
+    assert first.status_code == 200 and replay.status_code == 200
+    assert replay.json()["timing"]["replayed"] is True
+    assert replay.json()["answer"] == first.json()["answer"]
+    state = api.repository.get(sid, "demo-cfg")
+    assert len([event for event in state.events if event.action == ActionKind.ASK]) == 1
+    assert state.events[-1].result["answer_atom_ids"] == ["f_allergy#a1"]
+
+
+# --- clarification and safety -----------------------------------------------
+
+def test_continuation_with_no_context_clarifies():
+    selected, kind = _classify("CASE-001", "后来呢", set())
+    assert selected == [] and kind == "clarify"
+    assert non_fact_reply("后来呢", kind) == "您想先说说哪里不舒服？"
+
+
+def test_continuation_respects_visibility_bounds():
+    future_fact = Fact(fact_id="f_x", field="疼痛性质", content="胸痛像压榨一样。",
+                       disclosure_triggers=["性质"], status_valid_from=10)
+    state = SessionState(owner_id="t", case_id="t", case_version=1, disclosed_fact_ids=["f_cc"],
+                         sim_time_minutes=1)
+    selected, kind = classify_turn(state, "后来呢", [future_fact])
+    assert selected == [] and kind == "clarify_topic"
+
+
+def test_continuation_never_discloses_evolution_facts(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start("CASE-001")
+    _ask(api, sid, "怎么了？")
+    # Ask many continuations; none may surface the evolution fact f_deterioration.
+    for _ in range(30):
+        body = _ask(api, sid, "后来呢？")
+        assert "血压下降" not in body["answer"] and "意识模糊" not in body["answer"]
+
+
+def test_full_four_turn_sequence_is_answered_coherently(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start("CASE-001")
+    answers = {q: _ask(api, sid, q)["answer"] for q in ["怎么了？", "哪里不舒服？", "什么时候开始的？", "后来呢？"]}
+    assert answers["怎么了？"] == "我两个小时前突然开始胸痛。"
+    # The follow-up "哪里不舒服" asks for the site, so it no longer repeats the chief complaint.
+    assert answers["哪里不舒服？"] == "就在胸口正中间，一大片，说不清具体哪一点。"
+    assert answers["哪里不舒服？"] != answers["怎么了？"]
+    assert "两个小时前" in answers["什么时候开始的？"]
+    assert "持续没有缓解" in answers["后来呢？"]
+
+
+@pytest.mark.parametrize("case_id", ["CASE-001", "APPY-001"])
+def test_opening_with_unspecified_improvement_discloses_no_symptoms(case_id, tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch)
+    sid = api.start(case_id)
+    _ask(api, sid, "好转了吗？")
+    assert not api.repository.get(sid, "demo-cfg").events[-1].result["answer_atom_ids"]

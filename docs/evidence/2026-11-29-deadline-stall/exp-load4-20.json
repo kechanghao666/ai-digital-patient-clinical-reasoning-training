@@ -1,0 +1,172 @@
+{
+  "target": "tests/test_nexent_deadlines.py::test_total_deadline_interrupts_real_socket_waits[stall]",
+  "rounds": 20,
+  "cpu_burners": 4,
+  "passes": 20,
+  "failures": 0,
+  "elapsed_values": [],
+  "elapsed_min": null,
+  "elapsed_max": null,
+  "runs": [
+    {
+      "run": 1,
+      "exit": 0,
+      "wall_s": 3.16,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 2,
+      "exit": 0,
+      "wall_s": 3.33,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 3,
+      "exit": 0,
+      "wall_s": 3.59,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 4,
+      "exit": 0,
+      "wall_s": 3.31,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 5,
+      "exit": 0,
+      "wall_s": 2.06,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 6,
+      "exit": 0,
+      "wall_s": 2.14,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 7,
+      "exit": 0,
+      "wall_s": 2.66,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 8,
+      "exit": 0,
+      "wall_s": 2.97,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 9,
+      "exit": 0,
+      "wall_s": 2.88,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 10,
+      "exit": 0,
+      "wall_s": 2.89,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 11,
+      "exit": 0,
+      "wall_s": 2.88,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 12,
+      "exit": 0,
+      "wall_s": 2.92,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 13,
+      "exit": 0,
+      "wall_s": 2.92,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 14,
+      "exit": 0,
+      "wall_s": 3.01,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 15,
+      "exit": 0,
+      "wall_s": 2.84,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 16,
+      "exit": 0,
+      "wall_s": 2.8,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 17,
+      "exit": 0,
+      "wall_s": 2.78,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 18,
+      "exit": 0,
+      "wall_s": 2.81,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 19,
+      "exit": 0,
+      "wall_s": 2.75,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    },
+    {
+      "run": 20,
+      "exit": 0,
+      "wall_s": 2.91,
+      "passed": true,
+      "elapsed_from_assert": null,
+      "failed_line": null
+    }
+  ]
+}

@@ -72,7 +72,7 @@ def test_immediate_results_are_selectable_and_scoreable(tmp_path, monkeypatch):
     next(exam for exam in raw["exams"] if exam["exam_id"] == "ex_us")["return_after_minutes"] = 0
     public_id = put(api, raw).json()["public_id"]
     sid = api.start(public_id)
-    history = api.ask(sid, "有没有恶心呕吐")
+    history = api.ask(sid, "有没有恶心呕吐，食欲怎么样？")
     ordered = api.act(sid, "order_exam", {"exam_id": "ex_us"})
     event = ordered["event"]
     assert event["result"]["exam_results"] and event["result"]["state"] == "ready"

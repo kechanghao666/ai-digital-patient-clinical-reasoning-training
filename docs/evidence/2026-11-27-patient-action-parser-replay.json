@@ -1,0 +1,129 @@
+{
+  "parser_sha256": "e39e9b9db7165a0917798a25ad3fde7ef8913fa444bc012db2a815837baad6e9",
+  "protocol": "code_action",
+  "samples": [
+    {
+      "turn": "hypertension",
+      "step": 1,
+      "attempt": 1,
+      "output_time_utc": "2026-11-26T17:55:52.004854022Z",
+      "original_chars": 217,
+      "action_example": "<code>\ncontext = get_turn_context(turn_token=\"TOKEN\")\nprint(context)\n</code>",
+      "following_tags": [],
+      "expected": "ExecutableAction"
+    },
+    {
+      "turn": "hypertension",
+      "step": 2,
+      "attempt": 1,
+      "output_time_utc": "2026-11-26T17:55:55.778201175Z",
+      "original_chars": 328,
+      "action_example": "<code>\nsubmit_fact_selection(turn_token=\"TOKEN\", fact_ids=[\"f_hx_htn\"])\n</code>",
+      "following_tags": [
+        "<CODE_EXEC_RESULT>",
+        "<SUMMARIED_RESULT>",
+        "</SUMMARIED_RESULT>",
+        "<OUTPUT_REF>",
+        "</OUTPUT_REF>",
+        "</CODE_EXEC_RESULT>"
+      ],
+      "expected": "malformed_action"
+    },
+    {
+      "turn": "hypertension",
+      "step": 2,
+      "attempt": 2,
+      "output_time_utc": "2026-11-26T17:55:57.602831006Z",
+      "original_chars": 169,
+      "action_example": "<code>\ncontext = get_turn_context(turn_token=\"TOKEN\")\nprint(context)\n</code>",
+      "following_tags": [
+        "<final_answer>",
+        "</final_answer>"
+      ],
+      "expected": "malformed_action"
+    },
+    {
+      "turn": "hypertension",
+      "step": 2,
+      "attempt": 3,
+      "output_time_utc": "2026-11-26T17:55:59.943005954Z",
+      "original_chars": 216,
+      "action_example": "<code>\nsubmit_fact_selection(turn_token=\"TOKEN\", fact_ids=[\"f_hx_htn\"])\n</code>",
+      "following_tags": [],
+      "expected": "ExecutableAction"
+    },
+    {
+      "turn": "diabetes",
+      "step": 1,
+      "attempt": 1,
+      "output_time_utc": "2026-11-26T17:56:03.026605541Z",
+      "original_chars": 228,
+      "action_example": "<code>\ncontext = get_turn_context(turn_token=\"TOKEN\")\nprint(context)\n</code>",
+      "following_tags": [],
+      "expected": "ExecutableAction"
+    },
+    {
+      "turn": "diabetes",
+      "step": 2,
+      "attempt": 1,
+      "output_time_utc": "2026-11-26T17:56:06.580696244Z",
+      "original_chars": 397,
+      "action_example": "<code>\nsubmit_fact_selection(turn_token=\"TOKEN\", fact_ids=[\"f_hx_dm\"])\n</code>",
+      "following_tags": [
+        "<CODE_EXEC_RESULT>",
+        "<SUMMARIED_RESULT>",
+        "<OUTPUT>",
+        "</OUTPUT>",
+        "</SUMMARIED_RESULT>",
+        "</CODE_EXEC_RESULT>"
+      ],
+      "expected": "malformed_action"
+    },
+    {
+      "turn": "diabetes",
+      "step": 2,
+      "attempt": 2,
+      "output_time_utc": "2026-11-26T17:56:11.017056066Z",
+      "original_chars": 171,
+      "action_example": "<code>\nsubmit_fact_selection(turn_token=\"TOKEN\", fact_ids=[\"f_hx_dm\"])\n</code>",
+      "following_tags": [
+        "<final_answer>",
+        "</final_answer>"
+      ],
+      "expected": "malformed_action"
+    },
+    {
+      "turn": "diabetes",
+      "step": 2,
+      "attempt": 3,
+      "output_time_utc": "2026-11-26T17:56:13.785930902Z",
+      "original_chars": 247,
+      "action_example": "<code>\nsubmit_fact_selection(turn_token=\"TOKEN\", fact_ids=[\"f_hx_dm\"])\n</code>",
+      "following_tags": [
+        "<final_answer>",
+        "</final_answer>"
+      ],
+      "expected": "malformed_action"
+    },
+    {
+      "turn": "surgery",
+      "step": 1,
+      "attempt": 1,
+      "output_time_utc": "2026-11-26T17:56:16.800804358Z",
+      "original_chars": 228,
+      "action_example": "<code>\ncontext = get_turn_context(turn_token=\"TOKEN\")\nprint(context)\n</code>",
+      "following_tags": [],
+      "expected": "ExecutableAction"
+    },
+    {
+      "turn": "surgery",
+      "step": 2,
+      "attempt": 1,
+      "output_time_utc": "2026-11-26T17:56:19.254171457Z",
+      "original_chars": 212,
+      "action_example": "<code>\nsubmit_fact_selection(turn_token=\"TOKEN\", fact_ids=[\"f_allergy\"])\n</code>",
+      "following_tags": [],
+      "expected": "ExecutableAction"
+    }
+  ]
+}

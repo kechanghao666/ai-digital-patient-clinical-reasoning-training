@@ -1,0 +1,148 @@
+{
+  "date": "2026-11-12",
+  "backend_matches_current_source": true,
+  "synthetic_engineering_samples": true,
+  "formal_consistency_evaluation": false,
+  "attempts": [
+    {
+      "public_id": "CASE-001",
+      "question": "有高血压吗",
+      "http_status": 504,
+      "elapsed_ms": 54843,
+      "event_count": 0,
+      "expected_fact_in_answer": null,
+      "turns": [
+        {
+          "status": "cancelled",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "public_id": "CASE-002",
+      "question": "哪里痛，有没有转移",
+      "http_status": 200,
+      "elapsed_ms": 23532,
+      "event_count": 1,
+      "expected_fact_in_answer": true,
+      "replay_same_event": true,
+      "other_owner_read_status": 404,
+      "turns": [
+        {
+          "status": "finalized",
+          "calls": [
+            {
+              "tool": "get_turn_context",
+              "ok": true
+            },
+            {
+              "tool": "submit_fact_selection",
+              "ok": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "public_id": "CASE-003",
+      "question": "有房颤吗",
+      "http_status": 504,
+      "elapsed_ms": 54844,
+      "event_count": 0,
+      "expected_fact_in_answer": null,
+      "turns": [
+        {
+          "status": "cancelled",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "public_id": "CASE-004",
+      "question": "有没有咳嗽咳痰",
+      "http_status": 504,
+      "elapsed_ms": 54813,
+      "event_count": 0,
+      "expected_fact_in_answer": null,
+      "turns": [
+        {
+          "status": "cancelled",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "public_id": "CASE-005",
+      "question": "胰岛素用得怎么样，有什么诱因",
+      "http_status": 504,
+      "elapsed_ms": 54829,
+      "event_count": 0,
+      "expected_fact_in_answer": null,
+      "turns": [
+        {
+          "status": "cancelled",
+          "calls": [
+            {
+              "tool": "get_turn_context",
+              "ok": true
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "original_business_db_unchanged": true,
+  "base_sha": "f3b3d4a335187dfd72b5cca5843d065956edfd57",
+  "source_comparison": "All backend Python files match isolated running snapshot after newline normalization; frontend contains this batch draft protection.",
+  "tests": {
+    "before_fix_failed": 11,
+    "new_regressions": 13,
+    "full_suite_passed": 475,
+    "elapsed_seconds": 69.53
+  },
+  "browser": {
+    "date": "2026-11-12",
+    "browser": "Microsoft Edge",
+    "checks": [
+      "unsubmitted diagnosis blocks seal",
+      "return protects reasoning draft",
+      "successful submit unblocks seal",
+      "unsubmitted differential blocks seal",
+      "explicit discard restores persisted state"
+    ],
+    "page_errors": [],
+    "events": 1,
+    "sealed": false,
+    "real_model_called": false
+  },
+  "official": {
+    "reply_count": 2,
+    "registration_confirmed": true,
+    "startup_reply_present": true,
+    "new_official_receipt": false,
+    "upstream_sha": "f4bb5a52b9111caa4aac5b5e7ed773cd6569377b"
+  },
+  "limitations": [
+    "Five individual inquiries, not full five-specialty workflows or formal 20-round consistency assessment",
+    "No clinical approval or real student/expert evaluation",
+    "Successful API duration is not browser-visible first-word latency",
+    "Teacher-only feedback gate remains enabled"
+  ],
+  "temporary_model_connectivity_probes": [
+    {
+      "model_id": 4,
+      "model_name": "spark-x2.6-4b",
+      "http_status": 200,
+      "elapsed_ms": 31172,
+      "connectivity": false
+    },
+    {
+      "model_id": 6,
+      "model_name": "spark-x2.5-4b",
+      "http_status": 200,
+      "elapsed_ms": 29484,
+      "connectivity": false
+    }
+  ],
+  "model_configuration_changed": false
+}

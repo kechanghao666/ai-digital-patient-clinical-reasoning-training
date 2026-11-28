@@ -155,9 +155,8 @@ def test_student_page_starts_the_selected_teacher_case(tmp_path, monkeypatch):
     assert put(api, new_case("TEACH-SELECT", public_id="CASE-SELECT")).status_code == 200
     _route_requests(monkeypatch, api)
     page = AppTest.from_file(str(ROOT / "frontend/app.py"), default_timeout=30).run()
-    select = next(s for s in page.selectbox if s.label == "病例")
-    select.set_value(next(o for o in select.options if o.startswith("CASE-SELECT ·")))
-    button(page, "开始训练").click().run()
+    page.text_input(key="case_search").set_value("CASE-SELECT").run()
+    page.button(key="start_CASE-SELECT").click().run()
     assert not page.exception, page.exception
     state = api.repository.get(page.session_state["session_id"], "demo-student")
     assert state.case_id == "TEACH-SELECT" and state.case_version == 1

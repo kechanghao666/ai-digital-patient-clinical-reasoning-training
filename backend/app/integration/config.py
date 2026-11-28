@@ -8,6 +8,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 
 
+def data_directory() -> Path:
+    return (ROOT / Path(os.getenv("APP_DATA_DIR") or "backend/data").expanduser()).resolve()
+
+
 def _float(name: str, default: float) -> float:
     raw = os.getenv(name)
     if raw is None or not raw.strip():
@@ -37,6 +41,26 @@ class IntegrationSettings:
     mcp_service_token: str
     integration_db_path: Path
     knowledge_dir: Path
+    feedback_protocol: str = "review_tool"
+    # dual: get_turn_context -> submit_fact_selection; single: one submit_fact_selection with the
+    # turn's authorised candidates provided inline in the query.
+    patient_protocol: str = "dual"
+    patient_agent_single: str = ""
+    # Optional text-embedding service for teacher-side semantic teaching-basis search.
+    # Empty values disable the feature; keys stay in the protected process environment.
+    embedding_base_url: str = ""
+    embedding_api_key: str = ""
+    embedding_model: str = ""
+    # Optional rerank service for the teacher-side basis shortlist; same trust level as the
+    # embedding settings: empty values disable the feature, keys stay in the process environment.
+    rerank_base_url: str = ""
+    rerank_api_key: str = ""
+    rerank_model: str = ""
+    # Optional OCR service for teacher-side checklist text drafts; same trust level as the other
+    # model settings: empty values disable the feature, keys stay in the process environment.
+    ocr_base_url: str = ""
+    ocr_api_key: str = ""
+    ocr_model: str = ""
 
     @classmethod
     def from_env(cls) -> "IntegrationSettings":
@@ -52,12 +76,28 @@ class IntegrationSettings:
             turn_ttl_s=_float("TURN_TTL_S", 120.0),
             mcp_service_token=os.getenv("MCP_SERVICE_TOKEN", ""),
             integration_db_path=Path(
-                os.getenv("INTEGRATION_DB_PATH", str(ROOT / "backend" / "data" / "integration.db"))
+                os.getenv("INTEGRATION_DB_PATH", str(data_directory() / "integration.db"))
             ),
             knowledge_dir=Path(os.getenv("KNOWLEDGE_DIR", str(ROOT / "knowledge"))),
+            feedback_protocol=os.getenv("NEXENT_FEEDBACK_PROTOCOL", "review_tool").strip(),
+            patient_protocol=os.getenv("NEXENT_PATIENT_PROTOCOL", "dual").strip().lower() or "dual",
+            patient_agent_single=os.getenv("NEXENT_PATIENT_AGENT_SINGLE", "").strip(),
+            embedding_base_url=os.getenv("EMBEDDING_BASE_URL", "").strip().rstrip("/"),
+            embedding_api_key=os.getenv("EMBEDDING_API_KEY", ""),
+            embedding_model=os.getenv("EMBEDDING_MODEL", "").strip(),
+            rerank_base_url=os.getenv("RERANK_BASE_URL", "").strip().rstrip("/"),
+            rerank_api_key=os.getenv("RERANK_API_KEY", ""),
+            rerank_model=os.getenv("RERANK_MODEL", "").strip(),
+            ocr_base_url=os.getenv("OCR_BASE_URL", "").strip().rstrip("/"),
+            ocr_api_key=os.getenv("OCR_API_KEY", ""),
+            ocr_model=os.getenv("OCR_MODEL", "").strip(),
         )
 
     def __post_init__(self):
+        if self.feedback_protocol not in {"review_tool", "compact"}:
+            raise ValueError("NEXENT_FEEDBACK_PROTOCOL must be review_tool or compact")
+        if self.patient_protocol not in {"dual", "single"}:
+            raise ValueError("NEXENT_PATIENT_PROTOCOL must be dual or single")
         for name in ("connect_timeout_s", "first_event_timeout_s", "total_timeout_s", "turn_ttl_s"):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
@@ -69,3 +109,15 @@ class IntegrationSettings:
     @property
     def uses_nexent(self) -> bool:
         return self.mode == "nexent"
+
+    @property
+    def embedding_enabled(self) -> bool:
+        return bool(self.embedding_base_url and self.embedding_api_key and self.embedding_model)
+
+    @property
+    def rerank_enabled(self) -> bool:
+        return bool(self.rerank_base_url and self.rerank_api_key and self.rerank_model)
+
+    @property
+    def ocr_enabled(self) -> bool:
+        return bool(self.ocr_base_url and self.ocr_api_key and self.ocr_model)

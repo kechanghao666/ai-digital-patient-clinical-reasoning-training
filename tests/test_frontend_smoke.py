@@ -2,17 +2,58 @@
 from __future__ import annotations
 
 import requests
+import pytest
 from streamlit.testing.v1 import AppTest
 
 from test_cases_config import ROOT, Api
 
 
+@pytest.mark.parametrize("submission", ["diagnosis", "differential"])
+def test_submission_immediately_refreshes_count_and_replay(tmp_path, monkeypatch, submission):
+    from test_integration import Env
+
+    env = Env(tmp_path, monkeypatch, mode="simulator")
+    sid = env.new_session()
+    _route_requests(monkeypatch, env)
+    page = _page(env)
+    page.text_input(key="student_identity").set_value("demo-integration").run()
+    next(b for b in page.button if b.label == "恢复训练").click().run()
+    if submission == "diagnosis":
+        page.text_input(key="diagnosis_input").set_value("待进一步核对").run()
+        label = "提交诊断"
+    else:
+        page.multiselect(key="differential_choice").set_value(["pulmonary_embolism"]).run()
+        label = "提交鉴别诊断"
+    next(b for b in page.button if b.label == label).click().run()
+    assert not page.exception
+    assert len(env.stored_events(sid)) == 1
+    assert next(m for m in page.metric if m.label == "已记录操作").value == "1"
+    assert len(page.session_state["session_snapshot"]["state"]["events"]) == 1
+
+
 def _route_requests(monkeypatch, api: Api):
     def fake_request(method, url, headers=None, timeout=None, **kwargs):
         path = url.split("127.0.0.1:8000", 1)[1]
+        kwargs["follow_redirects"] = kwargs.pop("allow_redirects", True)
         return api.client.request(method, path, headers=headers, **kwargs)
 
     monkeypatch.setattr(requests, "request", fake_request)
+
+
+def test_unsaved_notes_must_be_saved_before_sealing(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch, owner="demo-student")
+    sid = api.start("CASE-001")
+    _route_requests(monkeypatch, api)
+    page = _page(api)
+    next(b for b in page.button if b.label == "恢复训练").click().run()
+    page.text_area(key="case_notes_input").set_value("本轮已采集病史，待核对检查。").run()
+    assert next(b for b in page.button if b.label == "提交训练并封存").disabled
+    next(b for b in page.button if b.label == "保存病历记录").click().run()
+    assert not next(b for b in page.button if b.label == "提交训练并封存").disabled
+    next(b for b in page.button if b.label == "提交训练并封存").click().run()
+    assert not page.exception
+    state = api.client.get(f"/api/sessions/{sid}", headers=api.headers).json()["state"]
+    assert state["sealed"] and state["case_notes"] == "本轮已采集病史，待核对检查。"
 
 
 def _page(api: Api):
@@ -36,7 +77,9 @@ def test_page_offers_case_configured_options_for_each_specialty(tmp_path, monkey
         resume.click().run()
         assert not app.exception, app.exception
         labels = {s.label: s for s in app.selectbox}
-        assert [labels["检查项目"].format_func(o) for o in labels["检查项目"].options] == exams
+        offered = [labels["检查项目"].format_func(o) for o in labels["检查项目"].options]
+        # Full catalogue for every case: the case's own exams are present but not singled out.
+        assert set(exams) <= set(offered) and len(offered) >= 40
         assert [labels["治疗动作"].format_func(o) for o in labels["治疗动作"].options] == treatments
         assert any(m.label == "候选诊断" for m in app.multiselect)
 
@@ -58,3 +101,73 @@ def test_sealed_page_restores_feedback_and_shows_readable_replay(tmp_path, monke
     assert not page.json
     assert any("提交诊断：" in item.value for item in page.markdown)
     assert all(b.disabled for b in page.button if b.label in {"提交问题", "提交诊断", "提交治疗"})
+
+
+def test_specialty_filter_starts_the_visible_case(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch, owner="demo-student")
+    _route_requests(monkeypatch, api)
+    page = _page(api)
+    target = next(case for case in api.client.get('/api/cases', headers=api.headers).json() if case['public_id'] == 'CASE-002')
+    page.selectbox(key="library_specialty").set_value(target['specialty']).run()
+    choices = [b for b in page.button if b.label == "开始训练"]
+    assert len(choices) == 1 and choices[0].key == "start_CASE-002"
+    choices[0].click().run()
+    assert not page.exception
+    assert page.session_state['session_snapshot']['case']['public_id'] == 'CASE-002'
+
+
+def test_replay_filter_preserves_event_numbers_and_does_not_mutate(tmp_path, monkeypatch):
+    from test_integration import Env, _play_and_seal
+    env = Env(tmp_path, monkeypatch, mode="simulator")
+    sid = _play_and_seal(env)
+    before = env.stored_events(sid)
+    _route_requests(monkeypatch, env)
+    page = _page(env)
+    page.text_input(key="student_identity").set_value("demo-integration").run()
+    next(b for b in page.button if b.label == "恢复训练").click().run()
+    page.selectbox(key=f"replay_action_{sid}").set_value("submit_diagnosis").run()
+    assert not page.exception
+    headings = [item.label for item in page.expander if item.label.startswith('#')]
+    expected = [f"#{e.seq} · 提交诊断 · 模拟时间 {e.sim_time} 分钟" for e in before if e.action == 'submit_diagnosis']
+    assert headings == expected and headings
+    assert env.stored_events(sid) == before
+    page.selectbox(key=f"replay_action_{sid}").set_value("all").run()
+    assert len([item for item in page.expander if item.label.startswith('#')]) == len(before)
+
+
+def test_case_search_is_read_only_and_has_an_empty_state(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch, owner="demo-student")
+    _route_requests(monkeypatch, api)
+    page = _page(api)
+    page.text_input(key="case_search").set_value("not-a-case").run()
+    assert not [b for b in page.button if b.label == "开始训练"]
+    assert any("未找到匹配病例" in item.value for item in page.info)
+    assert api.client.get('/api/sessions', headers=api.headers).json() == []
+    page.text_input(key="case_search").set_value("case-002").run()
+    assert [b.key for b in page.button if b.label == "开始训练"] == ["start_CASE-002"]
+    assert api.client.get('/api/sessions', headers=api.headers).json() == []
+
+
+def test_identity_change_without_motion_switch_does_not_create_a_session(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch, owner="demo-student")
+    _route_requests(monkeypatch, api)
+    page = _page(api)
+    assert not any(toggle.label == "动态背景" for toggle in page.toggle)
+    page.text_input(key="student_identity").set_value("demo-motion-preference").run()
+    assert not page.exception
+    assert not any(toggle.label == "动态背景" for toggle in page.toggle)
+    assert api.client.get('/api/sessions', headers=api.headers).json() == []
+
+
+def test_history_can_restore_a_specific_older_session(tmp_path, monkeypatch):
+    api = Api(tmp_path, monkeypatch, owner="demo-student")
+    older = api.start("CASE-001")
+    newer = api.start("CASE-002")
+    _route_requests(monkeypatch, api)
+    page = _page(api)
+    page.radio(key="student_view").set_value("我的训练").run()
+    assert page.button(key=f"resume_{newer}")
+    page.button(key=f"resume_{older}").click().run()
+    assert not page.exception
+    assert page.session_state["session_id"] == older
+    assert len(api.client.get('/api/sessions', headers=api.headers).json()) == 2

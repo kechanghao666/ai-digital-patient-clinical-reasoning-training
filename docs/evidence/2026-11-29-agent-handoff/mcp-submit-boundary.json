@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "title": "MCP submit_fact_selection boundary verification",
+  "run_at": "2026-11-28T16:58:06+00:00",
+  "environment": {
+    "os": "Windows-10-10.0.26300-SP0",
+    "python": "3.11.18",
+    "timing_source": "mcp_process_wall_clock (MCP server thread, real HTTP sockets)",
+    "real_provider_calls": 0
+  },
+  "turns": {
+    "turn1": {
+      "turn_id": "a08a955703b144eb9aa30581bf5f422d",
+      "request_id": "verify-q1",
+      "mode": "nexent",
+      "status_after": "cancelled",
+      "tool_results": {
+        "first_submit_ok": true,
+        "duplicate_submit_ok": false
+      },
+      "boundaries": [
+        {
+          "boundary_id": 1,
+          "turn_id": "a08a955703b144eb9aa30581bf5f422d",
+          "request_id": "verify-q1",
+          "semantic": "submit_fact_selection_committed",
+          "timing_source": "mcp_process_wall_clock",
+          "at": 1795885085.9570675,
+          "detail": "selected=1 fact_ids"
+        },
+        {
+          "boundary_id": 2,
+          "turn_id": "a08a955703b144eb9aa30581bf5f422d",
+          "request_id": "",
+          "semantic": "submit_fact_selection_not_open",
+          "timing_source": "mcp_process_wall_clock",
+          "at": 1795885085.9818983,
+          "detail": "turn_submitted: turn is submitted"
+        }
+      ],
+      "calls": [
+        {
+          "tool": "get_turn_context",
+          "ok": true,
+          "detail": "",
+          "at": 1795885085.823871
+        },
+        {
+          "tool": "submit_fact_selection",
+          "ok": true,
+          "detail": "",
+          "at": 1795885085.9620903
+        },
+        {
+          "tool": "submit_fact_selection",
+          "ok": false,
+          "detail": "turn_submitted",
+          "at": 1795885085.9753315
+        }
+      ]
+    },
+    "turn2": {
+      "turn_id": "fe7cc048fc574eb0a40d00bd57f416e3",
+      "request_id": "verify-q2",
+      "mode": "nexent",
+      "status_after": "open",
+      "tool_results": {
+        "unauthorized_submit_ok": false
+      },
+      "boundaries": [
+        {
+          "boundary_id": 3,
+          "turn_id": "fe7cc048fc574eb0a40d00bd57f416e3",
+          "request_id": "verify-q2",
+          "semantic": "submit_fact_selection_rejected",
+          "timing_source": "mcp_process_wall_clock",
+          "at": 1795885086.0092804,
+          "detail": "unauthorized_fact: selection contains a fact that is not a candidate for this turn"
+        }
+      ],
+      "calls": [
+        {
+          "boundary_id": 3,
+          "turn_id": "fe7cc048fc574eb0a40d00bd57f416e3",
+          "request_id": "verify-q2",
+          "semantic": "submit_fact_selection_rejected",
+          "timing_source": "mcp_process_wall_clock",
+          "at": 1795885086.0092804,
+          "detail": "unauthorized_fact: selection contains a fact that is not a candidate for this turn"
+        }
+      ]
+    }
+  },
+  "checks": {
+    "committed_boundary_present": true,
+    "committed_request_id_matches": true,
+    "duplicate_boundary_present": true,
+    "unauthorized_boundary_present": true,
+    "boundary_timestamps_monotonic_within_turn": true
+  },
+  "all_checks_pass": true
+}

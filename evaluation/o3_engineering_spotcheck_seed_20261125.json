@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "title": "O3 开发者预登记工程抽检输入（冻结前种子）",
+  "authorship": "同一开发者撰写与预登记；不是独立盲测、医学专家判定或官方验收",
+  "baseline_sha": "30028a042f7599f4fb94a4ea1cb28288baba362c",
+  "created_before_product_fix": true,
+  "purpose": "在五个当前病例版本上检查学生问诊 API 的问答授权和事实一致性；本机模拟器，不调用真实模型",
+  "cases": [
+    {"case_id": "STEMI-001", "version": 3, "source_file": "cases/stemi_case_v3.json"},
+    {"case_id": "APPY-001", "version": 2, "source_file": "cases/appendicitis_case_v2.json"},
+    {"case_id": "STROKE-001", "version": 2, "source_file": "cases/stroke_case_v2.json"},
+    {"case_id": "CAP-001", "version": 2, "source_file": "cases/pneumonia_case_v2.json"},
+    {"case_id": "DKA-001", "version": 2, "source_file": "cases/dka_case_v2.json"}
+  ],
+  "session_policy": "每个病例创建一个合成学生训练；该病例的四个问题按所列顺序共享同一会话，不跨病例共享。",
+  "round_templates": [
+    {
+      "round_in_case": 1,
+      "intent": "current_treatment_decision",
+      "question": "现在需要做手术吗？",
+      "expected_fact_ids_by_case": {"STEMI-001": [], "APPY-001": [], "STROKE-001": [], "CAP-001": [], "DKA-001": []},
+      "acceptable_no_fact_answers": ["这我不清楚，得请医生结合检查判断。", "我不太确定您的问题，能否换一种方式询问？"],
+      "correctness_rule": "应给非空、固定且不披露病例事实的澄清/拒答；不能把手术史当作当前处置答案。"
+    },
+    {
+      "round_in_case": 2,
+      "intent": "past_surgery_history",
+      "question": "以前做过手术吗？",
+      "expected_fact_ids_by_case": {"STEMI-001": ["f_allergy"], "APPY-001": ["f_hx"], "STROKE-001": ["f_anticoag"], "CAP-001": ["f_surgery"], "DKA-001": ["f_allergy"]},
+      "acceptable_no_fact_answers": [],
+      "correctness_rule": "病例含手术/外伤史触发事实时，应且仅应返回预登记事实；回答文本须由该事实精确渲染。"
+    },
+    {
+      "round_in_case": 3,
+      "intent": "relative_discovered_presenting_symptom",
+      "question": "家里人什么时候发现症状的？",
+      "expected_fact_ids_by_case": {"STEMI-001": [], "APPY-001": [], "STROKE-001": ["f_care"], "CAP-001": [], "DKA-001": []},
+      "acceptable_no_fact_answers": ["这个我没太注意，说不好。", "我不太确定您的问题，能否换一种方式询问？"],
+      "correctness_rule": "只有病例中叙述症状发现者/经过的就诊事实可以回答；家族史一律禁止。其他病例无对应事实时应给固定非事实回答。"
+    },
+    {
+      "round_in_case": 4,
+      "intent": "family_history",
+      "question": "家族里有人得过类似的病吗？",
+      "expected_fact_ids_by_case": {"STEMI-001": ["f_family"], "APPY-001": ["f_family"], "STROKE-001": ["f_family"], "CAP-001": ["f_family"], "DKA-001": ["f_family"]},
+      "acceptable_no_fact_answers": [],
+      "correctness_rule": "这是明确家族史询问；应且仅应返回对应家族史事实，不得因前一轮话题混入其他字段。"
+    }
+  ]
+}

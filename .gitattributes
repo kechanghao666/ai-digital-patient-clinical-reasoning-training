@@ -1,0 +1,25 @@
+# Preserve the original byte hashes of the preregistered O3 inputs on every checkout.
+/evaluation/o3_*_20261125.json text eol=crlf
+/cases/stemi_case_v3.json text eol=lf
+/cases/appendicitis_case_v2.json text eol=lf
+/cases/stroke_case_v2.json text eol=lf
+/cases/pneumonia_case_v2.json text eol=lf
+/cases/dka_case_v2.json text eol=lf
+# Match the four v1 source hashes recorded in the compound-score audit.
+/cases/appendicitis_case_v1.json text eol=crlf
+/cases/dka_case_v1.json text eol=crlf
+/cases/pneumonia_case_v1.json text eol=crlf
+/cases/stroke_case_v1.json text eol=crlf
+# Keep audit report and replay-manifest byte hashes stable across platforms.
+/evaluation/reports/o3_compound_*.json text eol=crlf
+/evaluation/reports/o3_atomic_semantic_replay_20261126.json text eol=crlf
+/evaluation/o3_atomic_semantic_replay_20261126.json text eol=lf
+
+# Preserve upstream source bytes for the recorded Git and SHA-256 fingerprints.
+/docs/evidence/official-20261127/*.md -text -whitespace
+/docs/evidence/official-20261127/upstream-LICENSE -text -whitespace
+/docs/evidence/official-20261127/sources.json text eol=lf
+# Preserve audit JSON layout and the original Windows test-log bytes.
+/docs/evidence/comprehensive-review-20261127/*.json text eol=lf
+/docs/evidence/comprehensive-review-20261127/pytest.log.txt -text -whitespace
+/docs/review-forms-20261127/*.json text eol=lf

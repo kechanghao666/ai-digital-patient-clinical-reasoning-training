@@ -1,0 +1,227 @@
+{
+  "checks": [
+    {
+      "name": "有数据：观测面板显示记录回合数",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "刷新后观测面板仍显示数据",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "切换观测范围等待期间隐藏旧统计及预算",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "病例筛选不消除自有班级预算告警",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "历史日期筛选不消除今日预算告警",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "未知预算不显示未达上限",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "导出预览显示 1 条去标识化记录",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "导出下载生成 JSON 文件",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "下载内容不含身份/自由文本",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "下载字段与预览相同",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "切换班级清除旧下载",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "旧班级迟到响应不恢复下载",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "导出失败不提供下载",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "接口故障显示统计暂不可用",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "接口故障隐藏旧预算",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "重试后恢复数据",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "班级统计失败不展示旧班级明细",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "班级统计重试恢复",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "待核验资质不能发布",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "匹配有效资质允许确认发布",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "读取失败时旧有效资质不能继续发布",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "合成审核发布请求成功",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "发布审计展示绑定身份",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "已发布病例可复制保存草稿",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "页面旧资质不能绕过服务端撤销",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "刷新后撤销状态禁止发布",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "可创建分组",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "学生可加入分组",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "可从布置表单保存任务模板",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "模板可批量布置到其他自有班级",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "跨班复制对已有同病例任务的班级幂等跳过",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "可按分组布置任务并显示完成分母",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "组外学生在分组任务列显示不适用",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "CSV 明示当前分组并区分组外学生",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "有进行中任务的分组不能删除",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "撤回任务后分组可删除",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "可创建学期",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "可创建课程并归属学期",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "班级可关联到课程并回显",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "课程跨学期复用对已有同病例任务幂等跳过",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "仍关联班级的课程不能删除",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "无数据：空班级教师显示暂无",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "无前端脚本错误",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "服务退出且临时数据清理",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "passed": true,
+  "real_model_calls": 0,
+  "main_js_sha256": "fa075c1a4fa965a66126514eb8e03cf369f23e2198dfdde95f2c1d34bec929e6"
+}

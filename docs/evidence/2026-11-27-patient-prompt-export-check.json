@@ -1,0 +1,113 @@
+{
+  "export_checks": [
+    {
+      "v9_prompt_sha256": "089dc4af3771c88e39b2d1097ed3dd18451dead9ded82258c08f9c936d9b1767",
+      "candidate_prompt_sha256": "cb1de45e02980e5d0002f84cae66909b1b714ba49bc1f40413396ed6983873c3",
+      "old_sentence_occurrences": 1,
+      "candidate_present_once": true,
+      "round_trip_exact": true,
+      "preserved_rule_intact": true
+    },
+    {
+      "v9_prompt_sha256": "089dc4af3771c88e39b2d1097ed3dd18451dead9ded82258c08f9c936d9b1767",
+      "candidate_prompt_sha256": "cb1de45e02980e5d0002f84cae66909b1b714ba49bc1f40413396ed6983873c3",
+      "old_sentence_occurrences": 1,
+      "candidate_present_once": true,
+      "round_trip_exact": true,
+      "preserved_rule_intact": true
+    }
+  ],
+  "sample_source": "Archived verdicts; replay independently with replay_patient_action_parser.py",
+  "samples": [
+    {
+      "turn": "hypertension",
+      "step": 1,
+      "attempt": 1,
+      "called_tool": "get_turn_context",
+      "platform_can_parse": true,
+      "tool_matches_step": true,
+      "archived_expected": "ExecutableAction"
+    },
+    {
+      "turn": "hypertension",
+      "step": 2,
+      "attempt": 1,
+      "called_tool": "submit_fact_selection",
+      "platform_can_parse": false,
+      "tool_matches_step": true,
+      "archived_expected": "malformed_action"
+    },
+    {
+      "turn": "hypertension",
+      "step": 2,
+      "attempt": 2,
+      "called_tool": "get_turn_context",
+      "platform_can_parse": false,
+      "tool_matches_step": false,
+      "archived_expected": "malformed_action"
+    },
+    {
+      "turn": "hypertension",
+      "step": 2,
+      "attempt": 3,
+      "called_tool": "submit_fact_selection",
+      "platform_can_parse": true,
+      "tool_matches_step": true,
+      "archived_expected": "ExecutableAction"
+    },
+    {
+      "turn": "diabetes",
+      "step": 1,
+      "attempt": 1,
+      "called_tool": "get_turn_context",
+      "platform_can_parse": true,
+      "tool_matches_step": true,
+      "archived_expected": "ExecutableAction"
+    },
+    {
+      "turn": "diabetes",
+      "step": 2,
+      "attempt": 1,
+      "called_tool": "submit_fact_selection",
+      "platform_can_parse": false,
+      "tool_matches_step": true,
+      "archived_expected": "malformed_action"
+    },
+    {
+      "turn": "diabetes",
+      "step": 2,
+      "attempt": 2,
+      "called_tool": "submit_fact_selection",
+      "platform_can_parse": false,
+      "tool_matches_step": true,
+      "archived_expected": "malformed_action"
+    },
+    {
+      "turn": "diabetes",
+      "step": 2,
+      "attempt": 3,
+      "called_tool": "submit_fact_selection",
+      "platform_can_parse": false,
+      "tool_matches_step": true,
+      "archived_expected": "malformed_action"
+    },
+    {
+      "turn": "surgery",
+      "step": 1,
+      "attempt": 1,
+      "called_tool": "get_turn_context",
+      "platform_can_parse": true,
+      "tool_matches_step": true,
+      "archived_expected": "ExecutableAction"
+    },
+    {
+      "turn": "surgery",
+      "step": 2,
+      "attempt": 1,
+      "called_tool": "submit_fact_selection",
+      "platform_can_parse": true,
+      "tool_matches_step": true,
+      "archived_expected": "ExecutableAction"
+    }
+  ]
+}

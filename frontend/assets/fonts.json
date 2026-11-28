@@ -1,0 +1,24 @@
+[
+  {
+    "family": "Clinic Sans",
+    "file": "interface-sans.ttf",
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf",
+    "source_bytes": 17772300,
+    "bytes": 478840,
+    "glyphs": 853,
+    "sha256": "eba0c18607b1a8dc3c85c632dfdedd2c89ad7d573916300e490ed1568a9cc943",
+    "license": "notosanssc-OFL.txt",
+    "modified": "Subset and renamed locally using fontTools; variable weight retained"
+  },
+  {
+    "family": "Clinic Serif",
+    "file": "display-serif.ttf",
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/notoserifsc/NotoSerifSC%5Bwght%5D.ttf",
+    "source_bytes": 25125512,
+    "bytes": 24944,
+    "glyphs": 38,
+    "sha256": "3e1834774b419afd2adf5b51c1981f7300d74c62b1fadb2d1e419a8821100c8f",
+    "license": "notoserifsc-OFL.txt",
+    "modified": "Subset and renamed locally using fontTools; variable weight retained"
+  }
+]

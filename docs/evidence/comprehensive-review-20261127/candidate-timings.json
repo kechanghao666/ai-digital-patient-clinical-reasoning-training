@@ -1,0 +1,120 @@
+{
+  "source": "local-only/o10a-candidate/run.json",
+  "source_sha256": "0e731ed6a26fa017332c9a1adf53666924f409cd7349d59b567e55ec1b0a9b50",
+  "original_measurement_commit": "8b68e37d1b649c36bdcc12ae96fd10adf0c0031d",
+  "meaning": "Historical observations, not new model calls. Browser and server durations have different origins.",
+  "rows": [
+    {
+      "scenario": "first-session",
+      "turn": 1,
+      "question": "有高血压吗？",
+      "request_id": "9e080615-96ce-4fc5-8009-58f1a53d0f0b",
+      "server_timing": {
+        "replayed": false,
+        "answer_validated_ms": 9905,
+        "api_ready_ms": 9905
+      },
+      "timings": {
+        "clickT": 414.29999999981374,
+        "postT": 10332,
+        "visibleT": 10333.799999999814,
+        "paintT": 10338.599999999627
+      },
+      "durations_ms": {
+        "click_to_response_ms": 9917.7,
+        "click_to_visible_ms": 9919.5,
+        "click_to_paint_ms": 9924.3,
+        "response_to_visible_ms": 1.8,
+        "response_to_paint_ms": 6.6
+      },
+      "ui_latency_title": "应答 9.9 秒",
+      "posted_event": {
+        "event_id": "4d928e8b-ddae-4bfa-b70c-9a5888c9abdf",
+        "seq": 1,
+        "answer": "有高血压10年。",
+        "replayed": false
+      },
+      "visible_answer": "有高血压10年。",
+      "answer_matches_posted": true,
+      "saved_event_ids": [
+        "4d928e8b-ddae-4bfa-b70c-9a5888c9abdf"
+      ],
+      "saved_ask_count": 1
+    },
+    {
+      "scenario": "first-session",
+      "turn": 2,
+      "question": "有糖尿病吗？",
+      "request_id": "5466e6e9-9454-44f7-a841-af60522b9807",
+      "server_timing": {
+        "replayed": false,
+        "answer_validated_ms": 8172,
+        "api_ready_ms": 8188
+      },
+      "timings": {
+        "clickT": 10386.799999999814,
+        "postT": 18572.299999999814,
+        "visibleT": 18573.799999999814,
+        "paintT": 18578.199999999255
+      },
+      "durations_ms": {
+        "click_to_response_ms": 8185.5,
+        "click_to_visible_ms": 8187,
+        "click_to_paint_ms": 8191.4,
+        "response_to_visible_ms": 1.5,
+        "response_to_paint_ms": 5.9
+      },
+      "ui_latency_title": "应答 8.2 秒",
+      "posted_event": {
+        "event_id": "703fc81c-a032-4c45-a255-064490b82745",
+        "seq": 2,
+        "answer": "有糖尿病5年。",
+        "replayed": false
+      },
+      "visible_answer": "有糖尿病5年。",
+      "answer_matches_posted": true,
+      "saved_event_ids": [
+        "4d928e8b-ddae-4bfa-b70c-9a5888c9abdf",
+        "703fc81c-a032-4c45-a255-064490b82745"
+      ],
+      "saved_ask_count": 2
+    },
+    {
+      "scenario": "second-session",
+      "turn": 1,
+      "question": "以前做过手术吗？",
+      "request_id": "76378cc4-12b9-4d03-a381-9dd048c26ab9",
+      "server_timing": {
+        "replayed": false,
+        "answer_validated_ms": 8328,
+        "api_ready_ms": 8344
+      },
+      "timings": {
+        "clickT": 177.29999999981374,
+        "postT": 8513.700000000186,
+        "visibleT": 8515.400000000373,
+        "paintT": 8524.599999999627
+      },
+      "durations_ms": {
+        "click_to_response_ms": 8336.4,
+        "click_to_visible_ms": 8338.1,
+        "click_to_paint_ms": 8347.3,
+        "response_to_visible_ms": 1.7,
+        "response_to_paint_ms": 10.9
+      },
+      "ui_latency_title": "应答 8.3 秒",
+      "posted_event": {
+        "event_id": "a1312f62-3ded-4733-a75c-cfbff25d83ec",
+        "seq": 1,
+        "answer": "没做过手术。",
+        "replayed": false
+      },
+      "visible_answer": "没做过手术。",
+      "answer_matches_posted": true,
+      "saved_event_ids": [
+        "a1312f62-3ded-4733-a75c-cfbff25d83ec"
+      ],
+      "saved_ask_count": 1
+    }
+  ]
+}

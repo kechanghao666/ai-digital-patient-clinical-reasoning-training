@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "round": "2026-11-29 交付工具与评测汇总（ Nexent 交付离线部分 + 评测表单可执行化 + 演示复演）",
+  "baseline": {
+    "sha": "d8597019fd8030b0e558ece3690551a63fc5698c",
+    "verified": "本地/远端/PR #1 一致；Push 46178166116、PR 46178170664 均 success"
+  },
+  "batches": {
+    "delivery_verifier_before_exports": {
+      "command": "python scripts/verify_delivery_package.py",
+      "exit_code": 2,
+      "exports": "agent.json 与 feedback/agent.json 均 missing（符合交接预期；正式导出必须来自授权平台）",
+      "evidence": "docs/evidence/2026-11-29-delivery-tools/verify-before-exports.json"
+    },
+    "delivery_preparation_tool": {
+      "script": "scripts/prepare_delivery_exports.py",
+      "tests": "tests/test_delivery_and_forms_tools.py 6 项全部通过",
+      "behavior": "读两份受保护平台导出 → 结构校验 → 按 IMPORT.md 第4步脱敏（凭据子串替换、密钥类字段整值替换）→ 生成公开副本（只生成一次）→ 产出逐项脱敏审查工件（实例专属资源留给人工映射）→ 包验证器兜底；凭据残留或结构不符时拒绝写出",
+      "limits": "工具不代写导出；平台导出真实性、角色绑定、目标实例导入仍须人工/实例"
+    },
+    "evaluation_forms_summary_tool": {
+      "script": "scripts/summarize_evaluation_forms.py",
+      "behavior": "三项表单按已填行计算，空行不进分母；失败/超时单列并给出两种口径；引用非冻结病例版本单独列示；95%/85%/100% 判定仅在 --policy-confirmed-by 明示后以 as_recorded 输出，非认证",
+      "baseline_run_on_unfilled_forms": {
+        "qa_planned": 20,
+        "qa_filled": 0,
+        "students_recorded": 0,
+        "error_planned": 30,
+        "error_in_denominator": 0,
+        "evidence": "docs/evidence/2026-11-29-delivery-tools/forms-baseline-unfilled.json"
+      }
+    },
+    "demo_rehearsal": {
+      "entry": "web/e2e/demo.py --case CASE-005（新输出目录）",
+      "case": "DKA-001 v2（public CASE-005）",
+      "steps": "13/13 通过，无前端脚本错误",
+      "session_id": "413a5ba2-40f5-4dc2-a638-b088d21ac343",
+      "seal_seq": 13,
+      "feedback_stages": [
+        "病史采集",
+        "检查选择",
+        "鉴别诊断",
+        "诊断",
+        "治疗"
+      ],
+      "evidence": "local-only/demo-rehearsal-20261129-CASE-005/run.json + 13 张截图"
+    },
+    "full_pytest": {
+      "passed": 965,
+      "failed": 1,
+      "seconds": 349.65,
+      "failed_test": "tests/test_nexent_deadlines.py::test_total_deadline_interrupts_real_socket_waits[stall]",
+      "flaky_note": "与既有批次同类超时偶发；单文件复跑 31/31；未放宽断言；日志 local-only/full-pytest-20261129-delivery-tools.log"
+    },
+    "engineering_samples": {
+      "samples": 12,
+      "complete": 12,
+      "engineering_pass": 12,
+      "code_sha_note": "在未提交工作树运行，脚本记录 HEAD=d859701 基线；最终 SHA 的 CI 将再运行"
+    },
+    "compileall": "pass"
+  },
+  "real_provider_calls": 0,
+  "business_database_touched": false,
+  "not_done_this_round": [
+    "两份正式 agent.json 仍缺：必须由授权平台分别实际导出（本轮只交付了脱敏准备工具与基线存证）",
+    "独立实例注册 MCP/导入/重绑/实测与真实五例、时延复测：需新预算与实例授权",
+    "评测表单仍为空表：正式评审未开始；分母口径须评审确认后方可出判定",
+    "现场随机抽取（通用≥3、专项1）须评审现场进行"
+  ]
+}

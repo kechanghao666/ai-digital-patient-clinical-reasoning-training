@@ -1,0 +1,35 @@
+# Web 前端（React + TypeScript）
+
+新版界面的源码在这里。构建产物 `dist/` 已提交到仓库，并由 FastAPI 后端在同一端口托管：只要启动 API，浏览器打开 API 地址（例如 `http://127.0.0.1:8000/`）就能使用，**运行时不需要 Node.js**。设计规范见 [docs/web-redesign-spec.md](../docs/web-redesign-spec.md)。
+
+## 修改并重新构建
+
+需要 Node.js 18 或更高版本。
+
+```powershell
+cd web
+npm ci
+npm run typecheck
+npm run build      # 输出到 web/dist，提交时一并提交 dist
+npm run watch      # 开发时监听源码，保存后自动重建；刷新浏览器即可看到效果
+```
+
+构建只用 esbuild，没有使用 Vite 等较重的工具链。
+
+## 端到端检查
+
+在项目根目录运行 `.\.venv\Scripts\python.exe web/e2e/demo.py`。启动器使用全新临时数据、随机端口、合成账号和规则模拟器，自动运行师生13步完整流程并截图，结束后停服清理。无需提供现存教师密码，不连接已有服务。用 `--record` 录制带字幕的3–8分钟演示，需本机已有 ffmpeg；显式输出目录必须全新。详情见[演示说明](../docs/demo-20261209.md)。
+
+`e2e/smoke.mjs` 是启动器调用的内部步骤脚本，失败会以非零状态退出；不可据进程正常退出以外的信息假定通过，还须查看 `run.json` 的逐项结果。
+
+学生问诊保存回执回归：使用 Node.js 20+、项目 Python 虚拟环境和本机 Chromium 浏览器。完成 `npm ci`、`npm run build` 后，在 `web/` 下运行 `node e2e/ask-saved-answer.mjs`。脚本自行启动本机合成病例服务，不需要登录或供应商密钥。可用 `CHROME` 指定浏览器；默认在系统临时目录新建报告目录，显式 `OUT` 应指定一个尚不存在的目录。验收按事件先后，不以毫秒阈值判定模型性能。
+
+## 目录
+
+| 路径 | 内容 |
+|---|---|
+| `src/api.ts` | 接口调用。写操作统一带 `request_id`，重试时沿用同一个请求号，保证幂等 |
+| `src/ui.tsx` | 通用组件：图标、提示、面板、标签页、事件选择器、消息提示 |
+| `src/pages/` | 登录、病例库、我的训练、训练工作台、复盘 |
+| `src/pages/teacher/` | 班级看板、病例管理、反馈复核、评分复核 |
+| `src/styles.css` | 设计令牌与全部样式 |

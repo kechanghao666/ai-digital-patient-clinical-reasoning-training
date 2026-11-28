@@ -1,0 +1,151 @@
+{
+  "ok": true,
+  "frozen_case_versions": [
+    "APPY-001@2",
+    "CAP-001@2",
+    "DKA-001@2",
+    "STEMI-001@3",
+    "STROKE-001@2"
+  ],
+  "summaries": {
+    "qa_20rounds": {
+      "planned_rows": 20,
+      "filled_rows": 0,
+      "consistent": 0,
+      "inconsistent": 0,
+      "failed_or_timeout": 0,
+      "contradictory": 0,
+      "invalid_marker_rows": 0,
+      "judgement_missing": 0,
+      "agreement_rate_excluding_failures": {
+        "numerator": 0,
+        "denominator": 0,
+        "value": null,
+        "display": "未知（分母为 0）",
+        "policy": "失败或超时的轮次不进分母（描述性比率；评审确认前不作为正式一致率）"
+      },
+      "agreement_rate_failures_as_miss": {
+        "numerator": 0,
+        "denominator": 0,
+        "value": null,
+        "display": "未知（分母为 0）",
+        "policy": "失败或超时的轮次按未命中计入分母（描述性比率；评审确认前不作为正式一致率）"
+      },
+      "unfrozen_or_invalid_case_references": [],
+      "note": "两种口径并列展示；哪一种是正式一致率由评审记录的政策决定，工具不代选。"
+    },
+    "student_expert": {
+      "students_recorded": 0,
+      "complete_students": 0,
+      "overall_complete_students_rate_as_recorded": {
+        "numerator": 0,
+        "denominator": 0,
+        "value": null,
+        "display": "未知（分母为 0）",
+        "policy": "仅完整五环节学生的有效行（描述性比率）"
+      },
+      "students": [],
+      "invalid_rows": [
+        {
+          "row": 2,
+          "reason": "缺少实际匿名编号"
+        },
+        {
+          "row": 3,
+          "reason": "缺少实际匿名编号"
+        },
+        {
+          "row": 4,
+          "reason": "缺少实际匿名编号"
+        },
+        {
+          "row": 5,
+          "reason": "缺少实际匿名编号"
+        },
+        {
+          "row": 6,
+          "reason": "缺少实际匿名编号"
+        },
+        {
+          "row": 7,
+          "reason": "缺少实际匿名编号"
+        },
+        {
+          "row": 8,
+          "reason": "缺少实际匿名编号"
+        },
+        {
+          "row": 9,
+          "reason": "缺少实际匿名编号"
+        },
+        {
+          "row": 10,
+          "reason": "缺少实际匿名编号"
+        },
+        {
+          "row": 11,
+          "reason": "缺少实际匿名编号"
+        },
+        {
+          "row": 12,
+          "reason": "缺少实际匿名编号"
+        },
+        {
+          "row": 13,
+          "reason": "缺少实际匿名编号"
+        },
+        {
+          "row": 14,
+          "reason": "缺少实际匿名编号"
+        },
+        {
+          "row": 15,
+          "reason": "缺少实际匿名编号"
+        },
+        {
+          "row": 16,
+          "reason": "缺少实际匿名编号"
+        }
+      ],
+      "material_gate": {
+        "min_students": 3,
+        "complete_students": 0,
+        "invalid_row_count": 15
+      },
+      "note": "重复行、缺环节、空判断、非法版本或格式、缺原分/容差的行均不进有效分母，逐行列出。"
+    },
+    "error_evolution": {
+      "planned_rows": 30,
+      "inclusion_undecided": 30,
+      "in_denominator": 0,
+      "excluded_from_denominator": 0,
+      "triggered": 0,
+      "not_triggered": 0,
+      "trigger_undecided": 0,
+      "trigger_rate_as_recorded": {
+        "numerator": 0,
+        "denominator": 0,
+        "value": null,
+        "display": "未知（分母为 0）",
+        "policy": "分母以『是否纳入错误触发分母=是』为准（描述性比率）"
+      },
+      "feedback_accuracy_among_triggered": {
+        "numerator": 0,
+        "denominator": 0,
+        "value": null,
+        "display": "未知（分母为 0）",
+        "policy": "仅在触发行内计算（描述性比率）"
+      },
+      "feedback_accuracy_detail": {
+        "accurate": 0,
+        "inaccurate": 0,
+        "undecided": 0
+      },
+      "accuracy_marked_on_not_triggered_rows": 0,
+      "invalid_rows": [],
+      "note": "正常对照与例外由评审显式排除，不自动计入分母；未判定逐项保留，遗漏分支不得静默排除。"
+    }
+  },
+  "verdicts_as_recorded": null,
+  "scope": "Counts and rates over valid rows only; missing rows never enter a denominator."
+}

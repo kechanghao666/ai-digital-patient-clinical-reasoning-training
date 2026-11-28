@@ -1,0 +1,294 @@
+{
+  "base_commit": "fbc9fcf275a8e508284b408caafd687ded346c2d",
+  "model_policy": "rule simulator; zero real model calls",
+  "case_id": "CASE-001 (synthetic teaching case)",
+  "checks": [
+    {
+      "scenario": "first-ask",
+      "name": "第 1 轮显示回答与 POST 事件一致",
+      "ok": true,
+      "detail": {
+        "visible": "有高血压10年。",
+        "posted": "有高血压10年。"
+      }
+    },
+    {
+      "scenario": "first-ask",
+      "name": "第 1 轮 POST 事件已在服务端保存",
+      "ok": true,
+      "detail": {
+        "event_id": "985f4053-2e1f-4519-a75f-fcdfb3c7aaec"
+      }
+    },
+    {
+      "scenario": "later-ask",
+      "name": "第 1 轮显示回答与 POST 事件一致",
+      "ok": true,
+      "detail": {
+        "visible": "有高血压10年。",
+        "posted": "有高血压10年。"
+      }
+    },
+    {
+      "scenario": "later-ask",
+      "name": "第 1 轮 POST 事件已在服务端保存",
+      "ok": true,
+      "detail": {
+        "event_id": "c8de13f7-5d12-4471-8c75-329c92842125"
+      }
+    },
+    {
+      "scenario": "later-ask",
+      "name": "第 2 轮显示回答与 POST 事件一致",
+      "ok": true,
+      "detail": {
+        "visible": "有糖尿病5年。",
+        "posted": "有糖尿病5年。"
+      }
+    },
+    {
+      "scenario": "later-ask",
+      "name": "第 2 轮 POST 事件已在服务端保存",
+      "ok": true,
+      "detail": {
+        "event_id": "84cf7c3e-5ecc-4150-bde8-b4f4ded81396"
+      }
+    },
+    {
+      "scenario": "later-ask",
+      "name": "第二轮只新增一条问答且不覆盖第一轮",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "failure-retry",
+      "name": "失败轮无可见回答且服务端已落一条",
+      "ok": true,
+      "detail": {
+        "visibleT": null
+      }
+    },
+    {
+      "scenario": "failure-retry",
+      "name": "重试为已保存事件的重放",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "failure-retry",
+      "name": "重试后显示回答与事件一致",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "failure-retry",
+      "name": "失败+重试只落一条问答",
+      "ok": true,
+      "detail": [
+        "8757f9ac-3536-410d-85dc-54a6fb2aef78"
+      ]
+    },
+    {
+      "scenario": "browser",
+      "name": "无未捕获前端脚本错误",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "scenarios": {
+    "first-ask": [
+      {
+        "scenario": "first-ask",
+        "turn": 1,
+        "question": "有高血压吗",
+        "request_id": "fabcb50a-716c-434d-9bbd-1d6a127e6bff",
+        "server_timing": {
+          "replayed": false,
+          "answer_validated_ms": 0,
+          "api_ready_ms": 14,
+          "stages": {
+            "request_entry": 0,
+            "classified": 0,
+            "adapter_returned": 0,
+            "validated": 0,
+            "saved": 14
+          }
+        },
+        "timings": {
+          "clickT": 353.30000000447035,
+          "postT": 418.30000000447035,
+          "visibleT": 419.90000000596046,
+          "paintT": 482.30000000447035
+        },
+        "durations_ms": {
+          "click_to_response_ms": 65,
+          "click_to_visible_ms": 66.6,
+          "click_to_paint_ms": 129,
+          "response_to_visible_ms": 1.6,
+          "response_to_paint_ms": 64
+        },
+        "ui_latency_title": "应答 0.1 秒",
+        "posted_event": {
+          "event_id": "985f4053-2e1f-4519-a75f-fcdfb3c7aaec",
+          "seq": 1,
+          "answer": "有高血压10年。",
+          "replayed": false
+        },
+        "visible_answer": "有高血压10年。",
+        "answer_matches_posted": true,
+        "saved_event_ids": [
+          "985f4053-2e1f-4519-a75f-fcdfb3c7aaec"
+        ],
+        "saved_ask_count": 1
+      }
+    ],
+    "later-ask": [
+      {
+        "scenario": "later-ask",
+        "turn": 1,
+        "question": "有高血压吗",
+        "request_id": "5f83f76a-c66e-4926-a27a-c8bf95e62ed8",
+        "server_timing": {
+          "replayed": false,
+          "answer_validated_ms": 0,
+          "api_ready_ms": 0,
+          "stages": {
+            "request_entry": 0,
+            "classified": 0,
+            "adapter_returned": 0,
+            "validated": 0,
+            "saved": 0
+          }
+        },
+        "timings": {
+          "clickT": 186.5,
+          "postT": 198.60000000149012,
+          "visibleT": 200.20000000298023,
+          "paintT": 220.70000000298023
+        },
+        "durations_ms": {
+          "click_to_response_ms": 12.1,
+          "click_to_visible_ms": 13.7,
+          "click_to_paint_ms": 34.2,
+          "response_to_visible_ms": 1.6,
+          "response_to_paint_ms": 22.1
+        },
+        "ui_latency_title": "应答 0.0 秒",
+        "posted_event": {
+          "event_id": "c8de13f7-5d12-4471-8c75-329c92842125",
+          "seq": 1,
+          "answer": "有高血压10年。",
+          "replayed": false
+        },
+        "visible_answer": "有高血压10年。",
+        "answer_matches_posted": true,
+        "saved_event_ids": [
+          "c8de13f7-5d12-4471-8c75-329c92842125"
+        ],
+        "saved_ask_count": 1
+      },
+      {
+        "scenario": "later-ask",
+        "turn": 2,
+        "question": "有糖尿病吗",
+        "request_id": "87ad5541-f249-40d7-816d-68c9616ec645",
+        "server_timing": {
+          "replayed": false,
+          "answer_validated_ms": 0,
+          "api_ready_ms": 0,
+          "stages": {
+            "request_entry": 0,
+            "classified": 0,
+            "adapter_returned": 0,
+            "validated": 0,
+            "saved": 0
+          }
+        },
+        "timings": {
+          "clickT": 264.40000000596046,
+          "postT": 275.6000000014901,
+          "visibleT": 277.90000000596046,
+          "paintT": 286.1000000014901
+        },
+        "durations_ms": {
+          "click_to_response_ms": 11.2,
+          "click_to_visible_ms": 13.5,
+          "click_to_paint_ms": 21.7,
+          "response_to_visible_ms": 2.3,
+          "response_to_paint_ms": 10.5
+        },
+        "ui_latency_title": "应答 0.0 秒",
+        "posted_event": {
+          "event_id": "84cf7c3e-5ecc-4150-bde8-b4f4ded81396",
+          "seq": 2,
+          "answer": "有糖尿病5年。",
+          "replayed": false
+        },
+        "visible_answer": "有糖尿病5年。",
+        "answer_matches_posted": true,
+        "saved_event_ids": [
+          "c8de13f7-5d12-4471-8c75-329c92842125",
+          "84cf7c3e-5ecc-4150-bde8-b4f4ded81396"
+        ],
+        "saved_ask_count": 2
+      }
+    ],
+    "failure-retry": [
+      {
+        "scenario": "failure-retry",
+        "turn": "failure",
+        "question": "有高血压吗",
+        "timings": {
+          "clickT": 163.19999999552965,
+          "postT": null,
+          "visibleT": null,
+          "paintT": null
+        },
+        "durations_ms": {
+          "click_to_response_ms": null,
+          "click_to_visible_ms": null,
+          "click_to_paint_ms": null,
+          "response_to_visible_ms": null,
+          "response_to_paint_ms": null
+        },
+        "ui_latency_title": null,
+        "outcome": "no visible answer; unconfirmed error shown",
+        "saved_ask_count": 1
+      },
+      {
+        "scenario": "failure-retry",
+        "turn": "retry",
+        "question": "有高血压吗",
+        "timings": {
+          "clickT": 252.39999999850988,
+          "postT": 261.59999999403954,
+          "visibleT": 263.09999999403954,
+          "paintT": 272.69999999552965
+        },
+        "durations_ms": {
+          "click_to_response_ms": 9.2,
+          "click_to_visible_ms": 10.7,
+          "click_to_paint_ms": 20.3,
+          "response_to_visible_ms": 1.5,
+          "response_to_paint_ms": 11.1
+        },
+        "total_wait_ms": 109.5,
+        "ui_latency_title": "应答 0.0 秒",
+        "posted_event": {
+          "event_id": "8757f9ac-3536-410d-85dc-54a6fb2aef78",
+          "seq": 1,
+          "answer": "有高血压10年。",
+          "replayed": true
+        },
+        "visible_answer": "有高血压10年。",
+        "answer_matches_posted": true,
+        "saved_event_ids": [
+          "8757f9ac-3536-410d-85dc-54a6fb2aef78"
+        ],
+        "saved_ask_count": 1
+      }
+    ]
+  },
+  "page_errors": [],
+  "passed": true
+}

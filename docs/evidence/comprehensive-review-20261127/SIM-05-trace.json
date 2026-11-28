@@ -1,0 +1,1091 @@
+{
+  "sample_id": "SIM-05",
+  "code_sha": "c11265d7c8aa85447cca6a2230dcd173cf463037",
+  "source_file": "local-only/comprehensive-review-20261127/samples/SIM-05.json",
+  "source_sha256": "42eb1d60aa5bba1696d78bb71dc4a008b37a19f02a4232b742f2946dbbc5f4c3",
+  "versions": {
+    "case_id": "DKA-001",
+    "case_version": 2,
+    "case_hash": "1b44df77174bf3384a4ec9734691b1a76e14911696e2a8027b01cfc7f7c59a79",
+    "case_review": "draft",
+    "rubric": [
+      {
+        "item_id": "f_polyuria",
+        "stage": "病史采集",
+        "description": "询问多饮多尿",
+        "evidence_type": "ask_event",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "f_gi",
+        "stage": "病史采集",
+        "description": "询问恶心呕吐和腹痛",
+        "evidence_type": "ask_event",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "f_hx",
+        "stage": "病史采集",
+        "description": "询问糖尿病史和用药",
+        "evidence_type": "ask_event",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "f_insulin",
+        "stage": "病史采集",
+        "description": "询问诱因和胰岛素是否中断",
+        "evidence_type": "ask_event",
+        "weight": 2.0,
+        "critical": true,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "糖尿病患者出现症状时必须询问胰岛素使用情况和近期感染等诱因。"
+      },
+      {
+        "item_id": "ex_glucose",
+        "stage": "检查选择",
+        "description": "开立快速血糖",
+        "evidence_type": "exam_order",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "ex_ketone",
+        "stage": "检查选择",
+        "description": "开立血酮体或尿酮体",
+        "evidence_type": "exam_order",
+        "weight": 2.0,
+        "critical": true,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "糖尿病患者出现呕吐、多尿应尽快检查酮体。"
+      },
+      {
+        "item_id": "ex_abg",
+        "stage": "检查选择",
+        "description": "开立动脉血气分析评估酸碱状态",
+        "evidence_type": "exam_order",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      },
+      {
+        "item_id": "gastroenteritis",
+        "stage": "鉴别诊断",
+        "description": "提供急性胃肠炎的支持与反对证据",
+        "evidence_type": "ddx_evidence",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": {
+          "supporting_keys": [
+            "f_gi"
+          ],
+          "opposing_keys": [
+            "ex_glucose",
+            "ex_ketone"
+          ],
+          "min_supporting": 1,
+          "min_opposing": 1,
+          "medically_reviewed": false
+        },
+        "improvement": ""
+      },
+      {
+        "item_id": "hyperosmolar_state",
+        "stage": "鉴别诊断",
+        "description": "提供高渗高血糖状态的支持与反对证据",
+        "evidence_type": "ddx_evidence",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": {
+          "supporting_keys": [
+            "ex_glucose"
+          ],
+          "opposing_keys": [
+            "ex_ketone",
+            "ex_abg"
+          ],
+          "min_supporting": 1,
+          "min_opposing": 1,
+          "medically_reviewed": false
+        },
+        "improvement": ""
+      },
+      {
+        "item_id": "diabetic_ketoacidosis",
+        "stage": "诊断",
+        "description": "提交糖尿病酮症酸中毒",
+        "evidence_type": "diagnosis",
+        "weight": 2.0,
+        "critical": true,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": {
+          "names": [
+            "糖尿病酮症酸中毒",
+            "酮症酸中毒",
+            "dka"
+          ],
+          "extra_positive": [
+            "{name}，立即补液"
+          ],
+          "leak_terms": []
+        },
+        "differential": null,
+        "improvement": "请直接写出明确诊断，并避免否定或不确定的表述。"
+      },
+      {
+        "item_id": "fluids_insulin",
+        "stage": "治疗",
+        "description": "确认补液并启动胰岛素治疗",
+        "evidence_type": "treatment_execution",
+        "weight": 2.0,
+        "critical": true,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": "诊断明确后应尽快确认补液和胰岛素；仅计划不计入执行。"
+      },
+      {
+        "item_id": "monitoring",
+        "stage": "治疗",
+        "description": "确认转入监护并监测电解质",
+        "evidence_type": "treatment_execution",
+        "weight": 1.0,
+        "critical": false,
+        "latest_workflow": null,
+        "ordering_constraint": "any",
+        "required_prior_exam_ids": [],
+        "required_atom_ids": [],
+        "diagnosis": null,
+        "differential": null,
+        "improvement": ""
+      }
+    ],
+    "knowledge_manifest_sha256": "e54a60672059175a65a44186b98f1ac343f3188e9e5a83b797cb13b4dda60b47",
+    "knowledge_status": "draft_unreviewed",
+    "basis_hashes": {
+      "kb_chest_pain_history": "63f477dbbe8f22236a85ae9c86097e6d6fc23e174470792832e9209a538d0814",
+      "kb_ecg_first": "3e31bc725357ba491745eb35a0feea66284a10b5cd970963f895601f7412efd2",
+      "kb_troponin_role": "66a87f0e102cceed74620dcda9d2bc38ed54f003991b0a9e456a7c3a936c9898",
+      "kb_stemi_ecg_criteria": "06cb0cf71b45937732b5ccf758b7e352f99c45af9b9f0bd8d5bde5549d9964bd",
+      "kb_ddx_aortic_dissection": "4d2a57cc2b645c4bc0eb4088082f5ccbc11e3d624af15d88ff199426c413765a",
+      "kb_ddx_pulmonary_embolism": "91adfefa83e4674180ad49cf58a07ed64231572a6629c967a36980ea81f55e77",
+      "kb_reperfusion_timing": "37eb98c13be2a12597812a19497db21430390cc2e1f39b81f3e6be7c75f9f593",
+      "kb_aspirin_consideration": "9ef8ada26e1ae626d6000b81597666d1f8f18898600ebf55b7bca9b0732aa932",
+      "kb_feedback_principles": "3c999eb08540601a870c0758bfbe437d0fc67a1b0751fd2d1e6b75c36508fd8c"
+    }
+  },
+  "engineering_pass": true,
+  "formal_acceptance": false,
+  "model": "deterministic simulator; zero real model calls",
+  "result": {
+    "score": {
+      "session_id": "fcaaabd0-6b98-4061-b063-5aebc6b1c8b0",
+      "seal_seq": 13,
+      "total_score": 17.0,
+      "max_score": 17.0,
+      "status": "complete",
+      "items": [
+        {
+          "item_id": "f_polyuria",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "7ab0dfe2-7195-4e6e-9125-f6072502d45e"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "f_gi",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "48401878-2b74-448d-a599-6998c6b57260"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "f_hx",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "fb3a9f27-7ce5-46cb-91d6-afe2586e855b",
+            "88a7f2c4-c982-405f-ae5f-48e31a6d97ea"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "f_insulin",
+          "stage": "病史采集",
+          "hit": true,
+          "score": 2.0,
+          "max_score": 2.0,
+          "evidence_event_ids": [
+            "88a7f2c4-c982-405f-ae5f-48e31a6d97ea"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "ex_glucose",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "aca63ccb-063e-4bda-8bb9-b1489fc3d4ba"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "ex_ketone",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 2.0,
+          "max_score": 2.0,
+          "evidence_event_ids": [
+            "c07507dd-f9b5-43b3-909f-e906863e6f57"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "ex_abg",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "3e2cc604-ba51-44dd-b9bd-838af5754252"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "gastroenteritis",
+          "stage": "鉴别诊断",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "48401878-2b74-448d-a599-6998c6b57260",
+            "b4e46519-b4f5-4a14-9453-b6b267e400ae"
+          ],
+          "reason": "已找到符合病例规则的支持/反对证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "hyperosmolar_state",
+          "stage": "鉴别诊断",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "b4e46519-b4f5-4a14-9453-b6b267e400ae"
+          ],
+          "reason": "已找到符合病例规则的支持/反对证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "diabetic_ketoacidosis",
+          "stage": "诊断",
+          "hit": true,
+          "score": 2.0,
+          "max_score": 2.0,
+          "evidence_event_ids": [
+            "fe96db2d-af5a-47e6-b846-bc7b23e537fb"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "fluids_insulin",
+          "stage": "治疗",
+          "hit": true,
+          "score": 2.0,
+          "max_score": 2.0,
+          "evidence_event_ids": [
+            "ebb37c9e-c675-4599-8aa1-46976890e2a6"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "monitoring",
+          "stage": "治疗",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [
+            "e0ecfd1d-2a48-4cda-85a8-b57d72f67689"
+          ],
+          "reason": "已找到符合条件的事件证据",
+          "improvement": ""
+        },
+        {
+          "item_id": "exam_stewardship",
+          "stage": "检查选择",
+          "hit": true,
+          "score": 1.0,
+          "max_score": 1.0,
+          "evidence_event_ids": [],
+          "reason": "未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 110 元）",
+          "improvement": ""
+        }
+      ],
+      "generated_at": "2026-11-27T08:46:29.433405Z"
+    },
+    "feedback": {
+      "source": "local_rules",
+      "review_status": "local_rules",
+      "basis_status": "draft_unreviewed",
+      "items": [
+        {
+          "stage": "病史采集",
+          "comment": "本环节得分 5/5。 已完成：询问多饮多尿（已找到符合条件的事件证据） 已完成：询问恶心呕吐和腹痛（已找到符合条件的事件证据） 已完成：询问糖尿病史和用药（已找到符合条件的事件证据） 已完成：询问诱因和胰岛素是否中断（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "7ab0dfe2-7195-4e6e-9125-f6072502d45e",
+            "48401878-2b74-448d-a599-6998c6b57260",
+            "fb3a9f27-7ce5-46cb-91d6-afe2586e855b",
+            "88a7f2c4-c982-405f-ae5f-48e31a6d97ea"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "检查选择",
+          "comment": "本环节得分 5/5。 已完成：开立快速血糖（已找到符合条件的事件证据） 已完成：开立血酮体或尿酮体（已找到符合条件的事件证据） 已完成：开立动脉血气分析评估酸碱状态（已找到符合条件的事件证据） 已完成：检查选择（未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 110 元））",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "aca63ccb-063e-4bda-8bb9-b1489fc3d4ba",
+            "c07507dd-f9b5-43b3-909f-e906863e6f57",
+            "3e2cc604-ba51-44dd-b9bd-838af5754252"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "鉴别诊断",
+          "comment": "本环节得分 2/2。 已完成：提供急性胃肠炎的支持与反对证据（已找到符合病例规则的支持/反对证据） 已完成：提供高渗高血糖状态的支持与反对证据（已找到符合病例规则的支持/反对证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "48401878-2b74-448d-a599-6998c6b57260",
+            "b4e46519-b4f5-4a14-9453-b6b267e400ae"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "诊断",
+          "comment": "本环节得分 2/2。 已完成：诊断结论（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "fe96db2d-af5a-47e6-b846-bc7b23e537fb"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "治疗",
+          "comment": "本环节得分 3/3。 已完成：确认补液并启动胰岛素治疗（已找到符合条件的事件证据） 已完成：确认转入监护并监测电解质（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "ebb37c9e-c675-4599-8aa1-46976890e2a6",
+            "e0ecfd1d-2a48-4cda-85a8-b57d72f67689"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        }
+      ],
+      "teaching_basis": [
+        {
+          "basis_id": "kb_feedback_principles",
+          "title": "训练反馈的撰写原则",
+          "sources": [
+            "项目自拟的反馈撰写规范"
+          ],
+          "restricted": false,
+          "revision": 1,
+          "content_hash": "3c999eb08540601a870c0758bfbe437d0fc67a1b0751fd2d1e6b75c36508fd8c"
+        }
+      ],
+      "basis_provenance": "snapshot",
+      "review_revision": 0,
+      "basis_coverage": {
+        "status": "draft_unreviewed",
+        "missing_clinical_stages": [
+          "病史采集",
+          "检查选择",
+          "鉴别诊断",
+          "诊断",
+          "治疗"
+        ],
+        "notice": "通用反馈规范不属于专科临床依据；存在条目不代表来源已核对或医学审核通过。"
+      },
+      "notice": "反馈基于原封存规则评分，教师评分裁定独立展示；反馈与教学依据均为未经医学审核的教学草稿。"
+    },
+    "replay_event_count": 14,
+    "state": {
+      "exam_cost_total": 110,
+      "session_id": "fcaaabd0-6b98-4061-b063-5aebc6b1c8b0",
+      "workflow": "submitted",
+      "clinical_state": "initial",
+      "sim_time_minutes": 20,
+      "case_notes": "工程自测病历，非真实患者，未经医学审核。\n病史记录：\n问：口渴、多饮和小便次数有变化吗\n答：每天喝很多水，小便次数明显增多。\n问：有没有恶心呕吐、肚子痛、吃不下东西\n答：恶心呕吐，肚子隐隐作痛，吃不下东西。\n问：确诊糖尿病几年了，一直怎么用药\n答：确诊糖尿病3年，一直打胰岛素。\n问：最近有什么诱因，胰岛素有没有按时使用\n答：一直打胰岛素，三天前感冒发烧，胰岛素自己停了两天。\n已回报检查：\n快速血糖：\"明显升高\"\n血酮体或尿酮体：\"阳性（强）\"\n动脉血气分析：\"代谢性酸中毒\"\n模拟时间：20分钟。",
+      "submissions": {
+        "diagnosis": "糖尿病酮症酸中毒",
+        "differential": [
+          {
+            "candidate_id": "gastroenteritis",
+            "supporting_evidence": [
+              "恶心呕吐"
+            ],
+            "opposing_evidence": [
+              "明显升高"
+            ],
+            "evidence_event_ids": [
+              "48401878-2b74-448d-a599-6998c6b57260",
+              "b4e46519-b4f5-4a14-9453-b6b267e400ae"
+            ]
+          },
+          {
+            "candidate_id": "hyperosmolar_state",
+            "supporting_evidence": [
+              "明显升高"
+            ],
+            "opposing_evidence": [
+              "阳性（强）"
+            ],
+            "evidence_event_ids": [
+              "b4e46519-b4f5-4a14-9453-b6b267e400ae"
+            ]
+          }
+        ],
+        "treatment": {
+          "treatment_id": "monitoring",
+          "parameters": {},
+          "confirm_execution": true,
+          "treatment_name": "转入监护并监测电解质与血糖"
+        }
+      },
+      "disclosed_fact_count": 4,
+      "clinical_updates": [],
+      "orders": [
+        {
+          "state": "ready",
+          "exam_name": "快速血糖",
+          "category": "床旁与基础检验",
+          "cost": 10,
+          "catalog_id": "cat_002",
+          "ordered_sim_time": 0,
+          "sample_sim_time": 0,
+          "return_sim_time": 5,
+          "result": "明显升高",
+          "viewed": false
+        },
+        {
+          "state": "ready",
+          "exam_name": "血酮体或尿酮体",
+          "category": "生化与代谢",
+          "cost": 30,
+          "catalog_id": "cat_015",
+          "ordered_sim_time": 0,
+          "sample_sim_time": 0,
+          "return_sim_time": 15,
+          "result": "阳性（强）",
+          "viewed": false
+        },
+        {
+          "state": "ready",
+          "exam_name": "动脉血气分析",
+          "category": "生化与代谢",
+          "cost": 70,
+          "catalog_id": "cat_009",
+          "ordered_sim_time": 0,
+          "sample_sim_time": 0,
+          "return_sim_time": 20,
+          "result": "代谢性酸中毒",
+          "viewed": false
+        }
+      ],
+      "events": [
+        {
+          "event_id": "7ab0dfe2-7195-4e6e-9125-f6072502d45e",
+          "request_id": "r1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "口渴、多饮和小便次数有变化吗",
+          "result": {
+            "answer": "每天喝很多水，小便次数明显增多。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "48401878-2b74-448d-a599-6998c6b57260",
+          "request_id": "r2",
+          "seq": 2,
+          "action": "ask",
+          "intent": "有没有恶心呕吐、肚子痛、吃不下东西",
+          "result": {
+            "answer": "恶心呕吐，肚子隐隐作痛，吃不下东西。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "fb3a9f27-7ce5-46cb-91d6-afe2586e855b",
+          "request_id": "r3",
+          "seq": 3,
+          "action": "ask",
+          "intent": "确诊糖尿病几年了，一直怎么用药",
+          "result": {
+            "answer": "确诊糖尿病3年，一直打胰岛素。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "88a7f2c4-c982-405f-ae5f-48e31a6d97ea",
+          "request_id": "r4",
+          "seq": 4,
+          "action": "ask",
+          "intent": "最近有什么诱因，胰岛素有没有按时使用",
+          "result": {
+            "answer": "一直打胰岛素，三天前感冒发烧，胰岛素自己停了两天。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "aca63ccb-063e-4bda-8bb9-b1489fc3d4ba",
+          "request_id": "r5",
+          "seq": 5,
+          "action": "order_exam",
+          "intent": null,
+          "result": {
+            "state": "pending"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "c07507dd-f9b5-43b3-909f-e906863e6f57",
+          "request_id": "r6",
+          "seq": 6,
+          "action": "order_exam",
+          "intent": null,
+          "result": {
+            "state": "pending"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "3e2cc604-ba51-44dd-b9bd-838af5754252",
+          "request_id": "r7",
+          "seq": 7,
+          "action": "order_exam",
+          "intent": null,
+          "result": {
+            "state": "pending"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "b4e46519-b4f5-4a14-9453-b6b267e400ae",
+          "request_id": "r8",
+          "seq": 8,
+          "action": "wait",
+          "intent": null,
+          "result": {
+            "advanced_minutes": 20,
+            "clinical_state": "initial",
+            "clinical_updates": [],
+            "exam_results": [
+              {
+                "name": "快速血糖",
+                "result": "明显升高"
+              },
+              {
+                "name": "血酮体或尿酮体",
+                "result": "阳性（强）"
+              },
+              {
+                "name": "动脉血气分析",
+                "result": "代谢性酸中毒"
+              }
+            ]
+          },
+          "sim_time": 20,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 20
+          }
+        },
+        {
+          "event_id": "fe848a3a-a2c0-4020-b042-710da649fa40",
+          "request_id": "r9",
+          "seq": 9,
+          "action": "update_notes",
+          "intent": null,
+          "result": {
+            "submitted": true
+          },
+          "sim_time": 20,
+          "state_after": {
+            "workflow": "exam_ordering",
+            "clinical_state": "initial",
+            "sim_time_minutes": 20
+          }
+        },
+        {
+          "event_id": "51caf984-4d7c-4841-b0cd-b768708aa197",
+          "request_id": "r10",
+          "seq": 10,
+          "action": "submit_differential",
+          "intent": null,
+          "result": {
+            "submitted": true,
+            "candidates": [
+              {
+                "candidate_id": "gastroenteritis",
+                "supporting_evidence": [
+                  "恶心呕吐"
+                ],
+                "opposing_evidence": [
+                  "明显升高"
+                ],
+                "evidence_event_ids": [
+                  "48401878-2b74-448d-a599-6998c6b57260",
+                  "b4e46519-b4f5-4a14-9453-b6b267e400ae"
+                ]
+              },
+              {
+                "candidate_id": "hyperosmolar_state",
+                "supporting_evidence": [
+                  "明显升高"
+                ],
+                "opposing_evidence": [
+                  "阳性（强）"
+                ],
+                "evidence_event_ids": [
+                  "b4e46519-b4f5-4a14-9453-b6b267e400ae"
+                ]
+              }
+            ]
+          },
+          "sim_time": 20,
+          "state_after": {
+            "workflow": "differential",
+            "clinical_state": "initial",
+            "sim_time_minutes": 20
+          }
+        },
+        {
+          "event_id": "fe96db2d-af5a-47e6-b846-bc7b23e537fb",
+          "request_id": "r11",
+          "seq": 11,
+          "action": "submit_diagnosis",
+          "intent": null,
+          "result": {
+            "submitted": true,
+            "diagnosis": "糖尿病酮症酸中毒"
+          },
+          "sim_time": 20,
+          "state_after": {
+            "workflow": "diagnosis",
+            "clinical_state": "initial",
+            "sim_time_minutes": 20
+          }
+        },
+        {
+          "event_id": "ebb37c9e-c675-4599-8aa1-46976890e2a6",
+          "request_id": "r12",
+          "seq": 12,
+          "action": "execute_treatment",
+          "intent": null,
+          "result": {
+            "executed": true,
+            "clinical_state": "initial",
+            "clinical_updates": [],
+            "treatment": {
+              "treatment_id": "fluids_insulin",
+              "parameters": {},
+              "confirm_execution": true
+            }
+          },
+          "sim_time": 20,
+          "state_after": {
+            "workflow": "treatment",
+            "clinical_state": "initial",
+            "sim_time_minutes": 20
+          }
+        },
+        {
+          "event_id": "e0ecfd1d-2a48-4cda-85a8-b57d72f67689",
+          "request_id": "r13",
+          "seq": 13,
+          "action": "execute_treatment",
+          "intent": null,
+          "result": {
+            "executed": true,
+            "clinical_state": "initial",
+            "clinical_updates": [],
+            "treatment": {
+              "treatment_id": "monitoring",
+              "parameters": {},
+              "confirm_execution": true
+            }
+          },
+          "sim_time": 20,
+          "state_after": {
+            "workflow": "treatment",
+            "clinical_state": "initial",
+            "sim_time_minutes": 20
+          }
+        },
+        {
+          "event_id": "dee30ce4-bb31-4284-91d7-3972f656afc1",
+          "request_id": "r14",
+          "seq": 14,
+          "action": "seal",
+          "intent": null,
+          "result": {},
+          "sim_time": 20,
+          "state_after": {
+            "workflow": "submitted",
+            "clinical_state": "initial",
+            "sim_time_minutes": 20
+          }
+        }
+      ],
+      "sealed": true,
+      "seal_seq": 13,
+      "seal_sim_time": 20,
+      "state_version": 14
+    }
+  },
+  "checks": [
+    {
+      "name": "病历保存并重新读取一致",
+      "expected": "工程自测病历，非真实患者，未经医学审核。\n病史记录：\n问：口渴、多饮和小便次数有变化吗\n答：每天喝很多水，小便次数明显增多。\n问：有没有恶心呕吐、肚子痛、吃不下东西\n答：恶心呕吐，肚子隐隐作痛，吃不下东西。\n问：确诊糖尿病几年了，一直怎么用药\n答：确诊糖尿病3年，一直打胰岛素。\n问：最近有什么诱因，胰岛素有没有按时使用\n答：一直打胰岛素，三天前感冒发烧，胰岛素自己停了两天。\n已回报检查：\n快速血糖：\"明显升高\"\n血酮体或尿酮体：\"阳性（强）\"\n动脉血气分析：\"代谢性酸中毒\"\n模拟时间：20分钟。",
+      "actual": "工程自测病历，非真实患者，未经医学审核。\n病史记录：\n问：口渴、多饮和小便次数有变化吗\n答：每天喝很多水，小便次数明显增多。\n问：有没有恶心呕吐、肚子痛、吃不下东西\n答：恶心呕吐，肚子隐隐作痛，吃不下东西。\n问：确诊糖尿病几年了，一直怎么用药\n答：确诊糖尿病3年，一直打胰岛素。\n问：最近有什么诱因，胰岛素有没有按时使用\n答：一直打胰岛素，三天前感冒发烧，胰岛素自己停了两天。\n已回报检查：\n快速血糖：\"明显升高\"\n血酮体或尿酮体：\"阳性（强）\"\n动脉血气分析：\"代谢性酸中毒\"\n模拟时间：20分钟。",
+      "passed": true
+    },
+    {
+      "name": "现有量表各项均命中",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "现有量表总分匹配",
+      "expected": 17.0,
+      "actual": 17.0,
+      "passed": true
+    },
+    {
+      "name": "五环节评分存在",
+      "expected": 5,
+      "actual": 5,
+      "passed": true
+    },
+    {
+      "name": "反馈生成后可重新读取",
+      "expected": [
+        {
+          "stage": "病史采集",
+          "comment": "本环节得分 5/5。 已完成：询问多饮多尿（已找到符合条件的事件证据） 已完成：询问恶心呕吐和腹痛（已找到符合条件的事件证据） 已完成：询问糖尿病史和用药（已找到符合条件的事件证据） 已完成：询问诱因和胰岛素是否中断（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "7ab0dfe2-7195-4e6e-9125-f6072502d45e",
+            "48401878-2b74-448d-a599-6998c6b57260",
+            "fb3a9f27-7ce5-46cb-91d6-afe2586e855b",
+            "88a7f2c4-c982-405f-ae5f-48e31a6d97ea"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "检查选择",
+          "comment": "本环节得分 5/5。 已完成：开立快速血糖（已找到符合条件的事件证据） 已完成：开立血酮体或尿酮体（已找到符合条件的事件证据） 已完成：开立动脉血气分析评估酸碱状态（已找到符合条件的事件证据） 已完成：检查选择（未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 110 元））",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "aca63ccb-063e-4bda-8bb9-b1489fc3d4ba",
+            "c07507dd-f9b5-43b3-909f-e906863e6f57",
+            "3e2cc604-ba51-44dd-b9bd-838af5754252"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "鉴别诊断",
+          "comment": "本环节得分 2/2。 已完成：提供急性胃肠炎的支持与反对证据（已找到符合病例规则的支持/反对证据） 已完成：提供高渗高血糖状态的支持与反对证据（已找到符合病例规则的支持/反对证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "48401878-2b74-448d-a599-6998c6b57260",
+            "b4e46519-b4f5-4a14-9453-b6b267e400ae"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "诊断",
+          "comment": "本环节得分 2/2。 已完成：诊断结论（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "fe96db2d-af5a-47e6-b846-bc7b23e537fb"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "治疗",
+          "comment": "本环节得分 3/3。 已完成：确认补液并启动胰岛素治疗（已找到符合条件的事件证据） 已完成：确认转入监护并监测电解质（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "ebb37c9e-c675-4599-8aa1-46976890e2a6",
+            "e0ecfd1d-2a48-4cda-85a8-b57d72f67689"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        }
+      ],
+      "actual": [
+        {
+          "stage": "病史采集",
+          "comment": "本环节得分 5/5。 已完成：询问多饮多尿（已找到符合条件的事件证据） 已完成：询问恶心呕吐和腹痛（已找到符合条件的事件证据） 已完成：询问糖尿病史和用药（已找到符合条件的事件证据） 已完成：询问诱因和胰岛素是否中断（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "7ab0dfe2-7195-4e6e-9125-f6072502d45e",
+            "48401878-2b74-448d-a599-6998c6b57260",
+            "fb3a9f27-7ce5-46cb-91d6-afe2586e855b",
+            "88a7f2c4-c982-405f-ae5f-48e31a6d97ea"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "检查选择",
+          "comment": "本环节得分 5/5。 已完成：开立快速血糖（已找到符合条件的事件证据） 已完成：开立血酮体或尿酮体（已找到符合条件的事件证据） 已完成：开立动脉血气分析评估酸碱状态（已找到符合条件的事件证据） 已完成：检查选择（未开立与本病例无关的检查（常规基础检查不扣分）（目录价合计约 110 元））",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "aca63ccb-063e-4bda-8bb9-b1489fc3d4ba",
+            "c07507dd-f9b5-43b3-909f-e906863e6f57",
+            "3e2cc604-ba51-44dd-b9bd-838af5754252"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "鉴别诊断",
+          "comment": "本环节得分 2/2。 已完成：提供急性胃肠炎的支持与反对证据（已找到符合病例规则的支持/反对证据） 已完成：提供高渗高血糖状态的支持与反对证据（已找到符合病例规则的支持/反对证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "48401878-2b74-448d-a599-6998c6b57260",
+            "b4e46519-b4f5-4a14-9453-b6b267e400ae"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "诊断",
+          "comment": "本环节得分 2/2。 已完成：诊断结论（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "fe96db2d-af5a-47e6-b846-bc7b23e537fb"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        },
+        {
+          "stage": "治疗",
+          "comment": "本环节得分 3/3。 已完成：确认补液并启动胰岛素治疗（已找到符合条件的事件证据） 已完成：确认转入监护并监测电解质（已找到符合条件的事件证据）",
+          "improvement": "保持当前做法，并在回放中复核时间点。",
+          "evidence_event_ids": [
+            "ebb37c9e-c675-4599-8aa1-46976890e2a6",
+            "e0ecfd1d-2a48-4cda-85a8-b57d72f67689"
+          ],
+          "basis_ids": [
+            "kb_feedback_principles"
+          ]
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "反馈为本地模拟规则而非真实模型",
+      "expected": "local_rules",
+      "actual": "local_rules",
+      "passed": true
+    },
+    {
+      "name": "五环节反馈完整",
+      "expected": 5,
+      "actual": 5,
+      "passed": true
+    },
+    {
+      "name": "封存后仍可读取回放事件",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "name": "回放事件按序排列",
+      "expected": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "actual": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "passed": true
+    }
+  ]
+}

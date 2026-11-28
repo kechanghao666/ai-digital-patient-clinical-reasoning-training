@@ -1,0 +1,186 @@
+{
+  "date": "2026-11-13",
+  "method": "official product explanations, design retrospectives and design systems; not a complete authenticated product audit",
+  "direct_http": [
+    {
+      "name": "chatgpt-canvas",
+      "url": "https://openai.com/index/introducing-canvas/",
+      "status": 403,
+      "title": null,
+      "sha256": "1e99d18c326f6a1fcd13a2368ee8bda956d18976e01a2eb92812c530710570ef",
+      "text_chars": 41
+    },
+    {
+      "name": "chatgpt-projects",
+      "url": "https://help.openai.com/en/articles/10169521-projects-in-chatgpt",
+      "status": 403,
+      "title": null,
+      "sha256": "fb58ab79763ac658256f14e52e2168190fdc02da16e71cb986587259852514ea",
+      "text_chars": 41
+    },
+    {
+      "name": "claude-artifacts",
+      "url": "https://www.anthropic.com/news/claude-3-5-sonnet",
+      "status": 200,
+      "title": "Introducing Claude 3.5 Sonnet \\ Anthropic",
+      "sha256": "e86eca4ea36c85631e84bc173104acacf4ca276071e73d01fae01fd58ee569d4",
+      "text_chars": 6083
+    },
+    {
+      "name": "claude-projects",
+      "url": "https://www.anthropic.com/news/projects",
+      "status": 200,
+      "title": "Collaborate with Claude on Projects \\ Anthropic",
+      "sha256": "4545762f35cbd1c22e4f2da1582b8374f1b21247d68f544e764f1b098bf3f2c0",
+      "text_chars": 4590
+    },
+    {
+      "name": "gemini-canvas",
+      "url": "https://gemini.google/overview/canvas/",
+      "error": "ConnectTimeout"
+    },
+    {
+      "name": "perplexity-spaces",
+      "url": "https://www.perplexity.ai/hub/blog/spaces",
+      "error": "ConnectTimeout"
+    },
+    {
+      "name": "linear",
+      "url": "https://linear.app/now/behind-the-latest-design-refresh",
+      "status": 200,
+      "title": "A calmer interface for a product in motion",
+      "sha256": "562e403d9b6189b1fc49c16ff5e20e05a210c3ffa1132ecd46ab55ec7122e213",
+      "text_chars": 7558
+    },
+    {
+      "name": "notion-sidebar",
+      "url": "https://www.notion.com/help/navigate-with-the-sidebar",
+      "error": "ConnectTimeout"
+    },
+    {
+      "name": "figma",
+      "url": "https://www.figma.com/blog/introducing-figmas-new-ui/",
+      "status": 404,
+      "title": null,
+      "sha256": "6bfdfca866fc29b7c622ae2c36f93b1d29a657d331b28f9bc9cd531951932238",
+      "text_chars": 0
+    },
+    {
+      "name": "fluent",
+      "url": "https://fluent2.microsoft.design/layout",
+      "status": 200,
+      "title": "Layout - Fluent 2 Design System",
+      "sha256": "9eb0372064cb8713c0394c00421d01ca1a2e2cb339f9b4fa2c6db58a4106e1db",
+      "text_chars": 12770
+    },
+    {
+      "name": "carbon-ai",
+      "url": "https://www.carbondesignsystem.com/building-blocks/foundations/ai/overview",
+      "status": 404,
+      "title": "Page not found | Carbon Design System",
+      "sha256": "6b1ffef1b47668749b0f4719636ba02f9ada75a2fb7599a964e7568dc615faef",
+      "text_chars": 37
+    },
+    {
+      "name": "material",
+      "url": "https://m3.material.io/foundations/layout/applying-layout/canonical-layouts",
+      "status": 404,
+      "title": "Material Design",
+      "sha256": "e546a0024f1cc9a5478a450516ea1e272b7cfd23e897c9af2845cffba96414cb",
+      "text_chars": 49
+    },
+    {
+      "name": "apple-sidebar",
+      "url": "https://developer.apple.com/design/human-interface-guidelines/sidebars",
+      "status": 200,
+      "title": "Sidebars | Apple Developer Documentation",
+      "sha256": "f41bc4fe79eeeea0056ad36061e08328cace430ca48eec87e6aa4dfda2d19b51",
+      "text_chars": 259
+    },
+    {
+      "name": "wcag",
+      "url": "https://www.w3.org/WAI/WCAG22/quickref/",
+      "status": 200,
+      "title": "How to Meet WCAG (Quickref Reference)",
+      "sha256": "ed61b139cdf28bff4393801a7476f0238f837aa91cda1418faa6bda162f34cd3",
+      "text_chars": 137493
+    },
+    {
+      "name": "nhs-summary",
+      "url": "https://service-manual.nhs.uk/design-system/components/summary-list",
+      "status": 200,
+      "title": "Summary list – NHS digital service manual",
+      "sha256": "b789680df2bea28e3889c3b08bde639e90c13d7883ed8450ceb267cccbd27e40",
+      "text_chars": 60559
+    },
+    {
+      "name": "figma-ui3",
+      "url": "https://www.figma.com/blog/our-approach-to-designing-ui3/",
+      "status": 200,
+      "title": "Figma on Figma: Our Approach to Designing UI3 | Figma Blog",
+      "sha256": "05f94bf08d1d28482834741ec5f7a7d7b577ffddc4fb2e3c42f772cd097d27ce",
+      "text_chars": 15201
+    },
+    {
+      "name": "carbon-ai-current",
+      "url": "https://www.carbondesignsystem.com/building-blocks/foundations/carbon-for-ai",
+      "status": 200,
+      "title": "Carbon for AI | Carbon Design System",
+      "sha256": "65f11f531bdca4764f982901250c1815e3fe7034178af37d73f0e2f7d04bc955",
+      "text_chars": 8762
+    },
+    {
+      "name": "google-canvas-blog",
+      "url": "https://blog.google/products-and-platforms/products/gemini/gemini-collaboration-features/",
+      "status": 200,
+      "title": "New Gemini features: Canvas and Audio Overview",
+      "sha256": "e4c68ccf1399fd25093240d81865314c81f11dcafcc031b83595f0501fb2bf5e",
+      "text_chars": 6359
+    },
+    {
+      "name": "notion-home",
+      "url": "https://www.notion.com/help/home-and-my-tasks",
+      "error": "ConnectTimeout"
+    },
+    {
+      "name": "perplexity-spaces-help",
+      "url": "https://www.perplexity.ai/help-center/en/articles/10352961-what-are-spaces",
+      "error": "ConnectTimeout"
+    },
+    {
+      "name": "material-adaptive",
+      "url": "https://developer.android.com/develop/ui/compose/layouts/adaptive/canonical-layouts",
+      "error": "ConnectTimeout"
+    },
+    {
+      "name": "apple-sidebar-data",
+      "url": "https://developer.apple.com/tutorials/data/design/human-interface-guidelines/sidebars.json",
+      "status": 200,
+      "title": null,
+      "sha256": "5aff188db0d343d4286e15a8ed6a7baadef4cfa60565ce374be0c51aae64859d",
+      "text_chars": 38531
+    }
+  ],
+  "official_pages_read_with_web_tool": [
+    {
+      "name": "ChatGPT Canvas",
+      "url": "https://openai.com/index/introducing-canvas/"
+    },
+    {
+      "name": "Notion sidebar",
+      "url": "https://www.notion.com/help/navigate-with-the-sidebar"
+    },
+    {
+      "name": "Notion Home",
+      "url": "https://www.notion.com/help/home-and-my-tasks"
+    },
+    {
+      "name": "Perplexity Spaces / Projects",
+      "url": "https://www.perplexity.ai/help-center/en/articles/10352961-what-are-spaces"
+    },
+    {
+      "name": "Material canonical layouts",
+      "url": "https://developer.android.com/develop/ui/compose/layouts/adaptive/canonical-layouts"
+    }
+  ]
+}

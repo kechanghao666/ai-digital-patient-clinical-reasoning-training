@@ -1,0 +1,16 @@
+{
+  "checks": [
+    "idle animation, pointer parallax, pause and system reduced-motion verified in browser",
+    "repeated rerenders retain one canvas and one glow",
+    "login layout at desktop, 390px and 320px; current legacy API correctly leaves login disabled"
+  ],
+  "complete": true,
+  "pointer_transforms": [
+    "translate3d(-11.6922px, -9.37942px, 0px)",
+    "translate3d(19.4833px, 5.97668px, 0px)"
+  ],
+  "video_start_seconds": 11.925200000002981,
+  "page_errors": [],
+  "business_database_unchanged": true,
+  "business_database_sha256": "f2334a93b3c1ee2cac2a30847211865ebc786b745f58175b4f77cf5ef1dc88ce"
+}

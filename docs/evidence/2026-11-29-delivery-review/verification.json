@@ -1,0 +1,491 @@
+{
+  "date": "2026-11-29",
+  "official_main": "97c40f7216577e1f570228fb049e069b8ff7f7de",
+  "archive": "docs/evidence/official-20261127/sources.json",
+  "instructions_blob": "3e62b6198ad6cc2230a1a5dc7bdcb72772ceeda0",
+  "official_checks": "Requirements, README and LICENSE blobs matched. Announcement 26 md_content matched the archived SHA-256.",
+  "package": {
+    "problems": [],
+    "exports": {
+      "agent.json": "missing",
+      "feedback/agent.json": "missing"
+    },
+    "offline_verified": false,
+    "scope": "File checks only. Export provenance, role bindings, disclosure and target import require separate review."
+  },
+  "package_probe": "All links resolved in the fixed source or copied folder. From the product root the documented MCP module started on loopback with temporary stores; unauthenticated GET returned 401.",
+  "browser_code_sha": "9fb883d83f4bb0be378fb3b5f0225cf14ab7f47b",
+  "browsers": [
+    {
+      "run_directory": "local-only/final-1129-case-1",
+      "session": {
+        "public_id": "CASE-001",
+        "case_id": "STEMI-001",
+        "version": 3,
+        "session_id": "14211f34-ead6-456a-9bc5-a5c51749f1a1",
+        "seal_seq": 18,
+        "feedback_source": "local_rules",
+        "feedback_stages": [
+          "病史采集",
+          "检查选择",
+          "鉴别诊断",
+          "诊断",
+          "治疗"
+        ],
+        "events": [
+          {
+            "seq": 1,
+            "action": "ask"
+          },
+          {
+            "seq": 2,
+            "action": "ask"
+          },
+          {
+            "seq": 3,
+            "action": "ask"
+          },
+          {
+            "seq": 4,
+            "action": "ask"
+          },
+          {
+            "seq": 5,
+            "action": "ask"
+          },
+          {
+            "seq": 6,
+            "action": "ask"
+          },
+          {
+            "seq": 7,
+            "action": "ask"
+          },
+          {
+            "seq": 8,
+            "action": "ask"
+          },
+          {
+            "seq": 9,
+            "action": "ask"
+          },
+          {
+            "seq": 10,
+            "action": "ask"
+          },
+          {
+            "seq": 11,
+            "action": "order_exam"
+          },
+          {
+            "seq": 12,
+            "action": "order_exam"
+          },
+          {
+            "seq": 13,
+            "action": "order_exam"
+          },
+          {
+            "seq": 14,
+            "action": "wait"
+          },
+          {
+            "seq": 15,
+            "action": "update_notes"
+          },
+          {
+            "seq": 16,
+            "action": "submit_differential"
+          },
+          {
+            "seq": 17,
+            "action": "submit_diagnosis"
+          },
+          {
+            "seq": 18,
+            "action": "execute_treatment"
+          },
+          {
+            "seq": 19,
+            "action": "seal"
+          }
+        ]
+      },
+      "checks_passed": 13,
+      "checks_total": 13,
+      "temporary_data_removed": true,
+      "dirty_worktree": false,
+      "run_sha256": "e44b2699cdcea3103a554d4a45bf754b81a3bffbf778e2cc7d5c16ba6e273334"
+    },
+    {
+      "run_directory": "local-only/final-1129-case-2",
+      "session": {
+        "public_id": "CASE-002",
+        "case_id": "APPY-001",
+        "version": 2,
+        "session_id": "3e3c1a5a-0044-49ca-887d-f36e96fec8b8",
+        "seal_seq": 14,
+        "feedback_source": "local_rules",
+        "feedback_stages": [
+          "病史采集",
+          "检查选择",
+          "鉴别诊断",
+          "诊断",
+          "治疗"
+        ],
+        "events": [
+          {
+            "seq": 1,
+            "action": "ask"
+          },
+          {
+            "seq": 2,
+            "action": "ask"
+          },
+          {
+            "seq": 3,
+            "action": "ask"
+          },
+          {
+            "seq": 4,
+            "action": "ask"
+          },
+          {
+            "seq": 5,
+            "action": "ask"
+          },
+          {
+            "seq": 6,
+            "action": "order_exam"
+          },
+          {
+            "seq": 7,
+            "action": "order_exam"
+          },
+          {
+            "seq": 8,
+            "action": "order_exam"
+          },
+          {
+            "seq": 9,
+            "action": "wait"
+          },
+          {
+            "seq": 10,
+            "action": "wait"
+          },
+          {
+            "seq": 11,
+            "action": "update_notes"
+          },
+          {
+            "seq": 12,
+            "action": "submit_differential"
+          },
+          {
+            "seq": 13,
+            "action": "submit_diagnosis"
+          },
+          {
+            "seq": 14,
+            "action": "execute_treatment"
+          },
+          {
+            "seq": 15,
+            "action": "seal"
+          }
+        ]
+      },
+      "checks_passed": 13,
+      "checks_total": 13,
+      "temporary_data_removed": true,
+      "dirty_worktree": false,
+      "run_sha256": "1a84e5fcbf0ccd6dbf4f51786e9b838368c99ecd96bb9b6ee92520f8cfa0be0f"
+    },
+    {
+      "run_directory": "local-only/final-1129-case-3",
+      "session": {
+        "public_id": "CASE-003",
+        "case_id": "STROKE-001",
+        "version": 2,
+        "session_id": "84148de0-6ed9-45c7-b46d-813d5da263ac",
+        "seal_seq": 14,
+        "feedback_source": "local_rules",
+        "feedback_stages": [
+          "病史采集",
+          "检查选择",
+          "鉴别诊断",
+          "诊断",
+          "治疗"
+        ],
+        "events": [
+          {
+            "seq": 1,
+            "action": "ask"
+          },
+          {
+            "seq": 2,
+            "action": "ask"
+          },
+          {
+            "seq": 3,
+            "action": "ask"
+          },
+          {
+            "seq": 4,
+            "action": "ask"
+          },
+          {
+            "seq": 5,
+            "action": "ask"
+          },
+          {
+            "seq": 6,
+            "action": "ask"
+          },
+          {
+            "seq": 7,
+            "action": "order_exam"
+          },
+          {
+            "seq": 8,
+            "action": "order_exam"
+          },
+          {
+            "seq": 9,
+            "action": "order_exam"
+          },
+          {
+            "seq": 10,
+            "action": "wait"
+          },
+          {
+            "seq": 11,
+            "action": "update_notes"
+          },
+          {
+            "seq": 12,
+            "action": "submit_differential"
+          },
+          {
+            "seq": 13,
+            "action": "submit_diagnosis"
+          },
+          {
+            "seq": 14,
+            "action": "execute_treatment"
+          },
+          {
+            "seq": 15,
+            "action": "seal"
+          }
+        ]
+      },
+      "checks_passed": 13,
+      "checks_total": 13,
+      "temporary_data_removed": true,
+      "dirty_worktree": false,
+      "run_sha256": "a871901cc93b5ebaa8118734f4e2942dbaaddabecc14ebe7cfab305c1be0d395"
+    },
+    {
+      "run_directory": "local-only/final-1129-case-4",
+      "session": {
+        "public_id": "CASE-004",
+        "case_id": "CAP-001",
+        "version": 2,
+        "session_id": "b95c6928-ec53-44ee-a270-10ae18476838",
+        "seal_seq": 12,
+        "feedback_source": "local_rules",
+        "feedback_stages": [
+          "病史采集",
+          "检查选择",
+          "鉴别诊断",
+          "诊断",
+          "治疗"
+        ],
+        "events": [
+          {
+            "seq": 1,
+            "action": "ask"
+          },
+          {
+            "seq": 2,
+            "action": "ask"
+          },
+          {
+            "seq": 3,
+            "action": "ask"
+          },
+          {
+            "seq": 4,
+            "action": "ask"
+          },
+          {
+            "seq": 5,
+            "action": "order_exam"
+          },
+          {
+            "seq": 6,
+            "action": "order_exam"
+          },
+          {
+            "seq": 7,
+            "action": "order_exam"
+          },
+          {
+            "seq": 8,
+            "action": "wait"
+          },
+          {
+            "seq": 9,
+            "action": "update_notes"
+          },
+          {
+            "seq": 10,
+            "action": "submit_differential"
+          },
+          {
+            "seq": 11,
+            "action": "submit_diagnosis"
+          },
+          {
+            "seq": 12,
+            "action": "execute_treatment"
+          },
+          {
+            "seq": 13,
+            "action": "seal"
+          }
+        ]
+      },
+      "checks_passed": 13,
+      "checks_total": 13,
+      "temporary_data_removed": true,
+      "dirty_worktree": false,
+      "run_sha256": "ac8299fc6945bdcc1586e6a0aa98fbed089cdb68db8e4b717fb53d910aba26a1"
+    },
+    {
+      "run_directory": "local-only/final-1129-case-5",
+      "session": {
+        "public_id": "CASE-005",
+        "case_id": "DKA-001",
+        "version": 2,
+        "session_id": "2f926d60-989b-4494-9a27-f76429208861",
+        "seal_seq": 13,
+        "feedback_source": "local_rules",
+        "feedback_stages": [
+          "病史采集",
+          "检查选择",
+          "鉴别诊断",
+          "诊断",
+          "治疗"
+        ],
+        "events": [
+          {
+            "seq": 1,
+            "action": "ask"
+          },
+          {
+            "seq": 2,
+            "action": "ask"
+          },
+          {
+            "seq": 3,
+            "action": "ask"
+          },
+          {
+            "seq": 4,
+            "action": "ask"
+          },
+          {
+            "seq": 5,
+            "action": "order_exam"
+          },
+          {
+            "seq": 6,
+            "action": "order_exam"
+          },
+          {
+            "seq": 7,
+            "action": "order_exam"
+          },
+          {
+            "seq": 8,
+            "action": "wait"
+          },
+          {
+            "seq": 9,
+            "action": "wait"
+          },
+          {
+            "seq": 10,
+            "action": "update_notes"
+          },
+          {
+            "seq": 11,
+            "action": "submit_differential"
+          },
+          {
+            "seq": 12,
+            "action": "submit_diagnosis"
+          },
+          {
+            "seq": 13,
+            "action": "execute_treatment"
+          },
+          {
+            "seq": 14,
+            "action": "seal"
+          }
+        ]
+      },
+      "checks_passed": 13,
+      "checks_total": 13,
+      "temporary_data_removed": true,
+      "dirty_worktree": false,
+      "run_sha256": "1c1e5254537d1616d49877e219736443c037e96a51329c31b130e999979afca8"
+    }
+  ],
+  "browser_negative": "Initial DKA rehearsal could not order the exam by its case-specific label. Catalog ID selects the public label. First failure preserved at local-only/package-rehearsal-1129-5.",
+  "independent_runs": {
+    "before": "independent-before.json",
+    "after": "independent-after.json",
+    "before_code": "9fb883d83f4bb0be378fb3b5f0225cf14ab7f47b",
+    "after_code": "c7460cd83ce2c09d627a35ee7d324bf8ef0ad32e",
+    "method": "Three independent processes per revision, fresh simulator stores. Compare the five normal inputs, using session-relative URLs and replay sequence for evidence IDs; omit request_id. Compare ordered answers, order results, clinical state, scoring item hits and scores, feedback text, basis and ordered evidence.",
+    "finding": "Before: grading evidence referenced the same events, in a different order when sorted by random UUID. After: all five complete output fingerprints agreed in each set of three distinct sessions. Reusing one run three times was rejected.",
+    "commands": [
+      "python scripts/run_engineering_samples.py <new-directory> (run three times, each with a different directory)",
+      "python scripts/compare_simulator_runs.py <directory-1> <directory-2> <directory-3>"
+    ],
+    "engineering_samples_per_batch": "12/12",
+    "business_database_hash_unchanged": true
+  },
+  "checks": {
+    "package_regressions": 8,
+    "five_specialties_tests": 26,
+    "pre_scoring_change_full_suite": "960 passed, 364.31s",
+    "frontend": "typecheck, build and npm audit passed; 0 vulnerabilities",
+    "feature_ci": {
+      "head": "c7460cd83ce2c09d627a35ee7d324bf8ef0ad32e",
+      "push": 46177761446,
+      "pull_request": 46177767440,
+      "conclusions": [
+        "success",
+        "success"
+      ]
+    }
+  },
+  "real_provider_calls": 0,
+  "formal_acceptance": false,
+  "video": {
+    "file": "simulator-workflow.mp4",
+    "recording_date": "2026-11-27",
+    "mode": "simulator",
+    "duration_seconds": 219.88,
+    "frames_decoded": 5497,
+    "bytes": 3915140,
+    "sha256": "a8f9ab0ea49416535380e339c890b11cf1144da23fd4d57954f1a3efde069c05"
+  },
+  "prior_batch_date_note": "The directory 2026-12-01-demo-prep retains its original label. The preparation commits are dated 2026-11-29 +08:00. Its push_blocked entry describes an earlier attempt."
+}

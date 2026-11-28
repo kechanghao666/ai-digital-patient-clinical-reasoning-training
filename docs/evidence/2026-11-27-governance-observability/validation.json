@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "round": "2026-11-27 数据治理与观测补全（M10/M12）",
+  "final_product_sha": "8fdfeb4c0663b2fa0274444208f1cd67c04c639e",
+  "prior_round_push_verified": {
+    "sha": "4cc7cbd3c9b87288d33307d592754857c2b8d32f",
+    "push_run": 46024930567,
+    "pr_run": 46024940307,
+    "conclusion": "success"
+  },
+  "batches": {
+    "full_pytest": {
+      "passed": 916,
+      "failed": 0,
+      "seconds": 321.25,
+      "python": "3.11.18",
+      "command": ".venv/Scripts/python.exe -m pytest -q",
+      "tree_note": "Python 源码与最终提交一致；运行期间仅一个非 pytest 覆盖的前端文件做了清理改动"
+    },
+    "specialized_new": {
+      "files": [
+        "tests/test_sensitive_access.py",
+        "tests/test_turn_stats_filters.py"
+      ],
+      "passed": 20,
+      "failed": 0,
+      "re_run_at_final_sha": true
+    },
+    "engineering_samples": {
+      "samples": 12,
+      "complete": 12,
+      "engineering_pass": 12,
+      "code_sha": "8fdfeb4c0663b2fa0274444208f1cd67c04c639e",
+      "original_database_unchanged": true
+    },
+    "frontend": {
+      "typecheck": "pass",
+      "build": "pass",
+      "npm_audit": "0 vulnerabilities"
+    },
+    "compileall": "pass"
+  },
+  "real_provider_calls": 0,
+  "business_database_touched": false,
+  "deleted_any_business_data": false,
+  "scope_and_limits": [
+    "留存预览只读；删除执行未实现，本轮未对任何业务库执行删除",
+    "敏感访问审计覆盖留存预览、审计读取、预算变更；不含登录行为、学生自助改密与全部敏感读取",
+    "预算为可信回合次数告警；token 用量与费用保持 unknown（无真实用量）",
+    "P95 为最近秩分位，基于回合完成区间，非首字/推理/端到端时延",
+    "日期筛选为 UTC 自然日边界；turns_today 为服务器本地自然日",
+    "权限矩阵文档按代码整理，不构成安全认证或医学审核"
+  ]
+}

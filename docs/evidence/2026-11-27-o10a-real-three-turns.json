@@ -1,0 +1,278 @@
+{
+  "base_commit": "733741eaf37a53d1464f40a05166cd55396086f8",
+  "model_policy": "dual; at most three browser submissions; no retries",
+  "case_id": "CASE-001 (synthetic teaching case)",
+  "checks": [
+    {
+      "scenario": "first-session",
+      "name": "第 1 轮显示回答与 POST 事件一致",
+      "ok": true,
+      "detail": {
+        "visible": "有高血压10年。",
+        "posted": "有高血压10年。"
+      }
+    },
+    {
+      "scenario": "first-session",
+      "name": "第 1 轮 POST 事件已在服务端保存",
+      "ok": true,
+      "detail": {
+        "event_id": "2111c69d-1add-40de-ab23-ac6ec270ee77"
+      }
+    },
+    {
+      "scenario": "first-session",
+      "name": "第 1 轮请求与保存的回答一致",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "first-session",
+      "name": "第 2 轮失败",
+      "ok": false,
+      "detail": ""
+    },
+    {
+      "scenario": "second-session",
+      "name": "第 1 轮显示回答与 POST 事件一致",
+      "ok": true,
+      "detail": {
+        "visible": "没做过手术。",
+        "posted": "没做过手术。"
+      }
+    },
+    {
+      "scenario": "second-session",
+      "name": "第 1 轮 POST 事件已在服务端保存",
+      "ok": true,
+      "detail": {
+        "event_id": "7114588c-38b3-4cdb-be98-7d99e1475994"
+      }
+    },
+    {
+      "scenario": "second-session",
+      "name": "第 1 轮请求与保存的回答一致",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "scenario": "browser",
+      "name": "无未捕获前端脚本错误",
+      "ok": true,
+      "detail": []
+    }
+  ],
+  "scenarios": {
+    "first-session": [
+      {
+        "scenario": "first-session",
+        "turn": 1,
+        "question": "有高血压吗？",
+        "request_id": "0b6589d8-b022-4b80-9f0e-74cf85621d8d",
+        "server_timing": {
+          "replayed": false,
+          "answer_validated_ms": 13936,
+          "api_ready_ms": 13953
+        },
+        "timings": {
+          "clickT": 496.5,
+          "postT": 14448,
+          "visibleT": 14449.39999999851,
+          "paintT": 14454.79999999702
+        },
+        "durations_ms": {
+          "click_to_response_ms": 13951.5,
+          "click_to_visible_ms": 13952.9,
+          "click_to_paint_ms": 13958.3,
+          "response_to_visible_ms": 1.4,
+          "response_to_paint_ms": 6.8
+        },
+        "ui_latency_title": "应答 14.0 秒",
+        "posted_event": {
+          "event_id": "2111c69d-1add-40de-ab23-ac6ec270ee77",
+          "seq": 1,
+          "answer": "有高血压10年。",
+          "replayed": false
+        },
+        "visible_answer": "有高血压10年。",
+        "answer_matches_posted": true,
+        "saved_event_ids": [
+          "2111c69d-1add-40de-ab23-ac6ec270ee77"
+        ],
+        "saved_ask_count": 1
+      },
+      {
+        "turn": 2,
+        "question": "有糖尿病吗？",
+        "request_id": "fd20e231-4a29-4e4d-bbed-ea97b276d295",
+        "error": "ask HTTP 502",
+        "durations_ms": {
+          "click_to_response_ms": 13600.5,
+          "click_to_visible_ms": null,
+          "click_to_paint_ms": null,
+          "response_to_visible_ms": null,
+          "response_to_paint_ms": null
+        },
+        "elapsed_ms": 13608.30000000447
+      }
+    ],
+    "second-session": [
+      {
+        "scenario": "second-session",
+        "turn": 1,
+        "question": "以前做过手术吗？",
+        "request_id": "8200e9ac-ef12-4616-ae14-7bf507d97ee2",
+        "server_timing": {
+          "replayed": false,
+          "answer_validated_ms": 5328,
+          "api_ready_ms": 5328
+        },
+        "timings": {
+          "clickT": 167.39999999850988,
+          "postT": 5513.70000000298,
+          "visibleT": 5515.5,
+          "paintT": 5521.39999999851
+        },
+        "durations_ms": {
+          "click_to_response_ms": 5346.3,
+          "click_to_visible_ms": 5348.1,
+          "click_to_paint_ms": 5354,
+          "response_to_visible_ms": 1.8,
+          "response_to_paint_ms": 7.7
+        },
+        "ui_latency_title": "应答 5.3 秒",
+        "posted_event": {
+          "event_id": "7114588c-38b3-4cdb-be98-7d99e1475994",
+          "seq": 1,
+          "answer": "没做过手术。",
+          "replayed": false
+        },
+        "visible_answer": "没做过手术。",
+        "answer_matches_posted": true,
+        "saved_event_ids": [
+          "7114588c-38b3-4cdb-be98-7d99e1475994"
+        ],
+        "saved_ask_count": 1
+      }
+    ]
+  },
+  "page_errors": [],
+  "passed": false,
+  "measurement_window_utc": [
+    "2026-11-26T17:55:41.237555Z",
+    "2026-11-26T17:56:20.469586Z"
+  ],
+  "platform": {
+    "agent": "digital_patient_stemi",
+    "version": 9,
+    "protocol": "dual",
+    "model": "spark-x2.6-4b",
+    "callback_preflight": "authenticated initialize from nexent-runtime and nexent-northbound: HTTP 200",
+    "northbound_chat_runs": 3,
+    "northbound_chat_stops": 2,
+    "student_retries": 0,
+    "runtime_observations_in_sequential_turn_windows": [
+      {
+        "question": "有高血压吗？",
+        "step": 2,
+        "reason": "malformed_action",
+        "consecutive_errors": [
+          1,
+          2
+        ]
+      },
+      {
+        "question": "有糖尿病吗？",
+        "step": 2,
+        "reason": "malformed_action",
+        "consecutive_errors": [
+          1,
+          2,
+          3
+        ],
+        "loop_status": "error"
+      }
+    ],
+    "usage": "Step monitor and output-protocol diagnostic counters below are partial and can overlap. No authoritative total or bill obtained.",
+    "runtime_token_counters": {
+      "fields": [
+        "step",
+        "input_tokens",
+        "output_tokens"
+      ],
+      "step_monitor_by_turn": [
+        [
+          [
+            1,
+            3643,
+            120
+          ],
+          [
+            2,
+            7740,
+            254
+          ]
+        ],
+        [
+          [
+            1,
+            3650,
+            130
+          ]
+        ],
+        [
+          [
+            1,
+            3637,
+            125
+          ],
+          [
+            2,
+            7552,
+            246
+          ]
+        ]
+      ],
+      "malformed_action_diagnostics_by_turn": [
+        [
+          [
+            2,
+            3915,
+            180
+          ],
+          [
+            2,
+            4006,
+            92
+          ]
+        ],
+        [
+          [
+            2,
+            3930,
+            215
+          ],
+          [
+            2,
+            4021,
+            97
+          ],
+          [
+            2,
+            4112,
+            147
+          ]
+        ],
+        []
+      ]
+    }
+  },
+  "outcomes": {
+    "planned": 3,
+    "answers_visible": 2,
+    "within_5_seconds": 0,
+    "complete_answer_within_60_seconds": 2,
+    "http_502_without_answer": 1,
+    "measurement": "Complete non-placeholder answer inserted in DOM, matched to the saved event. Double rAF is a paint estimate only."
+  }
+}

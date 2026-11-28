@@ -13,8 +13,14 @@ from app.storage import ConcurrentUpdateError
 from test_feedback_contract import sealed
 from test_frontend_smoke import _route_requests
 from test_integration import Env, ROOT
+from teacher_scope_helpers import bind_demo_class
 
 TEACHER = {"X-Owner-Id": "teacher-reviewer"}
+
+
+@pytest.fixture(autouse=True)
+def teacher_memberships(tmp_path, monkeypatch):
+    bind_demo_class(tmp_path, monkeypatch, ["teacher-reviewer", "teacher-demo"], ["demo-integration"])
 
 
 def payload(state, items, **changes):
@@ -76,8 +82,8 @@ def test_review_api_requires_teacher_for_reads_and_writes(sealed, headers):
 def test_development_teacher_is_rejected_in_production(sealed, monkeypatch):
     env, state, _, items = sealed
     monkeypatch.setenv("APP_ENV", "production")
-    assert read(env, state).status_code == 403
-    assert save(env, state, payload(state, items)).status_code == 403
+    assert read(env, state).status_code == 401
+    assert save(env, state, payload(state, items)).status_code == 401
 
 
 def test_review_requires_matching_owner_and_sealed_session(tmp_path, monkeypatch):
@@ -178,6 +184,7 @@ def test_teacher_ui_repairs_feedback_and_student_refreshes_cached_version(sealed
     teacher.text_input(key="feedback_review_session").set_value(state.session_id)
     next(b for b in teacher.button if b.label == "载入或刷新训练反馈").click().run()
     assert not teacher.exception, teacher.exception
+    assert any(entry.value == state.diagnosis_submission["diagnosis"] for entry in teacher.text)
     teacher.text_area(key="review_editor_病史采集_comment").set_value("复核后的病史评语。")
     teacher.text_area(key="review_editor_reason").set_value("校正病史建议。")
     routed_request = requests.request

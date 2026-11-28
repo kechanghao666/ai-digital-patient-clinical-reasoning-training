@@ -1,0 +1,34 @@
+{
+  "date": "2026-11-29",
+  "official_main": "97c40f7216577e1f570228fb049e069b8ff7f7de",
+  "official_verification": "The three blobs match docs/evidence/official-20261127/sources.json. Public discussion 26 md_content SHA-256 also matches.",
+  "local_pytest": {
+    "passed": 952,
+    "failed": 0,
+    "seconds": 215.55,
+    "scope": "working tree; final evaluator readability edit rechecked by targeted test and hosted full suite"
+  },
+  "mcp_probe": "mcp-submit-boundary.json",
+  "o3": "o3-results.json",
+  "engineering_samples": {
+    "code_sha": "9ca5ed2ba79220281997900dede279bacbb582d1",
+    "samples": 12,
+    "complete": 12,
+    "engineering_pass": 12,
+    "original_database_unchanged": true
+  },
+  "hosted_demo": {
+    "sha": "9ca5ed2ba79220281997900dede279bacbb582d1",
+    "push": 46172829255,
+    "pr": 46172833439,
+    "push_web_job": 141064846032,
+    "source": "GitHub Actions web / Reproduce the teacher and student simulator demo",
+    "environment": "clean hosted Ubuntu 26.04 x64 checkout; locked npm and Python 3.11 dependencies; system Google Chrome",
+    "checks_passed": 13,
+    "checks_total": 13,
+    "temporary_data_removed": true,
+    "real_provider_calls": 0,
+    "formal_random_demo": false
+  },
+  "formal_acceptance": false
+}

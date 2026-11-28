@@ -1,0 +1,2201 @@
+{
+  "schema_version": 1,
+  "title": "DKA-001 f_gi question/score boundary check (nausea/vomiting, abdominal pain, intake)",
+  "run_at": "2026-11-26T14:18:44+00:00",
+  "git_head_sha": "9bde2f8d3dda58609417ce564767e123b13c7dc4",
+  "git_branch": "codex/feedback-protocol-fix",
+  "worktree_status": "",
+  "environment": {
+    "os": "Windows-10-10.0.26300-SP0",
+    "python": "3.11.18",
+    "python_executable": "python.exe",
+    "auth_mode": "local",
+    "patient_adapter": "simulator",
+    "database_scope": "temporary APP_DATA_DIR / INTEGRATION_DB_PATH / accounts; removed after run",
+    "real_provider_calls": 0
+  },
+  "denominator": {
+    "case_versions_covered": 2,
+    "scenarios_per_version": 9,
+    "scenario_runs": 18,
+    "all_checks_pass": true,
+    "failed_scenarios": []
+  },
+  "duplicate_request_check": {
+    "case": "DKA-001@2",
+    "fact": "f_gi",
+    "question": "有没有恶心呕吐和腹痛？",
+    "first": {
+      "http": 200,
+      "replayed": false,
+      "answer": "恶心呕吐，肚子隐隐作痛。",
+      "event_id": "228fcc01-44da-4dd3-b385-a7724ef96579"
+    },
+    "second_same_request": {
+      "http": 200,
+      "replayed": true,
+      "answer": "恶心呕吐，肚子隐隐作痛。",
+      "event_id": "228fcc01-44da-4dd3-b385-a7724ef96579"
+    },
+    "ask_events_before_seal": 1,
+    "ask_events_after_seal_and_replay": 1,
+    "seal_http": 200,
+    "replay_after_seal": {
+      "http": 200,
+      "replayed": true,
+      "answer": "恶心呕吐，肚子隐隐作痛。",
+      "event_id": "228fcc01-44da-4dd3-b385-a7724ef96579"
+    },
+    "total_events": 2,
+    "score_item_f_gi": {
+      "item_id": "f_gi",
+      "stage": "病史采集",
+      "hit": true,
+      "score": 1.0,
+      "max_score": 1.0,
+      "evidence_event_ids": [
+        "228fcc01-44da-4dd3-b385-a7724ef96579"
+      ],
+      "reason": "已找到符合条件的事件证据",
+      "improvement": ""
+    },
+    "score_total": 1.0,
+    "score_unchanged_after_replay": true,
+    "checks": {
+      "same_request_saved_once": true,
+      "first_response_is_new": true,
+      "seal_succeeded": true,
+      "sealed_response_is_replay": true,
+      "second_response_is_replay": true,
+      "same_answer_and_event": true,
+      "score_unchanged": true
+    }
+  },
+  "temporary_data_removed": true,
+  "scenarios": [
+    {
+      "index": 1,
+      "case_id": "DKA-001",
+      "case_version": 1,
+      "source_file": "cases/dka_case_v1.json",
+      "source_sha256": "80b60eb52a1e702cc4835b8ed0b1efa6690cac48844d94a0d044589610bb6aac",
+      "scenario_id": "direct_colloquial_pain",
+      "scenario_kind": "first_question",
+      "fact_id": "f_gi",
+      "fact_field": "消化道症状",
+      "fact_content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "吃不下"
+      ],
+      "rubric": {
+        "description": "询问恶心呕吐和腹痛",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ]
+      },
+      "questions": [
+        "肚子疼吗？"
+      ],
+      "expected_answers": [
+        "肚子隐隐作痛。"
+      ],
+      "expected_atoms": [
+        "f_gi#a2"
+      ],
+      "expected_score": 0.0,
+      "turns": [
+        {
+          "question": "肚子疼吗？",
+          "http_status": 200,
+          "api_answer": "肚子隐隐作痛。",
+          "api_event_id": "8078ad28-55c7-4c13-b5ec-d4e8e1d46a99",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "肚子隐隐作痛。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a2"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "persisted_answer_atom_ids": [
+        "f_gi#a2"
+      ],
+      "persisted_disclosed_fact_ids": [],
+      "score_item": {
+        "hit": false,
+        "score": 0.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "8078ad28-55c7-4c13-b5ec-d4e8e1d46a99"
+        ],
+        "reason": "已取得 1/2 项量表要求的问答，尚未问齐"
+      },
+      "evidence_events": [
+        {
+          "event_id": "8078ad28-55c7-4c13-b5ec-d4e8e1d46a99",
+          "request_id": "dka-001-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "肚子疼吗？",
+          "result": {
+            "answer": "肚子隐隐作痛。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "score_status": "complete",
+      "score_total": 0.0,
+      "score_max": 17.0,
+      "checks": {
+        "answers_match_expectation": true,
+        "persisted_answer_matches_api": true,
+        "atoms_match_expectation": true,
+        "one_event_per_turn": true,
+        "score_matches_expectation": true,
+        "hit_matches_expectation": true,
+        "evidence_cites_rubric_turns": true,
+        "evidence_events_exist": true,
+        "intake_only_when_asked": true,
+        "disclosed_fact_ids_as_expected": true
+      },
+      "all_checks_pass": true
+    },
+    {
+      "index": 2,
+      "case_id": "DKA-001",
+      "case_version": 1,
+      "source_file": "cases/dka_case_v1.json",
+      "source_sha256": "80b60eb52a1e702cc4835b8ed0b1efa6690cac48844d94a0d044589610bb6aac",
+      "scenario_id": "direct_abdominal_pain",
+      "scenario_kind": "first_question",
+      "fact_id": "f_gi",
+      "fact_field": "消化道症状",
+      "fact_content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "吃不下"
+      ],
+      "rubric": {
+        "description": "询问恶心呕吐和腹痛",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ]
+      },
+      "questions": [
+        "有没有腹痛？"
+      ],
+      "expected_answers": [
+        "肚子隐隐作痛。"
+      ],
+      "expected_atoms": [
+        "f_gi#a2"
+      ],
+      "expected_score": 0.0,
+      "turns": [
+        {
+          "question": "有没有腹痛？",
+          "http_status": 200,
+          "api_answer": "肚子隐隐作痛。",
+          "api_event_id": "35a669c9-beed-49d1-86ea-c0e71c39b2d3",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "肚子隐隐作痛。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a2"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "persisted_answer_atom_ids": [
+        "f_gi#a2"
+      ],
+      "persisted_disclosed_fact_ids": [],
+      "score_item": {
+        "hit": false,
+        "score": 0.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "35a669c9-beed-49d1-86ea-c0e71c39b2d3"
+        ],
+        "reason": "已取得 1/2 项量表要求的问答，尚未问齐"
+      },
+      "evidence_events": [
+        {
+          "event_id": "35a669c9-beed-49d1-86ea-c0e71c39b2d3",
+          "request_id": "dka-002-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "有没有腹痛？",
+          "result": {
+            "answer": "肚子隐隐作痛。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "score_status": "complete",
+      "score_total": 0.0,
+      "score_max": 17.0,
+      "checks": {
+        "answers_match_expectation": true,
+        "persisted_answer_matches_api": true,
+        "atoms_match_expectation": true,
+        "one_event_per_turn": true,
+        "score_matches_expectation": true,
+        "hit_matches_expectation": true,
+        "evidence_cites_rubric_turns": true,
+        "evidence_events_exist": true,
+        "intake_only_when_asked": true,
+        "disclosed_fact_ids_as_expected": true
+      },
+      "all_checks_pass": true
+    },
+    {
+      "index": 3,
+      "case_id": "DKA-001",
+      "case_version": 1,
+      "source_file": "cases/dka_case_v1.json",
+      "source_sha256": "80b60eb52a1e702cc4835b8ed0b1efa6690cac48844d94a0d044589610bb6aac",
+      "scenario_id": "direct_nausea",
+      "scenario_kind": "first_question",
+      "fact_id": "f_gi",
+      "fact_field": "消化道症状",
+      "fact_content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "吃不下"
+      ],
+      "rubric": {
+        "description": "询问恶心呕吐和腹痛",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ]
+      },
+      "questions": [
+        "有没有恶心呕吐？"
+      ],
+      "expected_answers": [
+        "恶心呕吐。"
+      ],
+      "expected_atoms": [
+        "f_gi#a1"
+      ],
+      "expected_score": 0.0,
+      "turns": [
+        {
+          "question": "有没有恶心呕吐？",
+          "http_status": 200,
+          "api_answer": "恶心呕吐。",
+          "api_event_id": "8012ca7e-f6c2-4e79-b275-4a6f501d3182",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "恶心呕吐。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a1"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "persisted_answer_atom_ids": [
+        "f_gi#a1"
+      ],
+      "persisted_disclosed_fact_ids": [],
+      "score_item": {
+        "hit": false,
+        "score": 0.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "8012ca7e-f6c2-4e79-b275-4a6f501d3182"
+        ],
+        "reason": "已取得 1/2 项量表要求的问答，尚未问齐"
+      },
+      "evidence_events": [
+        {
+          "event_id": "8012ca7e-f6c2-4e79-b275-4a6f501d3182",
+          "request_id": "dka-003-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "有没有恶心呕吐？",
+          "result": {
+            "answer": "恶心呕吐。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "score_status": "complete",
+      "score_total": 0.0,
+      "score_max": 17.0,
+      "checks": {
+        "answers_match_expectation": true,
+        "persisted_answer_matches_api": true,
+        "atoms_match_expectation": true,
+        "one_event_per_turn": true,
+        "score_matches_expectation": true,
+        "hit_matches_expectation": true,
+        "evidence_cites_rubric_turns": true,
+        "evidence_events_exist": true,
+        "intake_only_when_asked": true,
+        "disclosed_fact_ids_as_expected": true
+      },
+      "all_checks_pass": true
+    },
+    {
+      "index": 4,
+      "case_id": "DKA-001",
+      "case_version": 1,
+      "source_file": "cases/dka_case_v1.json",
+      "source_sha256": "80b60eb52a1e702cc4835b8ed0b1efa6690cac48844d94a0d044589610bb6aac",
+      "scenario_id": "direct_intake",
+      "scenario_kind": "first_question",
+      "fact_id": "f_gi",
+      "fact_field": "消化道症状",
+      "fact_content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "吃不下"
+      ],
+      "rubric": {
+        "description": "询问恶心呕吐和腹痛",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ]
+      },
+      "questions": [
+        "吃不下东西吗？"
+      ],
+      "expected_answers": [
+        "吃不下东西。"
+      ],
+      "expected_atoms": [
+        "f_gi#a3"
+      ],
+      "expected_score": 0.0,
+      "turns": [
+        {
+          "question": "吃不下东西吗？",
+          "http_status": 200,
+          "api_answer": "吃不下东西。",
+          "api_event_id": "6096b574-7e3a-4c77-97ef-d860351caace",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "吃不下东西。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a3"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "persisted_answer_atom_ids": [
+        "f_gi#a3"
+      ],
+      "persisted_disclosed_fact_ids": [],
+      "score_item": {
+        "hit": false,
+        "score": 0.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [],
+        "reason": "未找到满足时点和证据类型的事件"
+      },
+      "evidence_events": [],
+      "score_status": "complete",
+      "score_total": 0.0,
+      "score_max": 17.0,
+      "checks": {
+        "answers_match_expectation": true,
+        "persisted_answer_matches_api": true,
+        "atoms_match_expectation": true,
+        "one_event_per_turn": true,
+        "score_matches_expectation": true,
+        "hit_matches_expectation": true,
+        "evidence_cites_rubric_turns": true,
+        "evidence_events_exist": true,
+        "intake_only_when_asked": true,
+        "disclosed_fact_ids_as_expected": true
+      },
+      "all_checks_pass": true
+    },
+    {
+      "index": 5,
+      "case_id": "DKA-001",
+      "case_version": 1,
+      "source_file": "cases/dka_case_v1.json",
+      "source_sha256": "80b60eb52a1e702cc4835b8ed0b1efa6690cac48844d94a0d044589610bb6aac",
+      "scenario_id": "compound_nausea_pain",
+      "scenario_kind": "compound",
+      "fact_id": "f_gi",
+      "fact_field": "消化道症状",
+      "fact_content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "吃不下"
+      ],
+      "rubric": {
+        "description": "询问恶心呕吐和腹痛",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ]
+      },
+      "questions": [
+        "有没有恶心呕吐和腹痛？"
+      ],
+      "expected_answers": [
+        "恶心呕吐，肚子隐隐作痛。"
+      ],
+      "expected_atoms": [
+        "f_gi#a1",
+        "f_gi#a2"
+      ],
+      "expected_score": 1.0,
+      "turns": [
+        {
+          "question": "有没有恶心呕吐和腹痛？",
+          "http_status": 200,
+          "api_answer": "恶心呕吐，肚子隐隐作痛。",
+          "api_event_id": "f3bce734-3dad-4c94-9931-beb2534df7f5",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "恶心呕吐，肚子隐隐作痛。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a1",
+            "f_gi#a2"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "persisted_answer_atom_ids": [
+        "f_gi#a1",
+        "f_gi#a2"
+      ],
+      "persisted_disclosed_fact_ids": [],
+      "score_item": {
+        "hit": true,
+        "score": 1.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "f3bce734-3dad-4c94-9931-beb2534df7f5"
+        ],
+        "reason": "已找到符合条件的事件证据"
+      },
+      "evidence_events": [
+        {
+          "event_id": "f3bce734-3dad-4c94-9931-beb2534df7f5",
+          "request_id": "dka-005-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "有没有恶心呕吐和腹痛？",
+          "result": {
+            "answer": "恶心呕吐，肚子隐隐作痛。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "score_status": "complete",
+      "score_total": 1.0,
+      "score_max": 17.0,
+      "checks": {
+        "answers_match_expectation": true,
+        "persisted_answer_matches_api": true,
+        "atoms_match_expectation": true,
+        "one_event_per_turn": true,
+        "score_matches_expectation": true,
+        "hit_matches_expectation": true,
+        "evidence_cites_rubric_turns": true,
+        "evidence_events_exist": true,
+        "intake_only_when_asked": true,
+        "disclosed_fact_ids_as_expected": true
+      },
+      "all_checks_pass": true
+    },
+    {
+      "index": 6,
+      "case_id": "DKA-001",
+      "case_version": 1,
+      "source_file": "cases/dka_case_v1.json",
+      "source_sha256": "80b60eb52a1e702cc4835b8ed0b1efa6690cac48844d94a0d044589610bb6aac",
+      "scenario_id": "compound_nausea_pain_intake",
+      "scenario_kind": "compound",
+      "fact_id": "f_gi",
+      "fact_field": "消化道症状",
+      "fact_content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "吃不下"
+      ],
+      "rubric": {
+        "description": "询问恶心呕吐和腹痛",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ]
+      },
+      "questions": [
+        "有没有恶心呕吐、腹痛？吃得下东西吗？"
+      ],
+      "expected_answers": [
+        "恶心呕吐，肚子隐隐作痛，吃不下东西。"
+      ],
+      "expected_atoms": [
+        "f_gi#a1",
+        "f_gi#a2",
+        "f_gi#a3"
+      ],
+      "expected_score": 1.0,
+      "turns": [
+        {
+          "question": "有没有恶心呕吐、腹痛？吃得下东西吗？",
+          "http_status": 200,
+          "api_answer": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+          "api_event_id": "7ad53b3c-ebe0-4c4c-b686-7d2b14e7b80d",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+          "persisted_matched_fact_ids": [
+            "f_gi"
+          ],
+          "persisted_answer_atom_ids": [
+            "f_gi#a1",
+            "f_gi#a2",
+            "f_gi#a3"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "persisted_answer_atom_ids": [
+        "f_gi#a1",
+        "f_gi#a2",
+        "f_gi#a3"
+      ],
+      "persisted_disclosed_fact_ids": [
+        "f_gi"
+      ],
+      "score_item": {
+        "hit": true,
+        "score": 1.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "7ad53b3c-ebe0-4c4c-b686-7d2b14e7b80d"
+        ],
+        "reason": "已找到符合条件的事件证据"
+      },
+      "evidence_events": [
+        {
+          "event_id": "7ad53b3c-ebe0-4c4c-b686-7d2b14e7b80d",
+          "request_id": "dka-006-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "有没有恶心呕吐、腹痛？吃得下东西吗？",
+          "result": {
+            "answer": "恶心呕吐，肚子隐隐作痛，吃不下东西。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "score_status": "complete",
+      "score_total": 1.0,
+      "score_max": 17.0,
+      "checks": {
+        "answers_match_expectation": true,
+        "persisted_answer_matches_api": true,
+        "atoms_match_expectation": true,
+        "one_event_per_turn": true,
+        "score_matches_expectation": true,
+        "hit_matches_expectation": true,
+        "evidence_cites_rubric_turns": true,
+        "evidence_events_exist": true,
+        "intake_only_when_asked": true,
+        "disclosed_fact_ids_as_expected": true
+      },
+      "all_checks_pass": true
+    },
+    {
+      "index": 7,
+      "case_id": "DKA-001",
+      "case_version": 1,
+      "source_file": "cases/dka_case_v1.json",
+      "source_sha256": "80b60eb52a1e702cc4835b8ed0b1efa6690cac48844d94a0d044589610bb6aac",
+      "scenario_id": "two_turns_nausea_then_pain",
+      "scenario_kind": "two_turns",
+      "fact_id": "f_gi",
+      "fact_field": "消化道症状",
+      "fact_content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "吃不下"
+      ],
+      "rubric": {
+        "description": "询问恶心呕吐和腹痛",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ]
+      },
+      "questions": [
+        "有没有恶心呕吐？",
+        "肚子疼吗？"
+      ],
+      "expected_answers": [
+        "恶心呕吐。",
+        "肚子隐隐作痛。"
+      ],
+      "expected_atoms": [
+        "f_gi#a1",
+        "f_gi#a2"
+      ],
+      "expected_score": 1.0,
+      "turns": [
+        {
+          "question": "有没有恶心呕吐？",
+          "http_status": 200,
+          "api_answer": "恶心呕吐。",
+          "api_event_id": "a882ba80-b95e-4119-ae92-f46a3de8ebac",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "恶心呕吐。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a1"
+          ],
+          "persisted_turn_kind": "fact"
+        },
+        {
+          "question": "肚子疼吗？",
+          "http_status": 200,
+          "api_answer": "肚子隐隐作痛。",
+          "api_event_id": "9b5a5096-606f-4e6e-b0c9-1ca37eebdb14",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "肚子隐隐作痛。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a2"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "persisted_answer_atom_ids": [
+        "f_gi#a1",
+        "f_gi#a2"
+      ],
+      "persisted_disclosed_fact_ids": [],
+      "score_item": {
+        "hit": true,
+        "score": 1.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "a882ba80-b95e-4119-ae92-f46a3de8ebac",
+          "9b5a5096-606f-4e6e-b0c9-1ca37eebdb14"
+        ],
+        "reason": "已找到符合条件的事件证据"
+      },
+      "evidence_events": [
+        {
+          "event_id": "a882ba80-b95e-4119-ae92-f46a3de8ebac",
+          "request_id": "dka-007-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "有没有恶心呕吐？",
+          "result": {
+            "answer": "恶心呕吐。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "9b5a5096-606f-4e6e-b0c9-1ca37eebdb14",
+          "request_id": "dka-007-2",
+          "seq": 2,
+          "action": "ask",
+          "intent": "肚子疼吗？",
+          "result": {
+            "answer": "肚子隐隐作痛。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "score_status": "complete",
+      "score_total": 1.0,
+      "score_max": 17.0,
+      "checks": {
+        "answers_match_expectation": true,
+        "persisted_answer_matches_api": true,
+        "atoms_match_expectation": true,
+        "one_event_per_turn": true,
+        "score_matches_expectation": true,
+        "hit_matches_expectation": true,
+        "evidence_cites_rubric_turns": true,
+        "evidence_events_exist": true,
+        "intake_only_when_asked": true,
+        "disclosed_fact_ids_as_expected": true
+      },
+      "all_checks_pass": true
+    },
+    {
+      "index": 8,
+      "case_id": "DKA-001",
+      "case_version": 1,
+      "source_file": "cases/dka_case_v1.json",
+      "source_sha256": "80b60eb52a1e702cc4835b8ed0b1efa6690cac48844d94a0d044589610bb6aac",
+      "scenario_id": "two_turns_pain_then_nausea",
+      "scenario_kind": "two_turns",
+      "fact_id": "f_gi",
+      "fact_field": "消化道症状",
+      "fact_content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "吃不下"
+      ],
+      "rubric": {
+        "description": "询问恶心呕吐和腹痛",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ]
+      },
+      "questions": [
+        "肚子疼吗？",
+        "有没有恶心呕吐？"
+      ],
+      "expected_answers": [
+        "肚子隐隐作痛。",
+        "恶心呕吐。"
+      ],
+      "expected_atoms": [
+        "f_gi#a2",
+        "f_gi#a1"
+      ],
+      "expected_score": 1.0,
+      "turns": [
+        {
+          "question": "肚子疼吗？",
+          "http_status": 200,
+          "api_answer": "肚子隐隐作痛。",
+          "api_event_id": "10fd9757-c1e1-4c77-93db-36dc075b752a",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "肚子隐隐作痛。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a2"
+          ],
+          "persisted_turn_kind": "fact"
+        },
+        {
+          "question": "有没有恶心呕吐？",
+          "http_status": 200,
+          "api_answer": "恶心呕吐。",
+          "api_event_id": "464909e9-2f97-4ea3-b1c8-f039fa8249e4",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "恶心呕吐。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a1"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "persisted_answer_atom_ids": [
+        "f_gi#a2",
+        "f_gi#a1"
+      ],
+      "persisted_disclosed_fact_ids": [],
+      "score_item": {
+        "hit": true,
+        "score": 1.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "10fd9757-c1e1-4c77-93db-36dc075b752a",
+          "464909e9-2f97-4ea3-b1c8-f039fa8249e4"
+        ],
+        "reason": "已找到符合条件的事件证据"
+      },
+      "evidence_events": [
+        {
+          "event_id": "10fd9757-c1e1-4c77-93db-36dc075b752a",
+          "request_id": "dka-008-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "肚子疼吗？",
+          "result": {
+            "answer": "肚子隐隐作痛。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "464909e9-2f97-4ea3-b1c8-f039fa8249e4",
+          "request_id": "dka-008-2",
+          "seq": 2,
+          "action": "ask",
+          "intent": "有没有恶心呕吐？",
+          "result": {
+            "answer": "恶心呕吐。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "score_status": "complete",
+      "score_total": 1.0,
+      "score_max": 17.0,
+      "checks": {
+        "answers_match_expectation": true,
+        "persisted_answer_matches_api": true,
+        "atoms_match_expectation": true,
+        "one_event_per_turn": true,
+        "score_matches_expectation": true,
+        "hit_matches_expectation": true,
+        "evidence_cites_rubric_turns": true,
+        "evidence_events_exist": true,
+        "intake_only_when_asked": true,
+        "disclosed_fact_ids_as_expected": true
+      },
+      "all_checks_pass": true
+    },
+    {
+      "index": 9,
+      "case_id": "DKA-001",
+      "case_version": 1,
+      "source_file": "cases/dka_case_v1.json",
+      "source_sha256": "80b60eb52a1e702cc4835b8ed0b1efa6690cac48844d94a0d044589610bb6aac",
+      "scenario_id": "two_turns_then_intake",
+      "scenario_kind": "two_turns_then_intake",
+      "fact_id": "f_gi",
+      "fact_field": "消化道症状",
+      "fact_content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "吃不下"
+      ],
+      "rubric": {
+        "description": "询问恶心呕吐和腹痛",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ]
+      },
+      "questions": [
+        "有没有恶心呕吐？",
+        "肚子疼吗？",
+        "吃不下东西吗？"
+      ],
+      "expected_answers": [
+        "恶心呕吐。",
+        "肚子隐隐作痛。",
+        "吃不下东西。"
+      ],
+      "expected_atoms": [
+        "f_gi#a1",
+        "f_gi#a2",
+        "f_gi#a3"
+      ],
+      "expected_score": 1.0,
+      "turns": [
+        {
+          "question": "有没有恶心呕吐？",
+          "http_status": 200,
+          "api_answer": "恶心呕吐。",
+          "api_event_id": "6451d9cf-32cb-4a78-bee3-1d49e232fc03",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "恶心呕吐。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a1"
+          ],
+          "persisted_turn_kind": "fact"
+        },
+        {
+          "question": "肚子疼吗？",
+          "http_status": 200,
+          "api_answer": "肚子隐隐作痛。",
+          "api_event_id": "a98fb78c-375a-4c09-81bd-3974683c7284",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "肚子隐隐作痛。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a2"
+          ],
+          "persisted_turn_kind": "fact"
+        },
+        {
+          "question": "吃不下东西吗？",
+          "http_status": 200,
+          "api_answer": "吃不下东西。",
+          "api_event_id": "ace060e8-bb2b-40df-a621-20dac0608c53",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "吃不下东西。",
+          "persisted_matched_fact_ids": [
+            "f_gi"
+          ],
+          "persisted_answer_atom_ids": [
+            "f_gi#a3"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "persisted_answer_atom_ids": [
+        "f_gi#a1",
+        "f_gi#a2",
+        "f_gi#a3"
+      ],
+      "persisted_disclosed_fact_ids": [
+        "f_gi"
+      ],
+      "score_item": {
+        "hit": true,
+        "score": 1.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "6451d9cf-32cb-4a78-bee3-1d49e232fc03",
+          "a98fb78c-375a-4c09-81bd-3974683c7284"
+        ],
+        "reason": "已找到符合条件的事件证据"
+      },
+      "evidence_events": [
+        {
+          "event_id": "6451d9cf-32cb-4a78-bee3-1d49e232fc03",
+          "request_id": "dka-009-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "有没有恶心呕吐？",
+          "result": {
+            "answer": "恶心呕吐。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "a98fb78c-375a-4c09-81bd-3974683c7284",
+          "request_id": "dka-009-2",
+          "seq": 2,
+          "action": "ask",
+          "intent": "肚子疼吗？",
+          "result": {
+            "answer": "肚子隐隐作痛。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "score_status": "complete",
+      "score_total": 1.0,
+      "score_max": 17.0,
+      "checks": {
+        "answers_match_expectation": true,
+        "persisted_answer_matches_api": true,
+        "atoms_match_expectation": true,
+        "one_event_per_turn": true,
+        "score_matches_expectation": true,
+        "hit_matches_expectation": true,
+        "evidence_cites_rubric_turns": true,
+        "evidence_events_exist": true,
+        "intake_only_when_asked": true,
+        "disclosed_fact_ids_as_expected": true
+      },
+      "all_checks_pass": true
+    },
+    {
+      "index": 10,
+      "case_id": "DKA-001",
+      "case_version": 2,
+      "source_file": "cases/dka_case_v2.json",
+      "source_sha256": "444667d2924edf0bf14fc84344ee8e7a54cd29780aeb02f9aff24030385d329a",
+      "scenario_id": "direct_colloquial_pain",
+      "scenario_kind": "first_question",
+      "fact_id": "f_gi",
+      "fact_field": "消化道症状",
+      "fact_content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "吃不下",
+        "哪里疼",
+        "哪里痛",
+        "部位",
+        "怎么疼",
+        "怎么痛"
+      ],
+      "rubric": {
+        "description": "询问恶心呕吐和腹痛",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ]
+      },
+      "questions": [
+        "肚子疼吗？"
+      ],
+      "expected_answers": [
+        "肚子隐隐作痛。"
+      ],
+      "expected_atoms": [
+        "f_gi#a2"
+      ],
+      "expected_score": 0.0,
+      "turns": [
+        {
+          "question": "肚子疼吗？",
+          "http_status": 200,
+          "api_answer": "肚子隐隐作痛。",
+          "api_event_id": "d79c9717-046d-40d5-8f50-7ff33b49aa64",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "肚子隐隐作痛。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a2"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "persisted_answer_atom_ids": [
+        "f_gi#a2"
+      ],
+      "persisted_disclosed_fact_ids": [],
+      "score_item": {
+        "hit": false,
+        "score": 0.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "d79c9717-046d-40d5-8f50-7ff33b49aa64"
+        ],
+        "reason": "已取得 1/2 项量表要求的问答，尚未问齐"
+      },
+      "evidence_events": [
+        {
+          "event_id": "d79c9717-046d-40d5-8f50-7ff33b49aa64",
+          "request_id": "dka-010-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "肚子疼吗？",
+          "result": {
+            "answer": "肚子隐隐作痛。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "score_status": "complete",
+      "score_total": 0.0,
+      "score_max": 17.0,
+      "checks": {
+        "answers_match_expectation": true,
+        "persisted_answer_matches_api": true,
+        "atoms_match_expectation": true,
+        "one_event_per_turn": true,
+        "score_matches_expectation": true,
+        "hit_matches_expectation": true,
+        "evidence_cites_rubric_turns": true,
+        "evidence_events_exist": true,
+        "intake_only_when_asked": true,
+        "disclosed_fact_ids_as_expected": true
+      },
+      "all_checks_pass": true
+    },
+    {
+      "index": 11,
+      "case_id": "DKA-001",
+      "case_version": 2,
+      "source_file": "cases/dka_case_v2.json",
+      "source_sha256": "444667d2924edf0bf14fc84344ee8e7a54cd29780aeb02f9aff24030385d329a",
+      "scenario_id": "direct_abdominal_pain",
+      "scenario_kind": "first_question",
+      "fact_id": "f_gi",
+      "fact_field": "消化道症状",
+      "fact_content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "吃不下",
+        "哪里疼",
+        "哪里痛",
+        "部位",
+        "怎么疼",
+        "怎么痛"
+      ],
+      "rubric": {
+        "description": "询问恶心呕吐和腹痛",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ]
+      },
+      "questions": [
+        "有没有腹痛？"
+      ],
+      "expected_answers": [
+        "肚子隐隐作痛。"
+      ],
+      "expected_atoms": [
+        "f_gi#a2"
+      ],
+      "expected_score": 0.0,
+      "turns": [
+        {
+          "question": "有没有腹痛？",
+          "http_status": 200,
+          "api_answer": "肚子隐隐作痛。",
+          "api_event_id": "e83fa936-54a5-4789-9f80-b3a379f9caaa",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "肚子隐隐作痛。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a2"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "persisted_answer_atom_ids": [
+        "f_gi#a2"
+      ],
+      "persisted_disclosed_fact_ids": [],
+      "score_item": {
+        "hit": false,
+        "score": 0.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "e83fa936-54a5-4789-9f80-b3a379f9caaa"
+        ],
+        "reason": "已取得 1/2 项量表要求的问答，尚未问齐"
+      },
+      "evidence_events": [
+        {
+          "event_id": "e83fa936-54a5-4789-9f80-b3a379f9caaa",
+          "request_id": "dka-011-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "有没有腹痛？",
+          "result": {
+            "answer": "肚子隐隐作痛。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "score_status": "complete",
+      "score_total": 0.0,
+      "score_max": 17.0,
+      "checks": {
+        "answers_match_expectation": true,
+        "persisted_answer_matches_api": true,
+        "atoms_match_expectation": true,
+        "one_event_per_turn": true,
+        "score_matches_expectation": true,
+        "hit_matches_expectation": true,
+        "evidence_cites_rubric_turns": true,
+        "evidence_events_exist": true,
+        "intake_only_when_asked": true,
+        "disclosed_fact_ids_as_expected": true
+      },
+      "all_checks_pass": true
+    },
+    {
+      "index": 12,
+      "case_id": "DKA-001",
+      "case_version": 2,
+      "source_file": "cases/dka_case_v2.json",
+      "source_sha256": "444667d2924edf0bf14fc84344ee8e7a54cd29780aeb02f9aff24030385d329a",
+      "scenario_id": "direct_nausea",
+      "scenario_kind": "first_question",
+      "fact_id": "f_gi",
+      "fact_field": "消化道症状",
+      "fact_content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "吃不下",
+        "哪里疼",
+        "哪里痛",
+        "部位",
+        "怎么疼",
+        "怎么痛"
+      ],
+      "rubric": {
+        "description": "询问恶心呕吐和腹痛",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ]
+      },
+      "questions": [
+        "有没有恶心呕吐？"
+      ],
+      "expected_answers": [
+        "恶心呕吐。"
+      ],
+      "expected_atoms": [
+        "f_gi#a1"
+      ],
+      "expected_score": 0.0,
+      "turns": [
+        {
+          "question": "有没有恶心呕吐？",
+          "http_status": 200,
+          "api_answer": "恶心呕吐。",
+          "api_event_id": "6071ce57-380f-48cd-952a-d4725d638059",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "恶心呕吐。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a1"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "persisted_answer_atom_ids": [
+        "f_gi#a1"
+      ],
+      "persisted_disclosed_fact_ids": [],
+      "score_item": {
+        "hit": false,
+        "score": 0.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "6071ce57-380f-48cd-952a-d4725d638059"
+        ],
+        "reason": "已取得 1/2 项量表要求的问答，尚未问齐"
+      },
+      "evidence_events": [
+        {
+          "event_id": "6071ce57-380f-48cd-952a-d4725d638059",
+          "request_id": "dka-012-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "有没有恶心呕吐？",
+          "result": {
+            "answer": "恶心呕吐。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "score_status": "complete",
+      "score_total": 0.0,
+      "score_max": 17.0,
+      "checks": {
+        "answers_match_expectation": true,
+        "persisted_answer_matches_api": true,
+        "atoms_match_expectation": true,
+        "one_event_per_turn": true,
+        "score_matches_expectation": true,
+        "hit_matches_expectation": true,
+        "evidence_cites_rubric_turns": true,
+        "evidence_events_exist": true,
+        "intake_only_when_asked": true,
+        "disclosed_fact_ids_as_expected": true
+      },
+      "all_checks_pass": true
+    },
+    {
+      "index": 13,
+      "case_id": "DKA-001",
+      "case_version": 2,
+      "source_file": "cases/dka_case_v2.json",
+      "source_sha256": "444667d2924edf0bf14fc84344ee8e7a54cd29780aeb02f9aff24030385d329a",
+      "scenario_id": "direct_intake",
+      "scenario_kind": "first_question",
+      "fact_id": "f_gi",
+      "fact_field": "消化道症状",
+      "fact_content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "吃不下",
+        "哪里疼",
+        "哪里痛",
+        "部位",
+        "怎么疼",
+        "怎么痛"
+      ],
+      "rubric": {
+        "description": "询问恶心呕吐和腹痛",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ]
+      },
+      "questions": [
+        "吃不下东西吗？"
+      ],
+      "expected_answers": [
+        "吃不下东西。"
+      ],
+      "expected_atoms": [
+        "f_gi#a3"
+      ],
+      "expected_score": 0.0,
+      "turns": [
+        {
+          "question": "吃不下东西吗？",
+          "http_status": 200,
+          "api_answer": "吃不下东西。",
+          "api_event_id": "1dfe1e0f-8fc4-4142-9884-d73810684ef9",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "吃不下东西。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a3"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "persisted_answer_atom_ids": [
+        "f_gi#a3"
+      ],
+      "persisted_disclosed_fact_ids": [],
+      "score_item": {
+        "hit": false,
+        "score": 0.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [],
+        "reason": "未找到满足时点和证据类型的事件"
+      },
+      "evidence_events": [],
+      "score_status": "complete",
+      "score_total": 0.0,
+      "score_max": 17.0,
+      "checks": {
+        "answers_match_expectation": true,
+        "persisted_answer_matches_api": true,
+        "atoms_match_expectation": true,
+        "one_event_per_turn": true,
+        "score_matches_expectation": true,
+        "hit_matches_expectation": true,
+        "evidence_cites_rubric_turns": true,
+        "evidence_events_exist": true,
+        "intake_only_when_asked": true,
+        "disclosed_fact_ids_as_expected": true
+      },
+      "all_checks_pass": true
+    },
+    {
+      "index": 14,
+      "case_id": "DKA-001",
+      "case_version": 2,
+      "source_file": "cases/dka_case_v2.json",
+      "source_sha256": "444667d2924edf0bf14fc84344ee8e7a54cd29780aeb02f9aff24030385d329a",
+      "scenario_id": "compound_nausea_pain",
+      "scenario_kind": "compound",
+      "fact_id": "f_gi",
+      "fact_field": "消化道症状",
+      "fact_content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "吃不下",
+        "哪里疼",
+        "哪里痛",
+        "部位",
+        "怎么疼",
+        "怎么痛"
+      ],
+      "rubric": {
+        "description": "询问恶心呕吐和腹痛",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ]
+      },
+      "questions": [
+        "有没有恶心呕吐和腹痛？"
+      ],
+      "expected_answers": [
+        "恶心呕吐，肚子隐隐作痛。"
+      ],
+      "expected_atoms": [
+        "f_gi#a1",
+        "f_gi#a2"
+      ],
+      "expected_score": 1.0,
+      "turns": [
+        {
+          "question": "有没有恶心呕吐和腹痛？",
+          "http_status": 200,
+          "api_answer": "恶心呕吐，肚子隐隐作痛。",
+          "api_event_id": "1dd4ca07-891e-4a8c-b613-07f1927cedcd",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "恶心呕吐，肚子隐隐作痛。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a1",
+            "f_gi#a2"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "persisted_answer_atom_ids": [
+        "f_gi#a1",
+        "f_gi#a2"
+      ],
+      "persisted_disclosed_fact_ids": [],
+      "score_item": {
+        "hit": true,
+        "score": 1.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "1dd4ca07-891e-4a8c-b613-07f1927cedcd"
+        ],
+        "reason": "已找到符合条件的事件证据"
+      },
+      "evidence_events": [
+        {
+          "event_id": "1dd4ca07-891e-4a8c-b613-07f1927cedcd",
+          "request_id": "dka-014-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "有没有恶心呕吐和腹痛？",
+          "result": {
+            "answer": "恶心呕吐，肚子隐隐作痛。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "score_status": "complete",
+      "score_total": 1.0,
+      "score_max": 17.0,
+      "checks": {
+        "answers_match_expectation": true,
+        "persisted_answer_matches_api": true,
+        "atoms_match_expectation": true,
+        "one_event_per_turn": true,
+        "score_matches_expectation": true,
+        "hit_matches_expectation": true,
+        "evidence_cites_rubric_turns": true,
+        "evidence_events_exist": true,
+        "intake_only_when_asked": true,
+        "disclosed_fact_ids_as_expected": true
+      },
+      "all_checks_pass": true
+    },
+    {
+      "index": 15,
+      "case_id": "DKA-001",
+      "case_version": 2,
+      "source_file": "cases/dka_case_v2.json",
+      "source_sha256": "444667d2924edf0bf14fc84344ee8e7a54cd29780aeb02f9aff24030385d329a",
+      "scenario_id": "compound_nausea_pain_intake",
+      "scenario_kind": "compound",
+      "fact_id": "f_gi",
+      "fact_field": "消化道症状",
+      "fact_content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "吃不下",
+        "哪里疼",
+        "哪里痛",
+        "部位",
+        "怎么疼",
+        "怎么痛"
+      ],
+      "rubric": {
+        "description": "询问恶心呕吐和腹痛",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ]
+      },
+      "questions": [
+        "有没有恶心呕吐、腹痛？吃得下东西吗？"
+      ],
+      "expected_answers": [
+        "恶心呕吐，肚子隐隐作痛，吃不下东西。"
+      ],
+      "expected_atoms": [
+        "f_gi#a1",
+        "f_gi#a2",
+        "f_gi#a3"
+      ],
+      "expected_score": 1.0,
+      "turns": [
+        {
+          "question": "有没有恶心呕吐、腹痛？吃得下东西吗？",
+          "http_status": 200,
+          "api_answer": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+          "api_event_id": "e1708173-ba43-430c-8ccb-7aa74eed2cee",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+          "persisted_matched_fact_ids": [
+            "f_gi"
+          ],
+          "persisted_answer_atom_ids": [
+            "f_gi#a1",
+            "f_gi#a2",
+            "f_gi#a3"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "persisted_answer_atom_ids": [
+        "f_gi#a1",
+        "f_gi#a2",
+        "f_gi#a3"
+      ],
+      "persisted_disclosed_fact_ids": [
+        "f_gi"
+      ],
+      "score_item": {
+        "hit": true,
+        "score": 1.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "e1708173-ba43-430c-8ccb-7aa74eed2cee"
+        ],
+        "reason": "已找到符合条件的事件证据"
+      },
+      "evidence_events": [
+        {
+          "event_id": "e1708173-ba43-430c-8ccb-7aa74eed2cee",
+          "request_id": "dka-015-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "有没有恶心呕吐、腹痛？吃得下东西吗？",
+          "result": {
+            "answer": "恶心呕吐，肚子隐隐作痛，吃不下东西。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "score_status": "complete",
+      "score_total": 1.0,
+      "score_max": 17.0,
+      "checks": {
+        "answers_match_expectation": true,
+        "persisted_answer_matches_api": true,
+        "atoms_match_expectation": true,
+        "one_event_per_turn": true,
+        "score_matches_expectation": true,
+        "hit_matches_expectation": true,
+        "evidence_cites_rubric_turns": true,
+        "evidence_events_exist": true,
+        "intake_only_when_asked": true,
+        "disclosed_fact_ids_as_expected": true
+      },
+      "all_checks_pass": true
+    },
+    {
+      "index": 16,
+      "case_id": "DKA-001",
+      "case_version": 2,
+      "source_file": "cases/dka_case_v2.json",
+      "source_sha256": "444667d2924edf0bf14fc84344ee8e7a54cd29780aeb02f9aff24030385d329a",
+      "scenario_id": "two_turns_nausea_then_pain",
+      "scenario_kind": "two_turns",
+      "fact_id": "f_gi",
+      "fact_field": "消化道症状",
+      "fact_content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "吃不下",
+        "哪里疼",
+        "哪里痛",
+        "部位",
+        "怎么疼",
+        "怎么痛"
+      ],
+      "rubric": {
+        "description": "询问恶心呕吐和腹痛",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ]
+      },
+      "questions": [
+        "有没有恶心呕吐？",
+        "肚子疼吗？"
+      ],
+      "expected_answers": [
+        "恶心呕吐。",
+        "肚子隐隐作痛。"
+      ],
+      "expected_atoms": [
+        "f_gi#a1",
+        "f_gi#a2"
+      ],
+      "expected_score": 1.0,
+      "turns": [
+        {
+          "question": "有没有恶心呕吐？",
+          "http_status": 200,
+          "api_answer": "恶心呕吐。",
+          "api_event_id": "1c54b735-ec48-44c3-b269-e8004d956ee1",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "恶心呕吐。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a1"
+          ],
+          "persisted_turn_kind": "fact"
+        },
+        {
+          "question": "肚子疼吗？",
+          "http_status": 200,
+          "api_answer": "肚子隐隐作痛。",
+          "api_event_id": "c3f8c6e5-2a03-4430-9b67-8688c527049c",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "肚子隐隐作痛。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a2"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "persisted_answer_atom_ids": [
+        "f_gi#a1",
+        "f_gi#a2"
+      ],
+      "persisted_disclosed_fact_ids": [],
+      "score_item": {
+        "hit": true,
+        "score": 1.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "1c54b735-ec48-44c3-b269-e8004d956ee1",
+          "c3f8c6e5-2a03-4430-9b67-8688c527049c"
+        ],
+        "reason": "已找到符合条件的事件证据"
+      },
+      "evidence_events": [
+        {
+          "event_id": "1c54b735-ec48-44c3-b269-e8004d956ee1",
+          "request_id": "dka-016-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "有没有恶心呕吐？",
+          "result": {
+            "answer": "恶心呕吐。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "c3f8c6e5-2a03-4430-9b67-8688c527049c",
+          "request_id": "dka-016-2",
+          "seq": 2,
+          "action": "ask",
+          "intent": "肚子疼吗？",
+          "result": {
+            "answer": "肚子隐隐作痛。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "score_status": "complete",
+      "score_total": 1.0,
+      "score_max": 17.0,
+      "checks": {
+        "answers_match_expectation": true,
+        "persisted_answer_matches_api": true,
+        "atoms_match_expectation": true,
+        "one_event_per_turn": true,
+        "score_matches_expectation": true,
+        "hit_matches_expectation": true,
+        "evidence_cites_rubric_turns": true,
+        "evidence_events_exist": true,
+        "intake_only_when_asked": true,
+        "disclosed_fact_ids_as_expected": true
+      },
+      "all_checks_pass": true
+    },
+    {
+      "index": 17,
+      "case_id": "DKA-001",
+      "case_version": 2,
+      "source_file": "cases/dka_case_v2.json",
+      "source_sha256": "444667d2924edf0bf14fc84344ee8e7a54cd29780aeb02f9aff24030385d329a",
+      "scenario_id": "two_turns_pain_then_nausea",
+      "scenario_kind": "two_turns",
+      "fact_id": "f_gi",
+      "fact_field": "消化道症状",
+      "fact_content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "吃不下",
+        "哪里疼",
+        "哪里痛",
+        "部位",
+        "怎么疼",
+        "怎么痛"
+      ],
+      "rubric": {
+        "description": "询问恶心呕吐和腹痛",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ]
+      },
+      "questions": [
+        "肚子疼吗？",
+        "有没有恶心呕吐？"
+      ],
+      "expected_answers": [
+        "肚子隐隐作痛。",
+        "恶心呕吐。"
+      ],
+      "expected_atoms": [
+        "f_gi#a2",
+        "f_gi#a1"
+      ],
+      "expected_score": 1.0,
+      "turns": [
+        {
+          "question": "肚子疼吗？",
+          "http_status": 200,
+          "api_answer": "肚子隐隐作痛。",
+          "api_event_id": "0776bd98-41c6-44ee-972d-db42f3adce0d",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "肚子隐隐作痛。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a2"
+          ],
+          "persisted_turn_kind": "fact"
+        },
+        {
+          "question": "有没有恶心呕吐？",
+          "http_status": 200,
+          "api_answer": "恶心呕吐。",
+          "api_event_id": "e2550aa3-f9b1-4dc8-9768-30e22093ebd5",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "恶心呕吐。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a1"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "persisted_answer_atom_ids": [
+        "f_gi#a2",
+        "f_gi#a1"
+      ],
+      "persisted_disclosed_fact_ids": [],
+      "score_item": {
+        "hit": true,
+        "score": 1.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "0776bd98-41c6-44ee-972d-db42f3adce0d",
+          "e2550aa3-f9b1-4dc8-9768-30e22093ebd5"
+        ],
+        "reason": "已找到符合条件的事件证据"
+      },
+      "evidence_events": [
+        {
+          "event_id": "0776bd98-41c6-44ee-972d-db42f3adce0d",
+          "request_id": "dka-017-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "肚子疼吗？",
+          "result": {
+            "answer": "肚子隐隐作痛。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "e2550aa3-f9b1-4dc8-9768-30e22093ebd5",
+          "request_id": "dka-017-2",
+          "seq": 2,
+          "action": "ask",
+          "intent": "有没有恶心呕吐？",
+          "result": {
+            "answer": "恶心呕吐。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "score_status": "complete",
+      "score_total": 1.0,
+      "score_max": 17.0,
+      "checks": {
+        "answers_match_expectation": true,
+        "persisted_answer_matches_api": true,
+        "atoms_match_expectation": true,
+        "one_event_per_turn": true,
+        "score_matches_expectation": true,
+        "hit_matches_expectation": true,
+        "evidence_cites_rubric_turns": true,
+        "evidence_events_exist": true,
+        "intake_only_when_asked": true,
+        "disclosed_fact_ids_as_expected": true
+      },
+      "all_checks_pass": true
+    },
+    {
+      "index": 18,
+      "case_id": "DKA-001",
+      "case_version": 2,
+      "source_file": "cases/dka_case_v2.json",
+      "source_sha256": "444667d2924edf0bf14fc84344ee8e7a54cd29780aeb02f9aff24030385d329a",
+      "scenario_id": "two_turns_then_intake",
+      "scenario_kind": "two_turns_then_intake",
+      "fact_id": "f_gi",
+      "fact_field": "消化道症状",
+      "fact_content": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_triggers": [
+        "恶心",
+        "呕吐",
+        "腹痛",
+        "吃不下",
+        "哪里疼",
+        "哪里痛",
+        "部位",
+        "怎么疼",
+        "怎么痛"
+      ],
+      "rubric": {
+        "description": "询问恶心呕吐和腹痛",
+        "weight": 1.0,
+        "evidence_type": "ask_event",
+        "stage": "病史采集",
+        "improvement": "",
+        "required_atom_ids": [
+          "f_gi#a1",
+          "f_gi#a2"
+        ]
+      },
+      "questions": [
+        "有没有恶心呕吐？",
+        "肚子疼吗？",
+        "吃不下东西吗？"
+      ],
+      "expected_answers": [
+        "恶心呕吐。",
+        "肚子隐隐作痛。",
+        "吃不下东西。"
+      ],
+      "expected_atoms": [
+        "f_gi#a1",
+        "f_gi#a2",
+        "f_gi#a3"
+      ],
+      "expected_score": 1.0,
+      "turns": [
+        {
+          "question": "有没有恶心呕吐？",
+          "http_status": 200,
+          "api_answer": "恶心呕吐。",
+          "api_event_id": "519dbd15-3a44-4583-a28a-8799dbd5d214",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "恶心呕吐。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a1"
+          ],
+          "persisted_turn_kind": "fact"
+        },
+        {
+          "question": "肚子疼吗？",
+          "http_status": 200,
+          "api_answer": "肚子隐隐作痛。",
+          "api_event_id": "8060c3fb-5315-4a57-b98b-8047c749c002",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "肚子隐隐作痛。",
+          "persisted_matched_fact_ids": [],
+          "persisted_answer_atom_ids": [
+            "f_gi#a2"
+          ],
+          "persisted_turn_kind": "fact"
+        },
+        {
+          "question": "吃不下东西吗？",
+          "http_status": 200,
+          "api_answer": "吃不下东西。",
+          "api_event_id": "8c375a97-5d6c-4832-b723-4e4032de170b",
+          "replayed": false,
+          "persisted_event_count": 1,
+          "persisted_answer": "吃不下东西。",
+          "persisted_matched_fact_ids": [
+            "f_gi"
+          ],
+          "persisted_answer_atom_ids": [
+            "f_gi#a3"
+          ],
+          "persisted_turn_kind": "fact"
+        }
+      ],
+      "persisted_answer_atom_ids": [
+        "f_gi#a1",
+        "f_gi#a2",
+        "f_gi#a3"
+      ],
+      "persisted_disclosed_fact_ids": [
+        "f_gi"
+      ],
+      "score_item": {
+        "hit": true,
+        "score": 1.0,
+        "max_score": 1.0,
+        "evidence_event_ids": [
+          "519dbd15-3a44-4583-a28a-8799dbd5d214",
+          "8060c3fb-5315-4a57-b98b-8047c749c002"
+        ],
+        "reason": "已找到符合条件的事件证据"
+      },
+      "evidence_events": [
+        {
+          "event_id": "519dbd15-3a44-4583-a28a-8799dbd5d214",
+          "request_id": "dka-018-1",
+          "seq": 1,
+          "action": "ask",
+          "intent": "有没有恶心呕吐？",
+          "result": {
+            "answer": "恶心呕吐。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        },
+        {
+          "event_id": "8060c3fb-5315-4a57-b98b-8047c749c002",
+          "request_id": "dka-018-2",
+          "seq": 2,
+          "action": "ask",
+          "intent": "肚子疼吗？",
+          "result": {
+            "answer": "肚子隐隐作痛。"
+          },
+          "sim_time": 0,
+          "state_after": {
+            "workflow": "history_taking",
+            "clinical_state": "initial",
+            "sim_time_minutes": 0
+          }
+        }
+      ],
+      "score_status": "complete",
+      "score_total": 1.0,
+      "score_max": 17.0,
+      "checks": {
+        "answers_match_expectation": true,
+        "persisted_answer_matches_api": true,
+        "atoms_match_expectation": true,
+        "one_event_per_turn": true,
+        "score_matches_expectation": true,
+        "hit_matches_expectation": true,
+        "evidence_cites_rubric_turns": true,
+        "evidence_events_exist": true,
+        "intake_only_when_asked": true,
+        "disclosed_fact_ids_as_expected": true
+      },
+      "all_checks_pass": true
+    }
+  ],
+  "evidence_boundary": "This report proves the engineering behaviour of the committed code on the local FastAPI student API, local auth, an isolated synthetic database and the deterministic simulator. Expectations follow the rubric text only; it is not evidence of real model behaviour, clinical correctness or official acceptance."
+}

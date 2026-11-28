@@ -1,0 +1,93 @@
+{
+  "complete": true,
+  "adapter": "simulator",
+  "turns": [
+    {
+      "case": "CASE-001",
+      "question": "怎么了",
+      "answer": "我两个小时前突然开始胸痛。"
+    },
+    {
+      "case": "CASE-001",
+      "question": "哪里不舒服",
+      "answer": "我两个小时前突然开始胸痛。"
+    },
+    {
+      "case": "CASE-001",
+      "question": "您好，请问您哪儿不舒服？",
+      "answer": "我两个小时前突然开始胸痛。"
+    },
+    {
+      "case": "CASE-002",
+      "question": "怎么了",
+      "answer": "我从昨晚开始肚子痛，今天越来越厉害。"
+    },
+    {
+      "case": "CASE-002",
+      "question": "哪里不舒服",
+      "answer": "我从昨晚开始肚子痛，今天越来越厉害。"
+    },
+    {
+      "case": "CASE-002",
+      "question": "您好，请问您哪儿不舒服？",
+      "answer": "我从昨晚开始肚子痛，今天越来越厉害。"
+    },
+    {
+      "case": "CASE-003",
+      "question": "怎么了",
+      "answer": "我一个半小时前突然说话含糊，右边手脚没力气。"
+    },
+    {
+      "case": "CASE-003",
+      "question": "哪里不舒服",
+      "answer": "我一个半小时前突然说话含糊，右边手脚没力气。"
+    },
+    {
+      "case": "CASE-003",
+      "question": "您好，请问您哪儿不舒服？",
+      "answer": "我一个半小时前突然说话含糊，右边手脚没力气。"
+    },
+    {
+      "case": "CASE-004",
+      "question": "怎么了",
+      "answer": "我发烧咳嗽三天了，今天觉得有点气短。"
+    },
+    {
+      "case": "CASE-004",
+      "question": "哪里不舒服",
+      "answer": "我发烧咳嗽三天了，今天觉得有点气短。"
+    },
+    {
+      "case": "CASE-004",
+      "question": "您好，请问您哪儿不舒服？",
+      "answer": "我发烧咳嗽三天了，今天觉得有点气短。"
+    },
+    {
+      "case": "CASE-005",
+      "question": "怎么了",
+      "answer": "我这两天特别口渴，尿很多，今天一直恶心还吐了。"
+    },
+    {
+      "case": "CASE-005",
+      "question": "哪里不舒服",
+      "answer": "我这两天特别口渴，尿很多，今天一直恶心还吐了。"
+    },
+    {
+      "case": "CASE-005",
+      "question": "您好，请问您哪儿不舒服？",
+      "answer": "我这两天特别口渴，尿很多，今天一直恶心还吐了。"
+    }
+  ],
+  "live_api": "http://127.0.0.1:8006",
+  "browser_questions": [
+    "怎么了",
+    "哪里不舒服",
+    "具体哪儿疼？",
+    "疼了多长时间？",
+    "有没有想吐？",
+    "以前得过什么病？"
+  ],
+  "page_errors": [],
+  "qa_account_disabled": true,
+  "original_business_database_unchanged": true
+}

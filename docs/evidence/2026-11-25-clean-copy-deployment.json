@@ -1,0 +1,134 @@
+{
+  "date": "2026-11-25",
+  "purpose": "干净仓库副本部署、合成师生业务流程与离线备份恢复闭环",
+  "evidence_retention": "仓库保留本 JSON 摘要；本轮临时根目录 /tmp/clinical-deploy-ythoe4vr 已核验并清理，原始日志与浏览器截图不保留。",
+  "baseline": {
+    "branch": "codex/feedback-protocol-fix",
+    "sha": "513073e125e4ef1f5f0acc979c043827a6dd2f8e",
+    "source": "GitHub 远端分支的独立克隆",
+    "clone_worktree_clean_before_run": true,
+    "github_push_run": {
+      "id": 45587474446,
+      "tests": "success",
+      "dependency-audit": "success"
+    },
+    "github_pull_request_run": {
+      "id": 45587484443,
+      "tests": "success",
+      "dependency-audit": "success"
+    }
+  },
+  "environment": {
+    "os": "Windows 11 10.0.26300 x86_64",
+    "python": "3.11.18",
+    "node": "v24.18.0",
+    "npm": "11.16.0",
+    "python_provisioning": "临时目录内安装 Python 3.11.18，未注册系统运行时；新 venv 位于临时仓库副本",
+    "backend_dependencies": "pip install --require-hashes -r requirements.lock；pip check 无依赖冲突",
+    "frontend_dependencies": "npm ci --no-audit --no-fund；锁文件安装 10 个包",
+    "frontend_install_note": "npm 11 提示 esbuild 安装脚本尚未获 npm allowScripts 批准；typecheck 和 production build 均成功"
+  },
+  "synthetic_runtime_configuration": {
+    "APP_ENV": "development",
+    "APP_AUTH_MODE": "local",
+    "NEXENT_MODE": "simulator",
+    "APP_DATA_DIR": "%TEMP%\\clinical-deploy-ythoe4vr\\run-05\\source-data",
+    "INTEGRATION_DB_PATH": "%TEMP%\\clinical-deploy-ythoe4vr\\run-05\\external-runtime\\integration.sqlite3",
+    "accounts": "仅在临时数据库创建的合成教师/学生账号；密码由随机数生成且未写入报告或日志",
+    "department_catalog": "通过部署 CLI 建立合成当前/上一版配置；启用项仅供该模拟病例演练",
+    "model_requests": 0,
+    "credentials_read": false
+  },
+  "commands_and_results": [
+    {
+      "command": "uv python install 3.11 --install-dir %TEMP%\\clinical-deploy-ythoe4vr\\python --no-registry",
+      "result": "安装 Python 3.11.18 至临时根目录；未注册系统 Python。uv 提示用户级 python3.11.exe 已存在且非 uv 管理，未覆盖该文件。"
+    },
+    {
+      "command": "<temp-python> -m venv <clean-clone>/.venv && <clone-venv-python> -m pip install --require-hashes -r requirements.lock",
+      "result": "锁定依赖安装成功；pip check 返回 No broken requirements found；FastAPI、uvicorn、pytest 导入成功。"
+    },
+    {
+      "command": "npm ci --no-audit --no-fund && npm run typecheck && npm run build（工作目录 web）",
+      "result": "依赖安装、TypeScript 类型检查和构建均成功。构建后 web/dist 与提交内容经 git diff --quiet 比较无内容差异；main.js SHA-256 为 591cb95c0bc9c01d114072435dd2bd0b00da2356b817a527b7450f2eaea9740f。"
+    },
+    {
+      "command": "<clone-venv-python> -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port <临时空闲端口>",
+      "result": "服务仅绑定 loopback；GET /health 返回 status=ok、patient_adapter=simulator；GET / 返回 React 页面 200；/api/auth/config 为 local。"
+    },
+    {
+      "command": "BASE=<loopback> OUT=<临时证据目录> CHROME=<本机 Edge> TEACHER=<合成账号> TEACHER_PW=<临时随机密码> E2E_STUDENT=<合成账号> node e2e/smoke.mjs（工作目录 web）",
+      "result": "13/13 浏览器步骤通过：教师建班/导入学生/布置任务，学生登录、问诊、检查、提交和评分，教师查看进度与评分复核。原始脚本输出与截图在本轮临时根目录清理时一并删除；仓库仅保留本 JSON 摘要。"
+    },
+    {
+      "command": "python -m pytest -q tests/test_data_backup_restore.py（干净副本，Python 3.11.18 venv）",
+      "result": "6 passed in 2.84s。"
+    },
+    {
+      "command": "python -m pytest -q（干净副本，Python 3.11.18 venv）",
+      "result": "740 passed in 190.94s。"
+    },
+    {
+      "command": "python -m compileall -q backend/app frontend tests scripts（干净副本）",
+      "result": "通过。"
+    }
+  ],
+  "application_flow": {
+    "browser_result": "13/13",
+    "training": "合成学生在模拟器中完成问诊、开单、病历/鉴别/诊断/处置及封存；恢复比较覆盖的该训练有 19 个事件和封存评分快照",
+    "teacher_score_review": "合成教师逐项复核并保存 revision 1；只证明工程保存/回看流程，不是专家评分",
+    "teacher_case": "通过教师 API 从 STEMI-001@3 创建 SYNTH-DEPLOYMENT-CASE v1 草稿，保留来源；audit 仅含 draft_saved；未送医学审核、未发布、病例事实未修改",
+    "case_status": "内置病例仍为 draft；开发模式仅用于此次本地演练"
+  },
+  "backup_restore": {
+    "services_stopped_before_backup": true,
+    "backup_command": "python scripts/backup_restore.py backup --data-dir <synthetic APP_DATA_DIR> --integration-db <external synthetic DB> --destination <new temp backup> --confirm-services-stopped",
+    "restore_command": "python scripts/backup_restore.py restore --source <temp backup> --target-data-dir <never-existing temp directory> --confirm-services-stopped",
+    "manifest_file_count": 7,
+    "manifest_paths": [
+      "accounts.db",
+      "app.db",
+      "department-catalog.json",
+      "department-catalog.json.previous",
+      "integration.db",
+      "teacher_cases/SYNTH-DEPLOYMENT-CASE__v1.json",
+      "teacher_cases/case-audit.jsonl"
+    ],
+    "manifest_excluded_paths": "未发现 .env、key.txt、上传目录、图片扩展名、临时文件、SQLite -wal/-shm 路径；源目录仅含本轮合成数据。独立回归还验证未知 uploads 目录导致整包受控拒绝。",
+    "semantic_restore_comparison": {
+      "result": "完全一致",
+      "compared": [
+        "应用数据库全部训练状态/事件及封存评分",
+        "集成数据库全部业务表行（包含教师复核）",
+        "教师病例 JSON、来源病例/版本、病例操作审计",
+        "科室当前配置与 .previous 配置",
+        "账号记录（不包含登录会话表）"
+      ],
+      "source_login_sessions": 4,
+      "restored_login_sessions": 0,
+      "old_bearer_after_restore": "HTTP 401",
+      "fresh_synthetic_teacher_login_after_restore": "HTTP 200"
+    },
+    "controlled_rejections": [
+      "备份缺少 --confirm-services-stopped：CLI exit 2，目标未创建",
+      "恢复缺少 --confirm-services-stopped：CLI exit 2，目标未创建",
+      "篡改 payload/app.db：CLI exit 2，目标及 staging 均不存在",
+      "恢复到已有目录：CLI exit 2，合成 sentinel 原样保留",
+      "恢复 staging 故障及未知上传目录的拒绝/清理由 6 项专项回归覆盖"
+    ]
+  },
+  "harness_retry_notes": [
+    "早期临时演练驱动尝试出现 Windows npm.cmd 启动方式、临时路径复用保护、基础解释器缺少依赖、HTML 被误当 JSON、以及驱动将全局临时路径误从 locals 读取等错误。均在业务流程/备份验证完成前暴露，未触及任何现存数据或凭据；涉及已运行的临时服务均由 finally 停止，相关临时目录随后核对并清理。",
+    "最终使用全新 run-05 目录，39 项驱动断言全部通过；浏览器 13/13、备份/恢复往返与恢复后认证验证均成功。"
+  ],
+  "not_verified": [
+    "异机、生产及真实业务数据部署/恢复",
+    "在线热备份；SQLite 多库/文件一致性仍要求 API、MCP 和所有写入者停机",
+    "Windows ACL 审计、备份静态加密/异地保管",
+    "监控告警、恢复点/恢复时间目标和备份保留轮转",
+    "真实临床审核、真实学生/专家评测或官方验收",
+    "真实模型、Nexent 或任何供应商请求",
+    "本机 pip-audit；基线对应的 GitHub dependency-audit 已通过，当前文档提交的 CI 需另行核验"
+  ],
+  "conclusion": "这是 Windows 同机临时干净克隆和合成数据下的工程部署/离线恢复证据，不证明异机、生产、在线备份或临床验收；第一阶段仍未准出。"
+}

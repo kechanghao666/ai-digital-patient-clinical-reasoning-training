@@ -1,0 +1,988 @@
+{
+  "date": "2026-11-28",
+  "source_head_before_changes": "e099d29458e95e83bcec5834ce7f17878a9bfec9",
+  "official_source_hashes": [
+    {
+      "file": "requirements.md",
+      "matches": true
+    },
+    {
+      "file": "upstream-readme.md",
+      "matches": true
+    },
+    {
+      "file": "upstream-LICENSE",
+      "matches": true
+    },
+    {
+      "file": "announcement.md",
+      "matches": true
+    }
+  ],
+  "official_upstream_main_read": "0f3403ff87215a34e8c32e16a1b86536d811e960",
+  "official_announcement": "2026-11-27 archived source; not fetched again on 2026-11-28",
+  "case_version_files": 11,
+  "unique_cases": 5,
+  "case_review_statuses": [
+    "draft"
+  ],
+  "tracked_files": 490,
+  "credential_signature_hits": [],
+  "credential_scan_limit": "tracked UTF-8 files <=2MB; private-key/GitHub token signatures only; not a comprehensive secret scan",
+  "python_locked_metadata": [
+    {
+      "name": "aiofile",
+      "locked": "3.12.3",
+      "installed": "3.12.3",
+      "license_metadata": "Apache-2.0",
+      "license_classifiers": [
+        "License :: OSI Approved :: Apache Software License"
+      ]
+    },
+    {
+      "name": "altair",
+      "locked": "5.5.0",
+      "installed": "5.5.0",
+      "license_metadata": "long-text: inspect installed license",
+      "license_classifiers": [
+        "License :: OSI Approved :: BSD License"
+      ]
+    },
+    {
+      "name": "annotated-doc",
+      "locked": "0.0.5",
+      "installed": "0.0.5",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "annotated-types",
+      "locked": "0.8.0",
+      "installed": "0.8.0",
+      "license_metadata": "MIT",
+      "license_classifiers": [
+        "License :: OSI Approved :: MIT License"
+      ]
+    },
+    {
+      "name": "anyio",
+      "locked": "4.16.0",
+      "installed": "4.16.0",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "attrs",
+      "locked": "26.1.0",
+      "installed": "26.1.0",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "authlib",
+      "locked": "1.9.5",
+      "installed": "1.9.5",
+      "license_metadata": "BSD-3-Clause",
+      "license_classifiers": [
+        "License :: OSI Approved :: BSD License"
+      ]
+    },
+    {
+      "name": "beartype",
+      "locked": "0.23.1",
+      "installed": "0.23.1",
+      "license_metadata": "MIT",
+      "license_classifiers": [
+        "License :: OSI Approved :: MIT License"
+      ]
+    },
+    {
+      "name": "cachetools",
+      "locked": "8.0.0",
+      "installed": "8.0.0",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "caio",
+      "locked": "0.12.10",
+      "installed": "0.12.10",
+      "license_metadata": "Apache-2.0",
+      "license_classifiers": []
+    },
+    {
+      "name": "certifi",
+      "locked": "2026.10.23",
+      "installed": "2026.10.23",
+      "license_metadata": "MPL-2.0",
+      "license_classifiers": [
+        "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)"
+      ]
+    },
+    {
+      "name": "cffi",
+      "locked": "2.1.1",
+      "installed": "2.1.1",
+      "license_metadata": "MIT-0",
+      "license_classifiers": []
+    },
+    {
+      "name": "charset-normalizer",
+      "locked": "3.5.2",
+      "installed": "3.5.2",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "click",
+      "locked": "8.5.1",
+      "installed": "8.5.1",
+      "license_metadata": "BSD-3-Clause",
+      "license_classifiers": []
+    },
+    {
+      "name": "colorama",
+      "locked": "0.4.6",
+      "installed": "0.4.6",
+      "license_metadata": "unknown",
+      "license_classifiers": [
+        "License :: OSI Approved :: BSD License"
+      ]
+    },
+    {
+      "name": "cryptography",
+      "locked": "50.0.2",
+      "installed": "50.0.2",
+      "license_metadata": "Apache-2.0 OR BSD-3-Clause",
+      "license_classifiers": []
+    },
+    {
+      "name": "cyclopts",
+      "locked": "5.3.3",
+      "installed": "5.3.3",
+      "license_metadata": "Apache-2.0",
+      "license_classifiers": [
+        "License :: OSI Approved :: Apache Software License"
+      ]
+    },
+    {
+      "name": "dnspython",
+      "locked": "2.9.2",
+      "installed": "2.9.2",
+      "license_metadata": "ISC",
+      "license_classifiers": []
+    },
+    {
+      "name": "docstring-parser",
+      "locked": "0.18.0",
+      "installed": "0.18.0",
+      "license_metadata": "MIT",
+      "license_classifiers": [
+        "License :: OSI Approved :: MIT License"
+      ]
+    },
+    {
+      "name": "email-validator",
+      "locked": "2.3.0",
+      "installed": "2.3.0",
+      "license_metadata": "Unlicense",
+      "license_classifiers": [
+        "License :: OSI Approved :: The Unlicense (Unlicense)"
+      ]
+    },
+    {
+      "name": "exceptiongroup",
+      "locked": "1.3.1",
+      "installed": "1.3.1",
+      "license_metadata": "unknown",
+      "license_classifiers": [
+        "License :: OSI Approved :: MIT License"
+      ]
+    },
+    {
+      "name": "fastapi",
+      "locked": "0.162.0",
+      "installed": "0.162.0",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "fastmcp",
+      "locked": "4.1.6",
+      "installed": "4.1.6",
+      "license_metadata": "Apache-2.0",
+      "license_classifiers": [
+        "License :: OSI Approved :: Apache Software License"
+      ]
+    },
+    {
+      "name": "fastmcp-slim",
+      "locked": "4.1.6",
+      "installed": "4.1.6",
+      "license_metadata": "Apache-2.0",
+      "license_classifiers": [
+        "License :: OSI Approved :: Apache Software License"
+      ]
+    },
+    {
+      "name": "griffelib",
+      "locked": "2.4.1",
+      "installed": "2.4.1",
+      "license_metadata": "ISC",
+      "license_classifiers": []
+    },
+    {
+      "name": "h11",
+      "locked": "0.16.0",
+      "installed": "0.16.0",
+      "license_metadata": "MIT",
+      "license_classifiers": [
+        "License :: OSI Approved :: MIT License"
+      ]
+    },
+    {
+      "name": "httpcore",
+      "locked": "1.0.9",
+      "installed": "1.0.9",
+      "license_metadata": "BSD-3-Clause",
+      "license_classifiers": [
+        "License :: OSI Approved :: BSD License"
+      ]
+    },
+    {
+      "name": "httpcore2",
+      "locked": "2.16.0",
+      "installed": "2.16.0",
+      "license_metadata": "BSD-3-Clause",
+      "license_classifiers": [
+        "License :: OSI Approved :: BSD License"
+      ]
+    },
+    {
+      "name": "httptools",
+      "locked": "0.9.0",
+      "installed": "0.9.0",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "httpx",
+      "locked": "0.28.1",
+      "installed": "0.28.1",
+      "license_metadata": "BSD-3-Clause",
+      "license_classifiers": [
+        "License :: OSI Approved :: BSD License"
+      ]
+    },
+    {
+      "name": "httpx2",
+      "locked": "2.16.0",
+      "installed": "2.16.0",
+      "license_metadata": "BSD-3-Clause",
+      "license_classifiers": [
+        "License :: OSI Approved :: BSD License"
+      ]
+    },
+    {
+      "name": "httpx2-jsfetch",
+      "locked": "1.0",
+      "installed": null,
+      "license_metadata": "not inspected"
+    },
+    {
+      "name": "idna",
+      "locked": "3.20",
+      "installed": "3.20",
+      "license_metadata": "BSD-3-Clause",
+      "license_classifiers": []
+    },
+    {
+      "name": "iniconfig",
+      "locked": "2.3.1",
+      "installed": "2.3.1",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "itsdangerous",
+      "locked": "2.2.0",
+      "installed": "2.2.0",
+      "license_metadata": "unknown",
+      "license_classifiers": [
+        "License :: OSI Approved :: BSD License"
+      ]
+    },
+    {
+      "name": "jinja2",
+      "locked": "3.1.6",
+      "installed": "3.1.6",
+      "license_metadata": "unknown",
+      "license_classifiers": [
+        "License :: OSI Approved :: BSD License"
+      ]
+    },
+    {
+      "name": "joserfc",
+      "locked": "1.8.0",
+      "installed": "1.8.0",
+      "license_metadata": "BSD-3-Clause",
+      "license_classifiers": [
+        "License :: OSI Approved :: BSD License"
+      ]
+    },
+    {
+      "name": "jsonref",
+      "locked": "1.1.0",
+      "installed": "1.1.0",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "jsonschema",
+      "locked": "4.26.0",
+      "installed": "4.26.0",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "jsonschema-path",
+      "locked": "0.5.0",
+      "installed": "0.5.0",
+      "license_metadata": "Apache-2.0",
+      "license_classifiers": [
+        "License :: OSI Approved :: Apache Software License"
+      ]
+    },
+    {
+      "name": "jsonschema-specifications",
+      "locked": "2025.9.1",
+      "installed": "2025.9.1",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "markdown-it-py",
+      "locked": "4.2.0",
+      "installed": "4.2.0",
+      "license_metadata": "unknown",
+      "license_classifiers": [
+        "License :: OSI Approved :: MIT License"
+      ]
+    },
+    {
+      "name": "markupsafe",
+      "locked": "3.0.4",
+      "installed": "3.0.4",
+      "license_metadata": "BSD-3-Clause",
+      "license_classifiers": []
+    },
+    {
+      "name": "mcp",
+      "locked": "2.3.0",
+      "installed": "2.3.0",
+      "license_metadata": "MIT",
+      "license_classifiers": [
+        "License :: OSI Approved :: MIT License"
+      ]
+    },
+    {
+      "name": "mcp-types",
+      "locked": "2.3.0",
+      "installed": "2.3.0",
+      "license_metadata": "MIT",
+      "license_classifiers": [
+        "License :: OSI Approved :: MIT License"
+      ]
+    },
+    {
+      "name": "mdurl",
+      "locked": "0.1.2",
+      "installed": "0.1.2",
+      "license_metadata": "unknown",
+      "license_classifiers": [
+        "License :: OSI Approved :: MIT License"
+      ]
+    },
+    {
+      "name": "narwhals",
+      "locked": "2.28.0",
+      "installed": "2.28.0",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "numpy",
+      "locked": "2.4.6",
+      "installed": "2.4.6",
+      "license_metadata": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
+      "license_classifiers": []
+    },
+    {
+      "name": "numpy",
+      "locked": "2.5.4",
+      "installed": "2.4.6",
+      "license_metadata": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
+      "license_classifiers": []
+    },
+    {
+      "name": "openapi-pydantic",
+      "locked": "0.6.0",
+      "installed": "0.6.0",
+      "license_metadata": "MIT",
+      "license_classifiers": [
+        "License :: OSI Approved :: MIT License"
+      ]
+    },
+    {
+      "name": "opentelemetry-api",
+      "locked": "1.45.2",
+      "installed": "1.45.2",
+      "license_metadata": "Apache-2.0",
+      "license_classifiers": []
+    },
+    {
+      "name": "packaging",
+      "locked": "24.2",
+      "installed": "24.2",
+      "license_metadata": "unknown",
+      "license_classifiers": [
+        "License :: OSI Approved :: Apache Software License",
+        "License :: OSI Approved :: BSD License"
+      ]
+    },
+    {
+      "name": "pandas",
+      "locked": "2.3.3",
+      "installed": "2.3.3",
+      "license_metadata": "long-text: inspect installed license",
+      "license_classifiers": [
+        "License :: OSI Approved :: BSD License"
+      ]
+    },
+    {
+      "name": "pathable",
+      "locked": "0.6.0",
+      "installed": "0.6.0",
+      "license_metadata": "Apache-2.0",
+      "license_classifiers": [
+        "License :: OSI Approved :: Apache Software License"
+      ]
+    },
+    {
+      "name": "pillow",
+      "locked": "13.0.0",
+      "installed": "13.0.0",
+      "license_metadata": "MIT-CMU",
+      "license_classifiers": []
+    },
+    {
+      "name": "platformdirs",
+      "locked": "4.14.5",
+      "installed": "4.14.5",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "pluggy",
+      "locked": "1.7.0",
+      "installed": "1.7.0",
+      "license_metadata": "MIT",
+      "license_classifiers": [
+        "License :: OSI Approved :: MIT License"
+      ]
+    },
+    {
+      "name": "protobuf",
+      "locked": "5.29.6",
+      "installed": "5.29.6",
+      "license_metadata": "3-Clause BSD License",
+      "license_classifiers": []
+    },
+    {
+      "name": "py-key-value-aio",
+      "locked": "0.4.6",
+      "installed": "0.4.6",
+      "license_metadata": "Apache-2.0",
+      "license_classifiers": []
+    },
+    {
+      "name": "pyarrow",
+      "locked": "26.0.1",
+      "installed": "26.0.1",
+      "license_metadata": "Apache-2.0",
+      "license_classifiers": []
+    },
+    {
+      "name": "pycparser",
+      "locked": "3.12",
+      "installed": "3.12",
+      "license_metadata": "BSD-3-Clause",
+      "license_classifiers": []
+    },
+    {
+      "name": "pydantic",
+      "locked": "2.12.4",
+      "installed": "2.12.4",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "pydantic-core",
+      "locked": "2.41.5",
+      "installed": "2.41.5",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "pydantic-settings",
+      "locked": "2.16.2",
+      "installed": "2.16.2",
+      "license_metadata": "MIT",
+      "license_classifiers": [
+        "License :: OSI Approved :: MIT License"
+      ]
+    },
+    {
+      "name": "pydeck",
+      "locked": "0.9.3",
+      "installed": "0.9.3",
+      "license_metadata": "Apache License 2.0",
+      "license_classifiers": []
+    },
+    {
+      "name": "pygments",
+      "locked": "2.21.0",
+      "installed": "2.21.0",
+      "license_metadata": "BSD-2-Clause",
+      "license_classifiers": []
+    },
+    {
+      "name": "pyjwt",
+      "locked": "2.15.1",
+      "installed": "2.15.1",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "pyperclip",
+      "locked": "1.11.0",
+      "installed": "1.11.0",
+      "license_metadata": "BSD",
+      "license_classifiers": [
+        "License :: OSI Approved :: BSD License"
+      ]
+    },
+    {
+      "name": "pytest",
+      "locked": "9.2.0",
+      "installed": "9.2.0",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "python-dateutil",
+      "locked": "4.0.0",
+      "installed": "4.0.0",
+      "license_metadata": "BSD-3-Clause",
+      "license_classifiers": []
+    },
+    {
+      "name": "python-dotenv",
+      "locked": "1.2.4",
+      "installed": "1.2.4",
+      "license_metadata": "BSD-3-Clause",
+      "license_classifiers": []
+    },
+    {
+      "name": "python-multipart",
+      "locked": "0.0.33",
+      "installed": "0.0.33",
+      "license_metadata": "Apache-2.0",
+      "license_classifiers": [
+        "License :: OSI Approved :: Apache Software License"
+      ]
+    },
+    {
+      "name": "pytz",
+      "locked": "2026.6",
+      "installed": "2026.6",
+      "license_metadata": "MIT",
+      "license_classifiers": [
+        "License :: OSI Approved :: MIT License"
+      ]
+    },
+    {
+      "name": "pywin32",
+      "locked": "312",
+      "installed": "312",
+      "license_metadata": "PSF",
+      "license_classifiers": [
+        "License :: OSI Approved :: Python Software Foundation License"
+      ]
+    },
+    {
+      "name": "pyyaml",
+      "locked": "6.0.3",
+      "installed": "6.0.3",
+      "license_metadata": "MIT",
+      "license_classifiers": [
+        "License :: OSI Approved :: MIT License"
+      ]
+    },
+    {
+      "name": "referencing",
+      "locked": "0.37.0",
+      "installed": "0.37.0",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "requests",
+      "locked": "2.34.2",
+      "installed": "2.34.2",
+      "license_metadata": "Apache-2.0",
+      "license_classifiers": [
+        "License :: OSI Approved :: Apache Software License"
+      ]
+    },
+    {
+      "name": "rich",
+      "locked": "15.0.0",
+      "installed": "15.0.0",
+      "license_metadata": "MIT",
+      "license_classifiers": [
+        "License :: OSI Approved :: MIT License"
+      ]
+    },
+    {
+      "name": "rich-rst",
+      "locked": "2.2.0",
+      "installed": "2.2.0",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "rpds-py",
+      "locked": "2026.9.1",
+      "installed": "2026.9.1",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "sse-starlette",
+      "locked": "3.7.0",
+      "installed": "3.7.0",
+      "license_metadata": "BSD-3-Clause",
+      "license_classifiers": []
+    },
+    {
+      "name": "starlette",
+      "locked": "1.10.0",
+      "installed": "1.10.0",
+      "license_metadata": "BSD-3-Clause",
+      "license_classifiers": []
+    },
+    {
+      "name": "streamlit",
+      "locked": "1.67.0",
+      "installed": "1.67.0",
+      "license_metadata": "Apache-2.0",
+      "license_classifiers": []
+    },
+    {
+      "name": "truststore",
+      "locked": "0.10.5",
+      "installed": "0.10.5",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "typing-extensions",
+      "locked": "4.16.0",
+      "installed": "4.16.0",
+      "license_metadata": "PSF-2.0",
+      "license_classifiers": []
+    },
+    {
+      "name": "typing-inspection",
+      "locked": "0.4.5",
+      "installed": "0.4.5",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "tzdata",
+      "locked": "2026.6",
+      "installed": "2026.6",
+      "license_metadata": "Apache-2.0",
+      "license_classifiers": []
+    },
+    {
+      "name": "uncalled-for",
+      "locked": "0.6.0",
+      "installed": "0.6.0",
+      "license_metadata": "MIT",
+      "license_classifiers": [
+        "License :: OSI Approved :: MIT License"
+      ]
+    },
+    {
+      "name": "urllib3",
+      "locked": "2.8.0",
+      "installed": "2.8.0",
+      "license_metadata": "MIT",
+      "license_classifiers": []
+    },
+    {
+      "name": "uvicorn",
+      "locked": "0.54.0",
+      "installed": "0.54.0",
+      "license_metadata": "BSD-3-Clause",
+      "license_classifiers": []
+    },
+    {
+      "name": "uvloop",
+      "locked": "0.23.0",
+      "installed": null,
+      "license_metadata": "not inspected"
+    },
+    {
+      "name": "watchdog",
+      "locked": "6.0.0",
+      "installed": "6.0.0",
+      "license_metadata": "Apache-2.0",
+      "license_classifiers": [
+        "License :: OSI Approved :: Apache Software License"
+      ]
+    },
+    {
+      "name": "watchfiles",
+      "locked": "1.3.0",
+      "installed": "1.3.0",
+      "license_metadata": "MIT",
+      "license_classifiers": [
+        "License :: OSI Approved :: MIT License"
+      ]
+    },
+    {
+      "name": "websockets",
+      "locked": "17.4",
+      "installed": "17.4",
+      "license_metadata": "BSD-3-Clause",
+      "license_classifiers": []
+    }
+  ],
+  "npm_lock_metadata": [
+    {
+      "package_path": "node_modules/@esbuild/aix-ppc64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/android-arm",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/android-arm64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/android-x64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/darwin-arm64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/darwin-x64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/freebsd-arm64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/freebsd-x64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/linux-arm",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/linux-arm64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/linux-ia32",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/linux-loong64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/linux-mips64el",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/linux-ppc64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/linux-riscv64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/linux-s390x",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/linux-x64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/netbsd-arm64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/netbsd-x64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/openbsd-arm64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/openbsd-x64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/openharmony-arm64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/sunos-x64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/win32-arm64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/win32-ia32",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@esbuild/win32-x64",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": true
+    },
+    {
+      "package_path": "node_modules/@types/react",
+      "version": "19.2.2",
+      "license_metadata": "MIT",
+      "optional": false
+    },
+    {
+      "package_path": "node_modules/@types/react-dom",
+      "version": "19.2.2",
+      "license_metadata": "MIT",
+      "optional": false
+    },
+    {
+      "package_path": "node_modules/csstype",
+      "version": "3.2.4",
+      "license_metadata": "MIT",
+      "optional": false
+    },
+    {
+      "package_path": "node_modules/esbuild",
+      "version": "0.28.2",
+      "license_metadata": "MIT",
+      "optional": false
+    },
+    {
+      "package_path": "node_modules/playwright-core",
+      "version": "1.65.1",
+      "license_metadata": "Apache-2.0",
+      "optional": false
+    },
+    {
+      "package_path": "node_modules/react",
+      "version": "19.2.0",
+      "license_metadata": "MIT",
+      "optional": false
+    },
+    {
+      "package_path": "node_modules/react-dom",
+      "version": "19.2.0",
+      "license_metadata": "MIT",
+      "optional": false
+    },
+    {
+      "package_path": "node_modules/scheduler",
+      "version": "0.27.0",
+      "license_metadata": "MIT",
+      "optional": false
+    },
+    {
+      "package_path": "node_modules/typescript",
+      "version": "5.9.3",
+      "license_metadata": "Apache-2.0",
+      "optional": false
+    }
+  ],
+  "license_limit": "inventory only; metadata is not legal/NOTICE/compatibility clearance; platform-specific uninstalled packages not inspected"
+}

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import sqlite3
 from typing import Any, Callable
 
 from ..adapters import diagnosis_leak_terms
@@ -51,9 +53,9 @@ class TrustedToolService:
         try:
             state = self.repository.get(turn.session_id, turn.owner_id)
         except KeyError as exc:
-            raise TurnError("session_missing", "session is not available") from exc
+            raise TurnError("session_missing", "session is not available", turn.turn_id) from exc
         if state.case_id != turn.case_id or state.case_version != turn.case_version:
-            raise TurnError("case_mismatch", "session case no longer matches the turn")
+            raise TurnError("case_mismatch", "session case no longer matches the turn", turn.turn_id)
         try:
             self.cases.reload()
         except (ValueError, OSError) as exc:
@@ -67,13 +69,13 @@ class TrustedToolService:
         if kind == turn_states.PATIENT:
             if state.sealed:
                 self.turns.cancel(turn.turn_id, "session_sealed")
-                raise TurnError("session_sealed", "session is sealed")
+                raise TurnError("session_sealed", "session is sealed", turn.turn_id)
             if state.state_version != turn.state_version:
                 self.turns.cancel(turn.turn_id, "state_changed")
-                raise TurnError("state_changed", "session changed after this turn began")
+                raise TurnError("state_changed", "session changed after this turn began", turn.turn_id)
         else:
             if not state.sealed:
-                raise TurnError("not_sealed", "feedback is only available after sealing")
+                raise TurnError("not_sealed", "feedback is only available after sealing", turn.turn_id)
         return turn, state, case
 
     def _guard(self, token: str, kind: str, tool: str, body: Callable[[Turn, SessionState, CaseDefinition], dict[str, Any]], allow: tuple[str, ...] = (turn_states.OPEN,)) -> dict[str, Any]:
@@ -90,8 +92,20 @@ class TrustedToolService:
             audited = turn_id or exc.turn_id
             if audited:
                 self.turns.record_call(audited, tool, False, exc.code)
+                if tool == "submit_fact_selection":
+                    closed = exc.code in {"turn_submitted", "turn_expired", "turn_finalized", "turn_cancelled"}
+                    semantic = "submit_fact_selection_not_open" if closed else "submit_fact_selection_failed"
+                    self.turns.record_boundary(audited, semantic, exc.code)
             return _fail(exc.code, str(exc))
-        self.turns.record_call(turn.turn_id, tool, bool(result.get("ok")), "" if result.get("ok") else str(result.get("error", "")))
+        detail = ""
+        if not result.get("ok"):
+            # Record the validator's de-identified reason (error category / stage), never the
+            # caller payload, model payload, case text or credentials.
+            detail = str(result.get("error") or "")
+            message = str(result.get("message") or "")
+            if message and message != detail:
+                detail = f"{detail}: {message}"
+        self.turns.record_call(turn.turn_id, tool, bool(result.get("ok")), detail)
         return result
 
     # ---------------------------------------------------------------- patient tools
@@ -118,13 +132,30 @@ class TrustedToolService:
     def submit_fact_selection(self, turn_token: str, fact_ids: list[str]) -> dict[str, Any]:
         def body(turn: Turn, state: SessionState, case: CaseDefinition) -> dict[str, Any]:
             if not isinstance(fact_ids, list) or not all(isinstance(item, str) for item in fact_ids):
+                self.turns.record_boundary(
+                    turn.turn_id, "submit_fact_selection_rejected",
+                    detail="invalid_selection: fact_ids must be a list of strings",
+                )
                 return _fail("invalid_selection", "fact_ids must be a list of strings")
             unique = list(dict.fromkeys(fact_ids))
             allowed = set(turn.candidate_fact_ids)
             if any(item not in allowed for item in unique):
+                self.turns.record_boundary(
+                    turn.turn_id, "submit_fact_selection_rejected",
+                    detail="unauthorized_fact: selection contains a fact that is not a candidate for this turn",
+                )
                 return _fail("unauthorized_fact", "selection contains a fact that is not a candidate for this turn")
-            if not self.turns.submit(turn.turn_id, {"fact_ids": unique}):
+            if not self.turns.submit(turn.turn_id, {"fact_ids": unique}, observe_patient_submit=True):
+                self.turns.record_boundary(
+                    turn.turn_id, "submit_fact_selection_not_open",
+                    detail="turn_not_open: selection was already submitted or the turn closed",
+                )
                 return _fail("turn_not_open", "selection was already submitted or the turn closed")
+            try:
+                self.turns.record_boundary(turn.turn_id, "submit_fact_selection_committed")
+            except sqlite3.Error:
+                # The selection is already committed. Its atomic pre-commit sample remains available.
+                logging.getLogger(__name__).warning("MCP post-commit sample unavailable")
             return {
                 "ok": True,
                 "selected": unique,
@@ -175,7 +206,7 @@ class TrustedToolService:
                     "treatment": (state.treatment_submission or {}).get("treatment_id"),
                 },
                 "events": events,
-                "stage_basis": self._stage_basis(case, "临床思维 反馈 改进建议"),
+                "stage_basis": feedback_stage_basis(self.knowledge, case),
                 "note": (
                     "分数由系统给定，不得修改。五环节各提交一条评语和非空改进建议，"
                     "引用本环节教学依据；有事件时引用真实event_id，未操作时说明缺失，不编造事件。"
@@ -185,25 +216,12 @@ class TrustedToolService:
 
         return self._guard(turn_token, turn_states.FEEDBACK, "get_sealed_review", body)
 
-    def _stage_basis(self, case: CaseDefinition, query: str) -> dict[str, dict[str, str]]:
-        candidates = {}
-        for stage in FEEDBACK_STAGES:
-            matches = self.knowledge.search(
-                f"{query} {stage}", case.case_id, stage, limit=1, case_version=case.version,
-            )
-            if matches:
-                entry = matches[0]
-                candidates[stage] = {
-                    "basis_id": entry.basis_id, "title": entry.title, "excerpt": entry.text[:90],
-                }
-        return candidates
-
     def search_teaching_basis(self, turn_token: str, query: str, stage: str | None = None) -> dict[str, Any]:
         def body(turn: Turn, state: SessionState, case: CaseDefinition) -> dict[str, Any]:
             if not isinstance(query, str) or not query.strip() or len(query) > 200:
                 return _fail("invalid_query", "query must be a non-empty string of at most 200 characters")
             entries = self.knowledge.search(query, case.case_id, stage, case_version=case.version)
-            stage_basis = self._stage_basis(case, query) if stage is None else {}
+            stage_basis = feedback_stage_basis(self.knowledge, case, query) if stage is None else {}
             return {
                 "stage_basis": stage_basis,
                 "ok": True,
@@ -223,9 +241,38 @@ class TrustedToolService:
 
         return self._guard(turn_token, turn_states.FEEDBACK, "search_teaching_basis", body)
 
-    def submit_feedback(self, turn_token: str, items: list[dict[str, Any]]) -> dict[str, Any]:
+    def submit_feedback(
+        self, turn_token: str, items: list[dict[str, Any]], use_stage_basis: bool = False
+    ) -> dict[str, Any]:
         def body(turn: Turn, state: SessionState, case: CaseDefinition) -> dict[str, Any]:
-            problem = validate_feedback_items(items, state, case, self.knowledge)
+            submission = items
+            if use_stage_basis:
+                snapshot = state.score_snapshot
+                if snapshot is None:
+                    return _fail("no_score", "sealed score snapshot is not available")
+                basis = feedback_stage_basis(self.knowledge, case)
+                if set(basis) != set(FEEDBACK_STAGES):
+                    return _fail("basis_unavailable", "each stage requires applicable teaching basis")
+                if not isinstance(items, list) or len(items) != len(FEEDBACK_STAGES) or any(
+                    not isinstance(item, dict)
+                    or set(item) != {"stage", "comment", "improvement"}
+                    or not isinstance(item["stage"], str)
+                    or item["stage"] not in FEEDBACK_STAGES
+                    for item in items
+                ):
+                    return _fail("invalid_feedback", "compact items require stage, comment and improvement only")
+                submission = [
+                    {
+                        **item,
+                        "basis_ids": [basis[item["stage"]]["basis_id"]],
+                        "evidence_event_ids": [
+                            event_id for score in snapshot.items if score.stage == item["stage"]
+                            for event_id in score.evidence_event_ids
+                        ],
+                    }
+                    for item in items
+                ]
+            problem = validate_feedback_items(submission, state, case, self.knowledge)
             if isinstance(problem, str):
                 return _fail("invalid_feedback", problem)
             if not self.turns.submit(turn.turn_id, {"items": problem, "basis_snapshot": self.knowledge.snapshot(problem, case.case_id, case.version)}):
@@ -233,6 +280,20 @@ class TrustedToolService:
             return {"ok": True, "accepted_items": len(problem)}
 
         return self._guard(turn_token, turn_states.FEEDBACK, "submit_feedback", body)
+
+
+def feedback_stage_basis(knowledge: KnowledgeStore, case: CaseDefinition, query: str = "临床思维 反馈 改进建议") -> dict[str, dict[str, str]]:
+    candidates = {}
+    for stage in FEEDBACK_STAGES:
+        matches = knowledge.search(
+            f"{query} {stage}", case.case_id, stage, limit=5, case_version=case.version,
+        )
+        entry = next((item for item in matches if item.kind == "clinical"), None) or (matches[0] if matches else None)
+        if entry:
+            candidates[stage] = {
+                "basis_id": entry.basis_id, "title": entry.title, "excerpt": entry.text[:90],
+            }
+    return candidates
 
 
 def validate_feedback_items(
@@ -252,7 +313,7 @@ def validate_feedback_items(
             return "each item must be an object"
         extra = set(item) - {"stage", "comment", "improvement", "evidence_event_ids", "basis_ids"}
         if extra:
-            return f"unknown fields are not allowed: {sorted(extra)}"
+            return "unknown fields are not allowed"
         stage, comment = item.get("stage"), item.get("comment")
         improvement = item.get("improvement", "")
         if not isinstance(stage, str) or stage not in FEEDBACK_STAGES or stage in seen:
@@ -275,8 +336,10 @@ def validate_feedback_items(
         if any(stage not in knowledge.get(v, case.case_id, case.version).stages for v in basis):
             return "basis_ids must apply to the feedback stage"
         lowered = "".join((comment + " " + improvement).casefold().split())
-        if any(marker in lowered for marker in FORBIDDEN_MARKERS) or any(term in lowered for term in forbidden):
-            return "text contains content that is not allowed in student feedback"
+        if any(marker in lowered for marker in FORBIDDEN_MARKERS):
+            return "text contains an internal marker that is not allowed"
+        if any(term in lowered for term in forbidden):
+            return "text contains a diagnosis term that is not allowed"
         normalized.append(
             {
                 "stage": stage,

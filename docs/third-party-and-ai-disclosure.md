@@ -1,5 +1,9 @@
 # 第三方资源与AI工具披露
 
+2026-11-28 核对浏览器生产包。构建会把 React、React DOM、Scheduler 三个实际打包的运行时依赖所附 LICENSE 全文写入 [third-party-licenses.txt](../web/dist/assets/third-party-licenses.txt)，与构建工具生成的版权注释一起分发。此项仅覆盖这三个前端包；Python 传递依赖、模型与知识资产仍按各自来源核对。
+
+2026-11-27晚间补核：[依赖元数据清单](evidence/2026-11-27-evening-audit/inventory.json)含94个Python锁定依赖和35个npm锁条目（含不同平台可选包）。React/React DOM 19.2.0为MIT，TypeScript 5.9.3为Apache-2.0，esbuild 0.28.2为MIT，playwright-core 1.65.1为Apache-2.0，按随包元数据记录。部分Python许可元数据未知或未安装，清单不是完整许可兼容性/NOTICE审核。
+
 本项目采用MIT许可。正式交付前须按实际锁定版本、传递依赖及知识资产补齐许可与NOTICE；此文不代表完整许可审计已通过。
 
 | 当前直接依赖 | 用途 | 上游许可标识，最终以版本随附文本为准 |

@@ -1,0 +1,110 @@
+{
+  "candidate": {
+    "name": "digital_patient_stemi_candidate",
+    "version": 1,
+    "prompt_sha256": "cb1de45e02980e5d0002f84cae66909b1b714ba49bc1f40413396ed6983873c3"
+  },
+  "v9": {
+    "name": "digital_patient_stemi",
+    "version": 9
+  },
+  "runtime": {
+    "turns": [
+      {
+        "question": "有高血压吗？",
+        "conversation": 290,
+        "step1": {
+          "duration_s": 3.21,
+          "in": 3710,
+          "out": 130
+        },
+        "step2": {
+          "duration_s": 4.09,
+          "in": 7702,
+          "out": 208
+        },
+        "malformed": 0
+      },
+      {
+        "question": "有糖尿病吗？",
+        "conversation": 291,
+        "step1": {
+          "duration_s": 5.18,
+          "in": 3714,
+          "out": 123
+        },
+        "step2": {
+          "duration_s": 2.5,
+          "in": 7701,
+          "out": 202
+        },
+        "malformed": 0
+      },
+      {
+        "question": "以前做过手术吗？",
+        "conversation": 292,
+        "step1": {
+          "duration_s": 5.95,
+          "in": 3715,
+          "out": 127
+        },
+        "step2": {
+          "duration_s": 1.97,
+          "in": 7710,
+          "out": 207
+        },
+        "malformed": 0
+      }
+    ],
+    "chat_runs": 3,
+    "stops": 0,
+    "malformed_total": 0,
+    "step2_regressions": 0
+  },
+  "turns": [
+    {
+      "question": "有高血压吗？",
+      "request_id": "9e080615-96ce-4fc5-8009-58f1a53d0f0b",
+      "answer": "有高血压10年。",
+      "click_to_visible_ms": 9919.5,
+      "click_to_paint_ms": 9924.3,
+      "answer_validated_ms": 9905,
+      "saved_event_ids": [
+        "4d928e8b-ddae-4bfa-b70c-9a5888c9abdf"
+      ]
+    },
+    {
+      "question": "有糖尿病吗？",
+      "request_id": "5466e6e9-9454-44f7-a841-af60522b9807",
+      "answer": "有糖尿病5年。",
+      "click_to_visible_ms": 8187,
+      "click_to_paint_ms": 8191.4,
+      "answer_validated_ms": 8172,
+      "saved_event_ids": [
+        "4d928e8b-ddae-4bfa-b70c-9a5888c9abdf",
+        "703fc81c-a032-4c45-a255-064490b82745"
+      ]
+    },
+    {
+      "question": "以前做过手术吗？",
+      "request_id": "76378cc4-12b9-4d03-a381-9dd048c26ab9",
+      "answer": "没做过手术。",
+      "click_to_visible_ms": 8338.1,
+      "click_to_paint_ms": 8347.3,
+      "answer_validated_ms": 8328,
+      "saved_event_ids": [
+        "a1312f62-3ded-4733-a75c-cfbff25d83ec"
+      ]
+    }
+  ],
+  "outcomes": {
+    "answers_visible": 3,
+    "within_5_seconds": 0,
+    "complete_within_60_seconds": 3,
+    "http_502": 0,
+    "chat_runs": 3,
+    "stops": 0,
+    "total_input_tokens": 34252,
+    "total_output_tokens": 997
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "scope": "同一台机器、同机新目录恢复；非容器迁移或异机恢复",
+  "source_data": "E:\\AI数字病人临床思维训练\\local-only\\restore-drill-20261129\\source-data",
+  "backup": "E:\\AI数字病人临床思维训练\\local-only\\restore-drill-20261129\\backup",
+  "restored_data": "E:\\AI数字病人临床思维训练\\local-only\\restore-drill-20261129\\restored-data",
+  "session_id": "9ef9bd76-a8b8-4818-8214-77bd89ec70c3",
+  "case_public_id": "CASE-001",
+  "timings_seconds": {
+    "backup_s": 0.03,
+    "restore_s": 0.02
+  },
+  "backup_files": [
+    "accounts.db",
+    "app.db",
+    "department-catalog.json",
+    "integration.db"
+  ],
+  "http_checks": [
+    {
+      "name": "恢复后教师可登录",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "教师看到原班级",
+      "ok": true,
+      "detail": "[{'id': 'class-44084cd56f64', 'name': '恢复演练班', 'teacher_id': 'account-196d7688-28f5-4b32-8f44-2b563c109623', 'created_at"
+    },
+    {
+      "name": "班级名册随备份恢复",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "教师看到原任务且病例版本一致",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "恢复后学生可登录",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "学生看到原任务",
+      "ok": true,
+      "detail": "[{'id': 'task-939e52e2ec02', 'class_id': 'class-44084cd56f64', 'case_public_id': 'CASE-001', 'title': '突发胸痛的成人模拟患者', 'no"
+    },
+    {
+      "name": "恢复后封存评分可访问",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "封存评分逐项一致",
+      "ok": true,
+      "detail": "5.0/14.0"
+    },
+    {
+      "name": "恢复后封存反馈可访问且环节一致",
+      "ok": true,
+      "detail": "items=5"
+    },
+    {
+      "name": "已封存训练继续拒写",
+      "ok": true,
+      "detail": "HTTP 409"
+    },
+    {
+      "name": "恢复后可开新训练且为新会话",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "新训练问诊正常作答",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "清单哈希不符的备份被拒绝恢复",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "被拒绝的目标目录保持不存在",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "恢复后的服务进程正常退出",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "passed": true,
+  "failure_drill": {
+    "tampered_backup_refused": true,
+    "target_absent": true
+  },
+  "real_model_calls": 0,
+  "cleanup": "演练目录由调用方决定保留或删除；本脚本不删除任何数据"
+}

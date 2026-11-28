@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from app import main
 from app.case_authoring import check_case, has_errors
 from app.case_store import CaseStore
+from app.department_config import save_department_config
 from app.models import CaseDefinition
 from app.state_machine import StateMachine
 from app.storage import SessionRepository
@@ -22,10 +23,21 @@ def load(name: str) -> dict:
     return json.loads((ROOT / "cases" / name).read_text(encoding="utf-8"))
 
 
+def configure_department_catalog(data_dir: Path) -> None:
+    """Write an isolated synthetic enablement file, never a school configuration."""
+    save_department_config(
+        data_dir / "department-catalog.json",
+        {"03", "04"},
+        {"03.01", "03.02", "03.03", "03.04", "03.05", "03.07", "04.01"},
+        "synthetic-test-operator",
+    )
+
+
 class Api:
     def __init__(self, tmp_path, monkeypatch, owner="demo-cfg", env="development"):
         self.repository = SessionRepository(tmp_path / "s.db")
         self.store = CaseStore(ROOT / "cases", tmp_path / "teacher_cases")
+        configure_department_catalog(tmp_path)
         monkeypatch.setenv("APP_ENV", env)
         monkeypatch.setattr(main, "REPOSITORY", self.repository)
         monkeypatch.setattr(main, "CASE_STORE", self.store)
@@ -127,9 +139,9 @@ def test_configuration_errors_are_rejected(mutator):
 def run_appendicitis(api: Api, *, consult: bool) -> dict:
     sid = api.start("CASE-002")
     migration = api.ask(sid, "疼痛在哪里痛，有没有转移")
-    api.ask(sid, "什么时候开始的")
+    api.ask(sid, "什么时候开始的，有没有受伤或明显诱因")
     api.ask(sid, "有没有发热")
-    gi_event = api.ask(sid, "有没有恶心呕吐")
+    gi_event = api.ask(sid, "有没有恶心呕吐，食欲怎么样")
     api.act(sid, "order_exam", {"exam_id": "ex_us"})
     api.act(sid, "order_exam", {"exam_id": "ex_urine"})
     wait_event = api.wait(sid, 45)
@@ -179,7 +191,12 @@ def test_second_specialty_options_come_from_the_case(tmp_path, monkeypatch):
     api = Api(tmp_path, monkeypatch)
     sid = api.start("CASE-002")
     options = api.client.get(f"/api/sessions/{sid}", headers=api.headers).json()["options"]
-    assert [e["exam_id"] for e in options["exams"]] == ["ex_cbc", "ex_us", "ex_urine"]
+    # Exams come from the hospital-wide catalogue, identical for every case, so the menu never hints at the answer.
+    names = [e["name"] for e in options["exams"]]
+    assert {"血常规", "腹部超声", "尿常规", "心电图", "头颅CT平扫"} <= set(names)
+    assert len(names) >= 40
+    other = api.client.get(f"/api/sessions/{api.start('CASE-001')}", headers=api.headers).json()["options"]["exams"]
+    assert other == options["exams"]
     assert [t["treatment_id"] for t in options["treatments"]] == ["fluids_antibiotics", "surgical_consult"]
     assert {d["candidate_id"] for d in options["differentials"]} >= {"ureteral_stone", "gastroenteritis"}
     assert "急性阑尾炎" not in json.dumps(options, ensure_ascii=False)
@@ -257,7 +274,7 @@ def test_diagnosis_matching_uses_case_names_not_stemi_constants(tmp_path, monkey
 # ------------------------------------------------------------ differential auto scoring
 def stemi_events(api: Api):
     sid = api.start("CASE-001")
-    onset = api.ask(sid, "什么时候开始的")
+    onset = api.ask(sid, "当时在干什么，持续多久，是否缓解")
     character = api.ask(sid, "疼痛是什么性质")
     api.act(sid, "order_exam", {"exam_id": "ex_ecg"})
     ecg = api.wait(sid, 5)

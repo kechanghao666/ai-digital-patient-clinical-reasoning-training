@@ -161,6 +161,8 @@ class RubricItem(BaseModel):
     latest_workflow: None = None
     ordering_constraint: Literal["any", "first_exam_before_wait"] = "any"
     required_prior_exam_ids: list[str] = Field(default_factory=list)
+    # Empty preserves full-fact scoring; explicit atoms limit credit to the rubric's requirements.
+    required_atom_ids: list[str] = Field(default_factory=list)
     diagnosis: DiagnosisSpec | None = None
     differential: DifferentialRule | None = None
     # Shown to the student when the item is missed; defaults are generated from the item type.
@@ -180,14 +182,22 @@ class CaseDefinition(BaseModel):
     case_id: str
     version: int = Field(ge=1)
     public_id: str
-    specialty: str
+    specialty: str  # 保留原有自由文本字段用于展示兼容
+    # 科室与亚专科编码（受控字典）
+    # 来源：《医疗机构诊疗科目名录》
+    department_code: str | None = None   # L1 科室编码，如 "03" 表示内科
+    subspecialty_code: str | None = None  # L2 亚专科编码，如 "03.04" 表示心血管内科专业
     title: str
     learning_goals: list[str] = Field(min_length=1)
     target_population: str
     review_status: ReviewStatus
     reviewer: str | None = None
     review_date: str | None = None
+    reviewer_account_id: str | None = None
+    reviewer_qualification_id: str | None = None
     sources: list[str] = Field(default_factory=list)
+    source_case_id: str | None = None
+    source_version: int | None = Field(default=None, ge=1)
     chief_complaint: str
     facts: list[Fact] = Field(min_length=1)
     exams: list[ExamDefinition] = Field(default_factory=list)
@@ -197,6 +207,8 @@ class CaseDefinition(BaseModel):
     rubric: list[RubricItem] = Field(min_length=1)
     hidden_diagnosis: str | None = None
     authored_by: str | None = None
+    # Catalogue exams that are reasonable for this case but not required: ordering them is not penalised.
+    acceptable_exams: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_references(self) -> "CaseDefinition":
@@ -267,6 +279,18 @@ class CaseDefinition(BaseModel):
         for rubric in self.rubric:
             if rubric.evidence_type == "ask_event" and rubric.item_id not in fact_ids:
                 raise ValueError(f"rubric references unknown fact: {rubric.item_id}")
+            if rubric.required_atom_ids:
+                if rubric.evidence_type != "ask_event":
+                    raise ValueError("required_atom_ids is only valid for ask_event rubrics")
+                if len(rubric.required_atom_ids) != len(set(rubric.required_atom_ids)):
+                    raise ValueError(f"rubric {rubric.item_id} repeats a required atom")
+                from .patient_answers import fact_fragments
+
+                declared_fact = next(fact for fact in self.facts if fact.fact_id == rubric.item_id)
+                atom_ids = {fragment.atom_id for fragment in fact_fragments(declared_fact)}
+                missing = set(rubric.required_atom_ids) - atom_ids
+                if missing:
+                    raise ValueError(f"rubric {rubric.item_id} requires unknown atoms: {sorted(missing)}")
             if rubric.evidence_type == "exam_order" and rubric.item_id not in exam_ids_set:
                 raise ValueError(f"rubric references unknown exam: {rubric.item_id}")
             if rubric.evidence_type != "exam_order" and rubric.ordering_constraint != "any":
@@ -302,8 +326,16 @@ class CaseDefinition(BaseModel):
                     raise ValueError(f"differential rule {rubric.item_id} requires more opposing keys than defined")
             if rubric.evidence_type == "ddx_evidence" and option_ids and rubric.item_id not in option_ids:
                 raise ValueError(f"differential rubric {rubric.item_id} is not in differential_options")
+        if (self.source_case_id is None) != (self.source_version is None):
+            raise ValueError("source_case_id and source_version must be set together")
+        if self.source_case_id == self.case_id:
+            raise ValueError("a case cannot cite itself as its source")
         if self.review_status == ReviewStatus.PUBLISHED and (not self.reviewer or not self.review_date):
             raise ValueError("published case requires reviewer and review_date")
+        if bool(self.reviewer_account_id) != bool(self.reviewer_qualification_id):
+            raise ValueError("reviewer account and qualification bindings must be set together")
+        if self.review_status != ReviewStatus.PUBLISHED and (self.reviewer_account_id or self.reviewer_qualification_id):
+            raise ValueError("reviewer bindings are only valid on a published case version")
         return self
 
 

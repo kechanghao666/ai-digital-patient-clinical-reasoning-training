@@ -5,6 +5,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
+from collections.abc import Callable
 from typing import Any
 
 import httpx
@@ -13,12 +14,24 @@ from .config import IntegrationSettings
 
 logger = logging.getLogger(__name__)
 
-class NexentError(RuntimeError):
-    """A model-safe failure; never includes credentials, request bodies or model output."""
 
-    def __init__(self, kind: str, message: str):
+def _event_error_detail(event: dict) -> str:
+    """De-identified platform error summary: only error-code style fields, truncated."""
+    for key in ("error_code", "error", "code", "message", "reason", "content"):
+        value = event.get(key)
+        if isinstance(value, str) and value.strip():
+            return f"{key}={value.strip()[:160]}"
+    return "no-detail"
+
+
+class NexentError(RuntimeError):
+    """A model-safe failure; the message never includes credentials, request bodies or model output.
+    ``detail`` carries a truncated platform error summary for the audit store only."""
+
+    def __init__(self, kind: str, message: str, detail: str = ""):
         super().__init__(message)
         self.kind = kind
+        self.detail = detail
 
 
 @dataclass
@@ -30,6 +43,11 @@ class NexentRun:
     first_final_event_ms: int | None = None
     total_ms: int = 0
     stopped: bool = False
+    trusted_completion: bool = False
+    # Monotonic milliseconds since this run started, at the moment this client first observed the
+    # trusted local turn as submitted. MCP records separate wall-clock samples around commit.
+    # None when the run ended by the model stream completing instead.
+    trusted_completion_ms: int | None = None
 
 
 class NexentClient:
@@ -58,16 +76,19 @@ class NexentClient:
         self, *, agent_name: str, query: str, metadata: dict[str, Any] | None = None,
         audit_metadata: dict[str, Any] | None = None, idempotency_key: str | None = None,
         conversation_id: int | None = None,
+        trusted_completion: Callable[[], bool] | None = None,
     ) -> NexentRun:
         return asyncio.run(self._run(
             agent_name=agent_name, query=query, metadata=metadata, audit_metadata=audit_metadata,
             idempotency_key=idempotency_key, conversation_id=conversation_id, started=time.monotonic(),
+            trusted_completion=trusted_completion,
         ))
 
     async def _run(
         self, *, agent_name: str, query: str, metadata: dict[str, Any] | None,
         audit_metadata: dict[str, Any] | None, idempotency_key: str | None,
         conversation_id: int | None, started: float,
+        trusted_completion: Callable[[], bool] | None,
     ) -> NexentRun:
         if not agent_name:
             raise NexentError("unavailable", "Nexent agent name is not configured")
@@ -93,6 +114,9 @@ class NexentClient:
         conv_id: int | None = None
         response_status: int | None = None
         failure_event: str | None = None
+        failure_detail: str = ""
+        completed_by_tool = False
+        trusted_completion_ms: int | None = None
         async with self._client(self.settings.first_event_timeout_s) as client:
             client_ready_ms = int((time.monotonic() - started) * 1000)
             try:
@@ -137,7 +161,14 @@ class NexentClient:
                                     first_timer.reschedule(None)
                                 if event_type in {"error", "run_error", "failed"}:
                                     failure_event = event_type
-                                    raise NexentError("rejected", "Nexent reported a run error")
+                                    failure_detail = _event_error_detail(event)
+                                    raise NexentError("rejected", "Nexent reported a run error", failure_detail)
+                                # An SSE event is only a wakeup; completion comes from the trusted local store.
+                                if event_type in {"execution_logs", "execution_result"} and trusted_completion and trusted_completion():
+                                    completed_by_tool = True
+                                    final_text = ""
+                                    trusted_completion_ms = int((time.monotonic() - started) * 1000)
+                                    break
                                 if event_type == "final_answer":
                                     content = event.get("content")
                                     text = content if isinstance(content, str) else ""
@@ -150,12 +181,17 @@ class NexentClient:
                                         final_text = text if text else "".join(final_parts)
                                     else:
                                         final_text = text
+                if completed_by_tool:
+                    stop_outcome = await self._best_effort_stop(client, conv_id, min(deadline, time.monotonic() + 0.25))
+                    logger.info("nexent_trusted_submission_received stop_outcome=%s", stop_outcome)
             except NexentError as exc:
                 logger.warning(
                     "nexent_run_rejected kind=%s http_status=%s error_event=%s elapsed_ms=%d "
-                    "first_event_ms=%s first_final_event_ms=%s event_count=%d",
-                    exc.kind, response_status, failure_event, int((time.monotonic() - started) * 1000),
+                    "first_event_ms=%s first_final_event_ms=%s event_count=%d event_types=%s",
+                    exc.kind, response_status, failure_event,
+                    int((time.monotonic() - started) * 1000),
                     first_event_ms, first_final_event_ms, sum(types.values()),
+                    json.dumps(types, ensure_ascii=False),
                 )
                 raise
             except (TimeoutError, httpx.TimeoutException) as exc:
@@ -180,6 +216,8 @@ class NexentClient:
             conversation_id=conv_id, final_text=final_text, event_types=types,
             first_event_ms=first_event_ms, first_final_event_ms=first_final_event_ms,
             total_ms=int((time.monotonic() - started) * 1000),
+            trusted_completion=completed_by_tool,
+            trusted_completion_ms=trusted_completion_ms,
         )
 
     async def _best_effort_stop(self, client: httpx.AsyncClient, conversation_id: int | None, deadline: float) -> str:

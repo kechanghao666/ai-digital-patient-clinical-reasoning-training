@@ -6,6 +6,7 @@ from datetime import date
 from urllib.parse import quote
 
 import streamlit as st
+from dashboard import render_dashboard
 from score_review import render_score_review
 
 STATUS = {"draft": "草稿", "validated": "结构校验通过", "under_review": "待医学审核", "published": "已发布"}
@@ -18,7 +19,8 @@ def _load_editor(case, *, duplicate=False):
     data = copy.deepcopy(case)
     if duplicate:
         data.update(case_id=f"TEACH-{uuid.uuid4().hex[:8]}", title=f"{data['title']}（新草稿）",
-                    version=1, review_status="draft", reviewer=None, review_date=None, authored_by=None)
+                    version=1, review_status="draft", reviewer=None, review_date=None, authored_by=None,
+                    reviewer_account_id=None, reviewer_qualification_id=None)
         data.pop("public_id", None)
     st.session_state.teacher_case = data
     st.session_state.teacher_validation = None
@@ -32,8 +34,9 @@ def _show_issues(result):
         show(issue.get("message", "病例需要复核"))
 
 
-def render_teacher(api):
-    st.subheader("教师病例管理")
+def render_teacher(api, navigation):
+    st.caption("教师工作台 / 病例与教学复核")
+    st.title("教师工作台")
     st.caption("新增或修订病例，完成结构校验后送审。只有经过真实医学审核的病例才能发布。")
     # A failed authorization never renders a cached hidden case.
     cases = api("GET", "/api/teacher/cases")
@@ -41,7 +44,13 @@ def render_teacher(api):
         st.info("请使用有权限的教师身份。当前仅支持开发模式教师账号。")
         return
 
-    task = st.radio("教师任务", ["病例编写与发布", "训练反馈复核", "评分复核与裁定"], horizontal=True, key="teacher_task")
+    tasks = ["班级训练看板", "病例编写与发布", "训练反馈复核", "评分复核与裁定"]
+    if st.session_state.get("teacher_task_next") in tasks:
+        st.session_state.teacher_task = st.session_state.pop("teacher_task_next")
+    task = navigation.radio("教师任务", tasks, key="teacher_task")
+    if task == "班级训练看板":
+        render_dashboard(api)
+        return
     if task == "训练反馈复核":
         render_feedback_review(api)
         return
@@ -202,15 +211,18 @@ def render_teacher(api):
             st.rerun()
     if status == "under_review":
         st.warning("仅在真实医学审核完成后填写。结构校验或程序测试不属于医学审核。")
+        qualifications = api("GET", "/api/teacher/reviewer-qualifications") or {}
+        st.write("绑定审核人：" + qualifications.get("display_name", "未绑定"))
+        st.caption("资质由本机运维登记外部人工核验；系统不自动核验执业资格。")
+        st.json(qualifications.get("records", []))
         with st.form("teacher_publish"):
-            reviewer = st.text_input("真实医学审核人", value="")
             reviewed = st.date_input("医学审核日期", value=None, max_value=date.today())
             confirmed = st.checkbox("我确认该版本已由上述人员完成真实医学审核")
             publish = st.form_submit_button("确认审核并发布", type="primary")
         if publish:
-            if not confirmed or not reviewer.strip() or reviewed is None:
+            if not confirmed or not qualifications.get("account_linked") or reviewed is None:
                 st.error("请完整填写真实审核信息并明确确认。未执行发布。")
-            elif api("POST", base + "/publish", json={"reviewer": reviewer.strip(), "review_date": reviewed.isoformat(),
+            elif api("POST", base + "/publish", json={"review_date": reviewed.isoformat(),
                                                        "confirm_medical_review": True}):
                 st.rerun()
     if status == "published":
@@ -252,7 +264,21 @@ def render_feedback_review(api):
     if record["original_validation_error"]:
         st.caption("原始反馈校验问题：" + record["original_validation_error"])
     with st.expander("封存评分、学生提交与事件证据", expanded=True):
-        st.json({key: record[key] for key in ("score_snapshot", "submissions", "case_notes", "events")})
+        score = record["score_snapshot"]
+        st.caption(f"封存原分 {score['total_score']:g} / {score['max_score']:g} · 原始记录保持不变")
+        st.dataframe(score["items"], width="stretch", hide_index=True,
+            column_config={"stage": "环节", "score": "得分", "max_score": "满分", "reason": "评分说明",
+                           "improvement": "改进建议", "item_id": None, "evidence_event_ids": None, "hit": None})
+        st.markdown("**学生病历**")
+        st.text(record["case_notes"] or "未填写病历记录")
+        st.markdown("**学生诊断**")
+        st.text((record["submissions"].get("diagnosis") or {}).get("diagnosis") or "未提交诊断")
+        st.caption("事件编号与下方复核表单一致；完整提交、结果及引用可展开原始证据核对。")
+        st.dataframe([{"序号": event["seq"], "事件编号": event["event_id"],
+                       "动作": event["action"], "模拟分钟": event["sim_time"], "提问": event.get("question", "")}
+                      for event in record["events"]], width="stretch", hide_index=True)
+        with st.expander("完整原始证据（只读）"):
+            st.json({key: record[key] for key in ("score_snapshot", "submissions", "case_notes", "events")})
     with st.expander("原始反馈与历次复核（只读）"):
         st.json({"original": record["original"], "reviews": record["reviews"]})
     with st.expander("适用教学依据与来源（未医学审核）"):

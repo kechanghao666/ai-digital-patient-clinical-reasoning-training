@@ -1,0 +1,112 @@
+<span class="ambient-mount" hidden aria-hidden="true"></span>
+<script>
+(() => {
+  const enabled = true;
+  if (window.clinicAmbient) { window.clinicAmbient.setEnabled(enabled); return; }
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  const fine = matchMedia('(pointer: fine)');
+  const events = new AbortController();
+  const glow = document.createElement('div');
+  glow.className = 'cursor-light'; glow.setAttribute('aria-hidden', 'true');
+  document.body.append(glow);
+  let allowed = enabled, frame = 0, last = 0, phase = 0, host, canvas, ctx, size = 0;
+  let x = 0, y = 0, targetX = 0, targetY = 0, pointerX = innerWidth * .72, pointerY = 260;
+  let lightX = pointerX, lightY = pointerY;
+  const rings = Array.from({length: 48}, (_, i) => {
+    const u = i / 48 * Math.PI * 2;
+    return Array.from({length: 89}, (_, j) => {
+      const v = j / 88 * Math.PI * 2;
+      const radius = 1 + .37 * Math.cos(v);
+      return [radius * Math.cos(u), radius * Math.sin(u), .37 * Math.sin(v), u, v];
+    });
+  });
+  function active() { return allowed && !reduced.matches && !document.hidden; }
+  function draw() {
+    if (!ctx || !host?.isConnected) return;
+    const rect = host.getBoundingClientRect();
+    const width = Math.round(rect.width), height = Math.round(rect.height);
+    const ratio = Math.min(devicePixelRatio || 1, 1.75);
+    if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) {
+      canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio);
+    }
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0); ctx.clearRect(0, 0, width, height);
+    size = Math.min(width / 3.5, height / 3.2);
+    const ax = .65 + y * .32 + Math.sin(phase * .65) * .22;
+    const ay = Math.sin(phase * .45) * .5 + x * .4;
+    const az = -.32 + Math.sin(phase * .4) * .15;
+    const sx = Math.sin(ax), cx = Math.cos(ax), sy = Math.sin(ay), cy = Math.cos(ay);
+    const sz = Math.sin(az), cz = Math.cos(az);
+    const project = ([px, py, pz, u, v]) => {
+      pz += .09 * Math.sin(u * 3 + phase * 1.7) * Math.cos(v);
+      const yy = py * cx - pz * sx, zz = py * sx + pz * cx;
+      const xx = px * cy + zz * sy, z = -px * sy + zz * cy;
+      const scale = 4.5 / (4.5 - z);
+      return [(xx * cz - yy * sz) * size * scale + width / 2,
+              (xx * sz + yy * cz) * size * scale + height / 2, z];
+    };
+    const paths = rings.map((ring, i) => ({i, points: ring.map(project)}));
+    paths.sort((a, b) => a.points[0][2] - b.points[0][2]);
+    ctx.lineWidth = .85;
+    for (const {i, points} of paths) {
+      const alpha = .25 + (points[0][2] + 1.5) / 3 * .57;
+      ctx.strokeStyle = i % 7 === 0 ? `rgba(207,181,156,${alpha})` : `rgba(150,188,228,${alpha})`;
+      ctx.beginPath(); points.forEach((p, n) => n ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.stroke();
+    }
+    // Three moving highlights make the flow legible without filling the workspace with particles.
+    for (let i = 0; i < 3; i++) {
+      const u = phase * .9 + i * Math.PI * 2 / 3, v = phase * .5 + i;
+      const r = 1 + .37 * Math.cos(v);
+      const p = project([r * Math.cos(u), r * Math.sin(u), .37 * Math.sin(v), u, v]);
+      const halo = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], 13);
+      halo.addColorStop(0, 'rgba(224,238,255,.85)'); halo.addColorStop(.18, 'rgba(184,211,255,.65)'); halo.addColorStop(1, 'rgba(148,187,255,0)');
+      ctx.fillStyle = halo; ctx.fillRect(p[0] - 13, p[1] - 13, 26, 26);
+    }
+    host.style.transform = `translate3d(${x * 24}px,${y * 16}px,0)`;
+  }
+  function tick(now) {
+    frame = 0;
+    if (!active()) return;
+    if (now - last >= 32) {
+      phase += Math.min((now - (last || now)) / 1000, .07) * .65; last = now;
+      x += (targetX - x) * .13; y += (targetY - y) * .13;
+      lightX += (pointerX - lightX) * .17; lightY += (pointerY - lightY) * .17;
+      glow.style.transform = `translate3d(${lightX - 260}px,${lightY - 260}px,0)`;
+      if (host?.getBoundingClientRect().bottom > 0) draw();
+    }
+    frame = requestAnimationFrame(tick);
+  }
+  function sync() {
+    cancelAnimationFrame(frame); frame = 0; last = 0;
+    document.documentElement.dataset.clinicMotion = reduced.matches ? 'reduced' : allowed ? 'on' : 'off';
+    glow.style.opacity = active() && fine.matches ? '1' : '0';
+    if (reduced.matches) { x = y = 0; draw(); }
+    if (active()) frame = requestAnimationFrame(tick);
+  }
+  function mount() {
+    const next = document.querySelector('.hero-art');
+    if (next === host && canvas?.isConnected) return;
+    host?.classList.remove('has-orbit'); canvas?.remove(); host = next;
+    if (!host) { canvas = ctx = undefined; return; }
+    canvas = document.createElement('canvas'); canvas.setAttribute('aria-hidden', 'true');
+    ctx = canvas.getContext('2d'); if (!ctx) return;
+    canvas.className = 'living-orbit'; host.append(canvas); host.classList.add('has-orbit'); draw();
+  }
+  const observer = new MutationObserver(mount);
+  observer.observe(document.body, {childList: true, subtree: true});
+  const listen = (event, fn) => document.addEventListener(event, fn, {passive: true, signal: events.signal});
+  listen('pointermove', event => {
+    if (!active() || !fine.matches || event.pointerType === 'touch') return;
+    targetX = (event.clientX / innerWidth - .5) * 2;
+    targetY = (event.clientY / innerHeight - .5) * 2;
+    pointerX = event.clientX; pointerY = event.clientY;
+  });
+  listen('pointerleave', () => { targetX = targetY = 0; });
+  listen('visibilitychange', sync);
+  reduced.addEventListener('change', sync, {signal: events.signal});
+  fine.addEventListener('change', sync, {signal: events.signal});
+  window.addEventListener('resize', draw, {passive: true, signal: events.signal});
+  window.addEventListener('pagehide', () => { cancelAnimationFrame(frame); observer.disconnect(); events.abort(); glow.remove(); }, {once: true});
+  window.clinicAmbient = {setEnabled(value) { allowed = value; mount(); sync(); }};
+  mount(); sync();
+})();
+</script>

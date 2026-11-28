@@ -1,0 +1,2569 @@
+{
+  "summary": {
+    "items": 100,
+    "content_items": 90,
+    "probe_items": 10,
+    "pass_rate": 1.0,
+    "content_pass_rate": 1.0,
+    "fact_recall": 1.0,
+    "fact_precision": 1.0,
+    "leak_count": 0,
+    "probe_pass_rate": 1.0,
+    "consistency_3_runs": 1.0,
+    "latency_ms_median": 6.0,
+    "latency_ms_max": 151.65,
+    "patient_adapter": "simulator",
+    "annotator": "开发者工程标注（未经医学专家复核）"
+  },
+  "by_case": {
+    "CASE-001": {
+      "items": 20,
+      "passed": 20,
+      "version": 3
+    },
+    "CASE-002": {
+      "items": 20,
+      "passed": 20,
+      "version": 2
+    },
+    "CASE-003": {
+      "items": 20,
+      "passed": 20,
+      "version": 2
+    },
+    "CASE-004": {
+      "items": 20,
+      "passed": 20,
+      "version": 2
+    },
+    "CASE-005": {
+      "items": 20,
+      "passed": 20,
+      "version": 2
+    }
+  },
+  "rows": [
+    {
+      "case": "CASE-001",
+      "question": "您好，您今天哪儿不舒服？",
+      "expected": [
+        "f_cc"
+      ],
+      "case_version": 3,
+      "answer": "我两个小时前突然开始胸痛。",
+      "fact_ids": [
+        "f_cc"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        8.38,
+        6.74,
+        7.77
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "胸口疼是从几点开始的？",
+      "expected": [
+        "f_pain_onset"
+      ],
+      "optional": [
+        "f_cc"
+      ],
+      "case_version": 3,
+      "answer": "休息时突然发作，持续没有缓解。",
+      "fact_ids": [
+        "f_pain_onset"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        12.13,
+        9.13,
+        7.51
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "疼的位置能指给我看吗",
+      "expected": [
+        "f_location"
+      ],
+      "case_version": 3,
+      "answer": "就在胸口正中间，一大片，说不清具体哪一点。",
+      "fact_ids": [
+        "f_location"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.95,
+        7.67,
+        7.37
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "是一种什么样的疼，刺痛还是闷痛？",
+      "expected": [
+        "f_pain_character"
+      ],
+      "case_version": 3,
+      "answer": "胸痛像压榨一样。",
+      "fact_ids": [
+        "f_pain_character"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.22,
+        7.61,
+        9.02
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "疼痛有没有往胳膊或者肩膀那边窜？",
+      "expected": [
+        "f_pain_radiation"
+      ],
+      "optional": [
+        "f_back"
+      ],
+      "case_version": 3,
+      "answer": "疼痛向左肩和左上肢放射。后背没有撕裂一样的疼。",
+      "fact_ids": [
+        "f_pain_radiation",
+        "f_back"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        9.41,
+        9.98,
+        9.98
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "疼的同时还有什么别的感觉吗",
+      "expected": [
+        "f_accompany"
+      ],
+      "optional": [
+        "f_dyspnea"
+      ],
+      "case_version": 3,
+      "answer": "疼的时候出了一身冷汗，有点恶心，没有吐。",
+      "fact_ids": [
+        "f_accompany"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        19.05,
+        10.97,
+        11.54
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "有没有觉得透不过气",
+      "expected": [
+        "f_dyspnea"
+      ],
+      "case_version": 3,
+      "answer": "有点胸闷，喘气有点费劲。",
+      "fact_ids": [
+        "f_dyspnea"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        8.62,
+        7.56,
+        6.51
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "有没有高血压？",
+      "expected": [
+        "f_hx_htn"
+      ],
+      "case_version": 3,
+      "answer": "有高血压10年。",
+      "fact_ids": [
+        "f_hx_htn"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        16.32,
+        7.17,
+        7.24
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "血糖高不高",
+      "expected": [
+        "f_hx_dm"
+      ],
+      "case_version": 3,
+      "answer": "有糖尿病5年。",
+      "fact_ids": [
+        "f_hx_dm"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        7.5,
+        5.96,
+        7.48
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "今天吃过什么药没有",
+      "expected": [
+        "f_med_asa"
+      ],
+      "optional": [
+        "f_care"
+      ],
+      "case_version": 3,
+      "answer": "今天早上自行服过一片阿司匹林，规格待医学审核确认。",
+      "fact_ids": [
+        "f_med_asa"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        7.73,
+        8.41,
+        6.43
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "对药物过敏吗",
+      "expected": [
+        "f_allergy"
+      ],
+      "case_version": 3,
+      "answer": "没有药物过敏，也没做过手术。",
+      "fact_ids": [
+        "f_allergy"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        7.6,
+        6.58,
+        8.09
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "一天抽多少烟",
+      "expected": [
+        "f_hx_smoke"
+      ],
+      "case_version": 3,
+      "answer": "吸烟约20年，每天一包。",
+      "fact_ids": [
+        "f_hx_smoke"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.79,
+        6.53,
+        6.26
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "喝不喝酒",
+      "expected": [
+        "f_alcohol"
+      ],
+      "case_version": 3,
+      "answer": "平时偶尔喝点酒。",
+      "fact_ids": [
+        "f_alcohol"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        7.04,
+        6.69,
+        7.62
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "父母身体怎么样",
+      "expected": [
+        "f_family"
+      ],
+      "case_version": 3,
+      "answer": "我父亲有冠心病，常年吃药。",
+      "fact_ids": [
+        "f_family"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        7.02,
+        7.67,
+        7.34
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "以前有没有类似胸口发闷的时候",
+      "expected": [
+        "f_prior"
+      ],
+      "optional": [
+        "f_dyspnea"
+      ],
+      "case_version": 3,
+      "answer": "以前没这样疼过，偶尔爬楼梯会胸口发闷，歇一会儿就好。",
+      "fact_ids": [
+        "f_prior"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        7.7,
+        6.54,
+        7.19
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "您是做什么工作的",
+      "expected": [
+        "f_identity"
+      ],
+      "case_version": 3,
+      "answer": "我叫王志刚（化名），今年58岁，开出租车的。",
+      "fact_ids": [
+        "f_identity"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        7.05,
+        6.58,
+        5.91
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "最近有没有发烧咳嗽",
+      "expected": [
+        "f_ros"
+      ],
+      "case_version": 3,
+      "answer": "没有发烧、咳嗽，也没有头晕、心慌，大小便都正常。",
+      "fact_ids": [
+        "f_ros"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        7.42,
+        5.93,
+        6.08
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "我是急诊科的医生，您好",
+      "expected": [],
+      "case_version": 3,
+      "answer": "医生您好。",
+      "fact_ids": [],
+      "turn_kind": "social",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.21,
+        6.66,
+        5.97
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "你觉得是不是心梗？",
+      "expected": [],
+      "probe": true,
+      "case_version": 3,
+      "answer": "这个我也不清楚，得请医生帮我看看。",
+      "fact_ids": [],
+      "turn_kind": "social",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.88,
+        5.91,
+        5.86
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-001",
+      "question": "心电图结果怎么样",
+      "expected": [],
+      "probe": true,
+      "case_version": 3,
+      "answer": "检查结果我不清楚，您看看报告吧。",
+      "fact_ids": [],
+      "turn_kind": "social",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.13,
+        6.14,
+        6.61
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "说说您这次哪里不好",
+      "expected": [
+        "f_cc"
+      ],
+      "case_version": 2,
+      "answer": "我从昨晚开始肚子痛，今天越来越厉害。",
+      "fact_ids": [
+        "f_cc"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.98,
+        5.97,
+        6.7
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "肚子疼了多久了",
+      "expected": [
+        "f_onset"
+      ],
+      "optional": [
+        "f_cc"
+      ],
+      "case_version": 2,
+      "answer": "大约24小时前开始的，没有受伤，也没有明显诱因。",
+      "fact_ids": [
+        "f_onset"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.7,
+        6.37,
+        5.76
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "最开始是哪个位置疼",
+      "expected": [
+        "f_pain_migration"
+      ],
+      "case_version": 2,
+      "answer": "一开始是肚脐周围隐隐作痛，后来逐渐转移到右下腹。",
+      "fact_ids": [
+        "f_pain_migration"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.25,
+        5.31,
+        6.28
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "疼起来是什么感觉，一阵一阵的吗",
+      "expected": [
+        "f_pain_character"
+      ],
+      "optional": [
+        "f_relief"
+      ],
+      "case_version": 2,
+      "answer": "右下腹是持续性的疼，走路或咳嗽时更明显。蜷着身子躺着会稍微好一点，一动就更疼。",
+      "fact_ids": [
+        "f_pain_character",
+        "f_relief"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.95,
+        6.81,
+        5.19
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "什么姿势会舒服一点",
+      "expected": [
+        "f_relief"
+      ],
+      "optional": [
+        "f_pain_character"
+      ],
+      "case_version": 2,
+      "answer": "右下腹是持续性的疼，走路或咳嗽时更明显。蜷着身子躺着会稍微好一点，一动就更疼。",
+      "fact_ids": [
+        "f_pain_character",
+        "f_relief"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.09,
+        4.99,
+        6.88
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "有没有吐",
+      "expected": [
+        "f_gi"
+      ],
+      "case_version": 2,
+      "answer": "有恶心，吐过一次，食欲很差。",
+      "fact_ids": [
+        "f_gi"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.94,
+        7.53,
+        5.86
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "体温量过吗",
+      "expected": [
+        "f_fever"
+      ],
+      "case_version": 2,
+      "answer": "自己量过体温，37.8℃，有点发热。",
+      "fact_ids": [
+        "f_fever"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.58,
+        6.63,
+        7.96
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "拉肚子吗",
+      "expected": [
+        "f_bowel"
+      ],
+      "case_version": 2,
+      "answer": "排便基本正常，没有腹泻。",
+      "fact_ids": [
+        "f_bowel"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.9,
+        5.66,
+        4.79
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "小便有没有疼",
+      "expected": [
+        "f_urine"
+      ],
+      "case_version": 2,
+      "answer": "小便正常，没有血尿，也没有尿痛。",
+      "fact_ids": [
+        "f_urine"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.0,
+        4.86,
+        5.62
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "做过什么手术没有",
+      "expected": [
+        "f_hx"
+      ],
+      "case_version": 2,
+      "answer": "既往体健，没有做过手术，没有药物过敏。",
+      "fact_ids": [
+        "f_hx"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.5,
+        5.87,
+        5.86
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "最近吃过不干净的东西吗",
+      "expected": [
+        "f_personal"
+      ],
+      "optional": [
+        "f_gi"
+      ],
+      "case_version": 2,
+      "answer": "不抽烟，偶尔喝点啤酒，这两天没吃过不干净的东西。",
+      "fact_ids": [
+        "f_personal"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        7.29,
+        6.34,
+        7.36
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "家里人有没有什么病",
+      "expected": [
+        "f_family"
+      ],
+      "case_version": 2,
+      "answer": "家里人身体都还好，没有类似的病。",
+      "fact_ids": [
+        "f_family"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.28,
+        6.6,
+        6.76
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "以前这样疼过吗",
+      "expected": [
+        "f_prior"
+      ],
+      "case_version": 2,
+      "answer": "以前从来没有这样疼过。",
+      "fact_ids": [
+        "f_prior"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.16,
+        5.77,
+        6.06
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "来之前吃过止痛药吗",
+      "expected": [
+        "f_care"
+      ],
+      "case_version": 2,
+      "answer": "来之前没去过别的医院，也没自己吃止痛药。",
+      "fact_ids": [
+        "f_care"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        16.73,
+        15.89,
+        8.33
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "你今年多大",
+      "expected": [
+        "f_identity"
+      ],
+      "case_version": 2,
+      "answer": "我叫李明（化名），今年24岁，在一家物流公司上班。",
+      "fact_ids": [
+        "f_identity"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        8.66,
+        40.01,
+        106.52
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "有没有心慌胸闷",
+      "expected": [
+        "f_ros"
+      ],
+      "case_version": 2,
+      "answer": "没有咳嗽、胸闷，也没有心慌、头晕。",
+      "fact_ids": [
+        "f_ros"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        151.65,
+        139.98,
+        84.52
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "晚上睡得怎么样",
+      "expected": [
+        "f_general"
+      ],
+      "case_version": 2,
+      "answer": "昨晚疼得没睡好，最近体重没什么变化。",
+      "fact_ids": [
+        "f_general"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        20.88,
+        8.68,
+        13.1
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "好的，我们先给你做个检查",
+      "expected": [],
+      "case_version": 2,
+      "answer": "好的，谢谢医生。",
+      "fact_ids": [],
+      "turn_kind": "social",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        7.64,
+        7.21,
+        8.13
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "是不是阑尾炎啊",
+      "expected": [],
+      "probe": true,
+      "case_version": 2,
+      "answer": "这个我也不清楚，得请医生帮我看看。",
+      "fact_ids": [],
+      "turn_kind": "social",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        11.96,
+        9.97,
+        9.44
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-002",
+      "question": "超声结果出来了吗",
+      "expected": [],
+      "probe": true,
+      "case_version": 2,
+      "answer": "检查结果我不清楚，您看看报告吧。",
+      "fact_ids": [],
+      "turn_kind": "social",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        11.28,
+        9.07,
+        6.57
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "大爷，您这是怎么啦",
+      "expected": [
+        "f_cc"
+      ],
+      "case_version": 2,
+      "answer": "我一个半小时前突然说话含糊，右边手脚没力气。",
+      "fact_ids": [
+        "f_cc"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        9.23,
+        7.16,
+        8.99
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "具体是几点发生的",
+      "expected": [
+        "f_onset_time"
+      ],
+      "case_version": 2,
+      "answer": "是上午9点半发生的，当时正在吃早饭，我记得很清楚。",
+      "fact_ids": [
+        "f_onset_time"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        7.01,
+        15.86,
+        7.74
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "发病的时候您在干什么",
+      "expected": [
+        "f_onset_time"
+      ],
+      "case_version": 2,
+      "answer": "是上午9点半发生的，当时正在吃早饭，我记得很清楚。",
+      "fact_ids": [
+        "f_onset_time"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        8.56,
+        6.0,
+        7.42
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "右手还能拿东西吗",
+      "expected": [
+        "f_symptom_detail"
+      ],
+      "case_version": 2,
+      "answer": "右手拿不住东西，右腿走路拖着，嘴角有点歪。",
+      "fact_ids": [
+        "f_symptom_detail"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.2,
+        7.73,
+        5.6
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "头疼吗，有没有吐",
+      "expected": [
+        "f_headache"
+      ],
+      "case_version": 2,
+      "answer": "没有明显头痛，也没有呕吐。",
+      "fact_ids": [
+        "f_headache"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.69,
+        6.98,
+        7.64
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "有没有抽搐过",
+      "expected": [
+        "f_seizure"
+      ],
+      "case_version": 2,
+      "answer": "没有抽搐，也没有晕过去，一直是清醒的。",
+      "fact_ids": [
+        "f_seizure"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.84,
+        6.64,
+        6.33
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "心脏有没有毛病",
+      "expected": [
+        "f_hx_af"
+      ],
+      "optional": [
+        "f_ros"
+      ],
+      "case_version": 2,
+      "answer": "有房颤好几年，没有规律吃药。",
+      "fact_ids": [
+        "f_hx_af"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.15,
+        5.52,
+        5.8
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "血压高吗",
+      "expected": [
+        "f_hx_htn"
+      ],
+      "case_version": 2,
+      "answer": "高血压15年，血压控制得不好。",
+      "fact_ids": [
+        "f_hx_htn"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        4.83,
+        6.13,
+        6.94
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "有没有糖尿病",
+      "expected": [
+        "f_dm"
+      ],
+      "case_version": 2,
+      "answer": "没有糖尿病，平时血糖正常。",
+      "fact_ids": [
+        "f_dm"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        7.0,
+        6.21,
+        5.55
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "平时吃不吃华法林之类的药",
+      "expected": [
+        "f_anticoag"
+      ],
+      "optional": [
+        "f_hx_af"
+      ],
+      "case_version": 2,
+      "answer": "没有吃抗凝药，最近也没有手术或外伤，没有出血病史。",
+      "fact_ids": [
+        "f_anticoag"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        4.95,
+        5.6,
+        5.71
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "最近有没有摔过跤",
+      "expected": [
+        "f_anticoag"
+      ],
+      "case_version": 2,
+      "answer": "没有吃抗凝药，最近也没有手术或外伤，没有出血病史。",
+      "fact_ids": [
+        "f_anticoag"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.09,
+        5.83,
+        6.66
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "有没有药物过敏",
+      "expected": [
+        "f_allergy"
+      ],
+      "case_version": 2,
+      "answer": "没有药物过敏。",
+      "fact_ids": [
+        "f_allergy"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.47,
+        6.71,
+        5.3
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "抽烟吗",
+      "expected": [
+        "f_personal"
+      ],
+      "case_version": 2,
+      "answer": "不抽烟，偶尔喝一点酒。",
+      "fact_ids": [
+        "f_personal"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.68,
+        5.22,
+        5.2
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "家里有人中风过吗",
+      "expected": [
+        "f_family"
+      ],
+      "case_version": 2,
+      "answer": "我哥哥前几年也中过风。",
+      "fact_ids": [
+        "f_family"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        4.48,
+        5.9,
+        4.94
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "以前出现过这种情况吗",
+      "expected": [
+        "f_prior"
+      ],
+      "case_version": 2,
+      "answer": "以前没出现过这种说话不清、手脚没力的情况。",
+      "fact_ids": [
+        "f_prior"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.24,
+        4.94,
+        5.5
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "是怎么送到医院的",
+      "expected": [
+        "f_care"
+      ],
+      "case_version": 2,
+      "answer": "家里人发现后马上打了120，路上没吃过任何药。",
+      "fact_ids": [
+        "f_care"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.39,
+        7.34,
+        6.08
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "您以前是做什么的",
+      "expected": [
+        "f_identity"
+      ],
+      "case_version": 2,
+      "answer": "我叫赵建华（化名），今年68岁，退休教师。",
+      "fact_ids": [
+        "f_identity"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.87,
+        4.88,
+        6.91
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "胸口疼不疼",
+      "expected": [
+        "f_ros"
+      ],
+      "optional": [
+        "f_pain_none"
+      ],
+      "case_version": 2,
+      "answer": "没有胸痛、胸闷、心慌，也没有发烧、咳嗽，大小便正常。",
+      "fact_ids": [
+        "f_ros"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.74,
+        6.79,
+        5.31
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "我是不是中风了",
+      "expected": [],
+      "probe": true,
+      "case_version": 2,
+      "answer": "这个我也不清楚，得请医生帮我看看。",
+      "fact_ids": [],
+      "turn_kind": "social",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.55,
+        5.17,
+        11.44
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-003",
+      "question": "CT查出来有没有出血",
+      "expected": [],
+      "probe": true,
+      "case_version": 2,
+      "answer": "检查结果我不清楚，您看看报告吧。",
+      "fact_ids": [],
+      "turn_kind": "social",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.53,
+        5.98,
+        5.18
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "您好，哪里不舒服",
+      "expected": [
+        "f_cc"
+      ],
+      "case_version": 2,
+      "answer": "我发烧咳嗽三天了，今天觉得有点气短。",
+      "fact_ids": [
+        "f_cc"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.54,
+        5.48,
+        5.75
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "发烧多少度",
+      "expected": [
+        "f_fever_detail"
+      ],
+      "case_version": 2,
+      "answer": "最高体温39℃，还有寒战。",
+      "fact_ids": [
+        "f_fever_detail"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.5,
+        5.57,
+        5.25
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "有没有打寒颤",
+      "expected": [
+        "f_fever_detail"
+      ],
+      "case_version": 2,
+      "answer": "最高体温39℃，还有寒战。",
+      "fact_ids": [
+        "f_fever_detail"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.32,
+        4.71,
+        5.04
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "痰是什么颜色",
+      "expected": [
+        "f_cough"
+      ],
+      "case_version": 2,
+      "answer": "咳黄绿色的痰，咳得厉害时右侧胸口痛。",
+      "fact_ids": [
+        "f_cough"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        4.36,
+        5.18,
+        5.13
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "痰里有没有血",
+      "expected": [
+        "f_hemoptysis"
+      ],
+      "optional": [
+        "f_cough"
+      ],
+      "case_version": 2,
+      "answer": "咳黄绿色的痰，咳得厉害时右侧胸口痛。没有咯血，痰里也没有血丝。",
+      "fact_ids": [
+        "f_cough",
+        "f_hemoptysis"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.65,
+        5.34,
+        6.59
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "走路会喘吗",
+      "expected": [
+        "f_dyspnea"
+      ],
+      "case_version": 2,
+      "answer": "活动后气短，休息时好一点。",
+      "fact_ids": [
+        "f_dyspnea"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.19,
+        5.76,
+        5.22
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "怎么开始的，着凉了吗",
+      "expected": [
+        "f_onset"
+      ],
+      "case_version": 2,
+      "answer": "三天前受凉后开始发烧，接着咳嗽越来越重。",
+      "fact_ids": [
+        "f_onset"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.92,
+        6.0,
+        6.58
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "有没有去过外地",
+      "expected": [
+        "f_exposure"
+      ],
+      "case_version": 2,
+      "answer": "家里最近没人生病，没去过外地，没有接触禽类。",
+      "fact_ids": [
+        "f_exposure"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.41,
+        5.52,
+        4.87
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "有什么慢性病吗",
+      "expected": [
+        "f_hx"
+      ],
+      "case_version": 2,
+      "answer": "吸烟30年，有慢性支气管炎，没有药物过敏。",
+      "fact_ids": [
+        "f_hx"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.53,
+        5.55,
+        5.63
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "抽烟多少年了",
+      "expected": [
+        "f_hx"
+      ],
+      "case_version": 2,
+      "answer": "吸烟30年，有慢性支气管炎，没有药物过敏。",
+      "fact_ids": [
+        "f_hx"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.92,
+        5.51,
+        5.05
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "喝酒吗",
+      "expected": [
+        "f_alcohol"
+      ],
+      "case_version": 2,
+      "answer": "平时偶尔喝点白酒，量不大。",
+      "fact_ids": [
+        "f_alcohol"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.08,
+        5.47,
+        6.5
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "做过手术没有",
+      "expected": [
+        "f_surgery"
+      ],
+      "case_version": 2,
+      "answer": "没做过手术，最近也没受过伤。",
+      "fact_ids": [
+        "f_surgery"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.74,
+        5.36,
+        5.1
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "家里有人得过结核吗",
+      "expected": [
+        "f_family"
+      ],
+      "optional": [
+        "f_exposure"
+      ],
+      "case_version": 2,
+      "answer": "家里最近没人生病，没去过外地，没有接触禽类。家里人没有类似的病，也没有得过结核的。",
+      "fact_ids": [
+        "f_exposure",
+        "f_family"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        7.07,
+        6.1,
+        5.77
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "以前冬天也会咳嗽吗",
+      "expected": [
+        "f_prior"
+      ],
+      "optional": [
+        "f_cough"
+      ],
+      "case_version": 2,
+      "answer": "咳黄绿色的痰，咳得厉害时右侧胸口痛。以前每年冬天都会咳嗽咳痰，但从没像这次这样发高烧。",
+      "fact_ids": [
+        "f_cough",
+        "f_prior"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.74,
+        5.74,
+        4.95
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "这几天吃过什么药",
+      "expected": [
+        "f_care"
+      ],
+      "case_version": 2,
+      "answer": "这几天自己吃过退烧药，没用过抗生素，今天第一次来医院。",
+      "fact_ids": [
+        "f_care"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.17,
+        9.68,
+        8.09
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "胃口怎么样",
+      "expected": [
+        "f_general"
+      ],
+      "case_version": 2,
+      "answer": "这几天没胃口，晚上咳得睡不好，浑身没劲。",
+      "fact_ids": [
+        "f_general"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.43,
+        5.0,
+        4.08
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "有没有拉肚子",
+      "expected": [
+        "f_ros"
+      ],
+      "case_version": 2,
+      "answer": "没有心慌、头痛头晕，也没有恶心呕吐、拉肚子，小便正常。",
+      "fact_ids": [
+        "f_ros"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.69,
+        4.24,
+        5.15
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "请问您怎么称呼",
+      "expected": [
+        "f_identity"
+      ],
+      "case_version": 2,
+      "answer": "我叫张国强（化名），今年62岁，退休前在工厂上班。",
+      "fact_ids": [
+        "f_identity"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        4.67,
+        4.77,
+        4.88
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "是肺炎吗医生",
+      "expected": [],
+      "probe": true,
+      "case_version": 2,
+      "answer": "我不太确定您的问题，能否换一种方式询问？",
+      "fact_ids": [],
+      "turn_kind": "unknown",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        4.98,
+        5.49,
+        5.27
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-004",
+      "question": "胸片报告给我看看",
+      "expected": [],
+      "probe": true,
+      "case_version": 2,
+      "answer": "检查结果我不清楚，您看看报告吧。",
+      "fact_ids": [],
+      "turn_kind": "social",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        4.26,
+        4.98,
+        4.84
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "同学你好，哪里难受",
+      "expected": [
+        "f_cc"
+      ],
+      "case_version": 2,
+      "answer": "我这两天特别口渴，尿很多，今天一直恶心还吐了。",
+      "fact_ids": [
+        "f_cc"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        4.98,
+        4.77,
+        4.48
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "口渴有几天了",
+      "expected": [
+        "f_onset"
+      ],
+      "optional": [
+        "f_polyuria",
+        "f_cc"
+      ],
+      "case_version": 2,
+      "answer": "每天喝很多水，小便次数明显增多。两天前开始口渴、尿多，今天早上开始恶心呕吐。",
+      "fact_ids": [
+        "f_polyuria",
+        "f_onset"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.61,
+        5.87,
+        5.75
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "一天喝多少水，尿多不多",
+      "expected": [
+        "f_polyuria"
+      ],
+      "case_version": 2,
+      "answer": "每天喝很多水，小便次数明显增多。",
+      "fact_ids": [
+        "f_polyuria"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.28,
+        5.39,
+        6.57
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "肚子疼吗",
+      "expected": [
+        "f_gi"
+      ],
+      "case_version": 2,
+      "answer": "恶心呕吐，肚子隐隐作痛，吃不下东西。",
+      "fact_ids": [
+        "f_gi"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.52,
+        6.57,
+        5.55
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "呼吸怎么样",
+      "expected": [
+        "f_breath"
+      ],
+      "case_version": 2,
+      "answer": "感觉呼吸又深又快，自己也觉得喘。",
+      "fact_ids": [
+        "f_breath"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.06,
+        4.68,
+        5.49
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "以前有什么病",
+      "expected": [
+        "f_hx"
+      ],
+      "case_version": 2,
+      "answer": "确诊糖尿病3年，一直打胰岛素。",
+      "fact_ids": [
+        "f_hx"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.72,
+        6.43,
+        5.91
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "胰岛素一直在打吗",
+      "expected": [
+        "f_insulin"
+      ],
+      "optional": [
+        "f_hx"
+      ],
+      "case_version": 2,
+      "answer": "确诊糖尿病3年，一直打胰岛素。三天前感冒发烧，胰岛素自己停了两天。",
+      "fact_ids": [
+        "f_hx",
+        "f_insulin"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        7.5,
+        13.94,
+        6.98
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "最近有没有感冒",
+      "expected": [
+        "f_insulin"
+      ],
+      "case_version": 2,
+      "answer": "三天前感冒发烧，胰岛素自己停了两天。",
+      "fact_ids": [
+        "f_insulin"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.57,
+        5.55,
+        5.01
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "在家测过血糖没有",
+      "expected": [
+        "f_home_glucose"
+      ],
+      "case_version": 2,
+      "answer": "家里的血糖仪这两天测了几次，都只显示“HI”。",
+      "fact_ids": [
+        "f_home_glucose"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.85,
+        5.19,
+        5.28
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "最近体重有变化吗",
+      "expected": [
+        "f_general"
+      ],
+      "case_version": 2,
+      "answer": "最近一个月瘦了三四斤，人很没劲。",
+      "fact_ids": [
+        "f_general"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.77,
+        6.76,
+        5.2
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "月经正常吗，有没有可能怀孕",
+      "expected": [
+        "f_menstrual"
+      ],
+      "case_version": 2,
+      "answer": "月经一直规律，上次月经是两周前，没有怀孕的可能。",
+      "fact_ids": [
+        "f_menstrual"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        7.11,
+        5.28,
+        6.01
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "抽烟喝酒吗",
+      "expected": [
+        "f_personal"
+      ],
+      "case_version": 2,
+      "answer": "不抽烟，不喝酒。",
+      "fact_ids": [
+        "f_personal"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        4.92,
+        5.77,
+        4.53
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "对什么药过敏",
+      "expected": [
+        "f_allergy"
+      ],
+      "case_version": 2,
+      "answer": "没有药物过敏，也没做过手术。",
+      "fact_ids": [
+        "f_allergy"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        6.72,
+        6.35,
+        5.13
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "爸妈有糖尿病吗",
+      "expected": [
+        "f_family"
+      ],
+      "case_version": 2,
+      "answer": "家里人没有糖尿病。",
+      "fact_ids": [
+        "f_family"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        4.58,
+        7.11,
+        4.49
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "以前有没有这么难受过",
+      "expected": [
+        "f_prior"
+      ],
+      "case_version": 2,
+      "answer": "以前没像这次这么难受过。",
+      "fact_ids": [
+        "f_prior"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.39,
+        5.72,
+        5.06
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "谁陪你来的",
+      "expected": [
+        "f_care"
+      ],
+      "case_version": 2,
+      "answer": "来之前没去过医院，是室友陪我来的。",
+      "fact_ids": [
+        "f_care"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.28,
+        5.54,
+        5.01
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "头晕不晕",
+      "expected": [
+        "f_ros"
+      ],
+      "case_version": 2,
+      "answer": "现在不咳嗽，没有心慌，也没有头痛头晕。",
+      "fact_ids": [
+        "f_ros"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.74,
+        5.3,
+        5.25
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "你多大了，读书还是工作",
+      "expected": [
+        "f_identity"
+      ],
+      "case_version": 2,
+      "answer": "我叫陈晓雨（化名），今年22岁，是大学生。",
+      "fact_ids": [
+        "f_identity"
+      ],
+      "turn_kind": "fact",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.27,
+        5.36,
+        5.32
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "我是不是酮症酸中毒",
+      "expected": [],
+      "probe": true,
+      "case_version": 2,
+      "answer": "我不太确定您的问题，能否换一种方式询问？",
+      "fact_ids": [],
+      "turn_kind": "unknown",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        5.86,
+        5.87,
+        7.18
+      ],
+      "http_ok": true
+    },
+    {
+      "case": "CASE-005",
+      "question": "血气分析结果呢",
+      "expected": [],
+      "probe": true,
+      "case_version": 2,
+      "answer": "检查结果我不清楚，您看看报告吧。",
+      "fact_ids": [],
+      "turn_kind": "social",
+      "missing": [],
+      "extra": [],
+      "leaked_terms": [],
+      "hidden_disclosed": [],
+      "passed": true,
+      "consistent_3_runs": true,
+      "latency_ms": [
+        4.68,
+        6.19,
+        6.26
+      ],
+      "http_ok": true
+    }
+  ]
+}

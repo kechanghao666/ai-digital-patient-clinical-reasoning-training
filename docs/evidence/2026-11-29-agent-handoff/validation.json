@@ -1,0 +1,109 @@
+{
+  "date": "2026-11-29",
+  "base_commit": "fbc9fcf275a8e508284b408caafd687ded346c2d",
+  "branch": "codex/feedback-protocol-fix",
+  "environment": {
+    "os": "Windows-10-10.0.26300-SP0",
+    "python": "3.11.18",
+    "node": "v24.18.0",
+    "npm": "11.16.0",
+    "machine": "本地同机（非独立机器）",
+    "real_provider_calls": 0
+  },
+  "git": {
+    "head": "fbc9fcf275a8e508284b408caafd687ded346c2d",
+    "worktree_clean": true,
+    "origin_branch": "origin/codex/feedback-protocol-fix",
+    "pr_1": {
+      "number": 1,
+      "state": "OPEN",
+      "head": "codex/feedback-protocol-fix",
+      "base": "main",
+      "merge_state": "CLEAN",
+      "url": "https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/pull/1"
+    },
+    "ci_at_base": {
+      "push": "success",
+      "pull_request": "success",
+      "head_sha": "fbc9fcf275a8e508284b408caafd687ded346c2d"
+    },
+    "ci_after_push": {
+      "push": {"run_id": 46168964891, "conclusion": "success", "head_sha": "edefdc38689995d337acd8c61ccbbda783990362"},
+      "pull_request": {"run_id": 46168969301, "conclusion": "success", "head_sha": "edefdc38689995d337acd8c61ccbbda783990362"},
+      "pr_checks": {
+        "tests": "SUCCESS",
+        "web": "SUCCESS",
+        "dependency-audit": "SUCCESS"
+      }
+    }
+  },
+  "changes_summary": {
+    "o3_spotcheck_atomic_compat": "scripts/run_o3_spotcheck.py 兼容原子回答：原子所属父事实可满足 required_fact_ids；acceptable_no_fact_answers 中的答复不再判遗漏；纯原子回答不再触发父事实整句文本误判。",
+    "mcp_submit_boundary": "backend/app/integration/turns.py 新增 turn_boundaries 表；backend/app/integration/tools.py 在 submit_fact_selection 成功/拒绝/重复/失败边界写入 request_id、事件语义与计时来源；backend/app/integration/patient_adapter.py 将 boundaries 加入 trace。",
+    "validation_script": "新增 scripts/verify_mcp_submit_boundary.py，用真实 HTTP sockets 启动 MCP 服务并验证边界记录。"
+  },
+  "verification": {
+    "pytest": {
+      "passed": 950,
+      "failed": 0,
+      "seconds": 221.77,
+      "log": "local-only/2026-11-29-pytest-after-mcp.log"
+    },
+    "engineering_samples": {
+      "result": "12/12",
+      "file": "docs/evidence/2026-11-29-agent-handoff/engineering-summary.json",
+      "detail_log": "local-only/2026-11-29-engineering-samples/"
+    },
+    "browser_demo": {
+      "result": "13/13",
+      "file": "docs/evidence/2026-11-29-agent-handoff/browser-demo-run.json",
+      "detail_log": "local-only/2026-11-29-browser-demo/"
+    },
+    "o3_atomic_replay": {
+      "result": "20/20",
+      "file": "docs/evidence/2026-11-29-agent-handoff/o3-atomic-replay.json",
+      "note": "开发者预设的 20 轮工程复跑；未进行评审现场抽取"
+    },
+    "o3_atomic_reproduction": {
+      "result": "4/4",
+      "file": "docs/evidence/2026-11-29-agent-handoff/o3-atomic-reproduction.json",
+      "note": "4 个预设的工程探针；未进行评审现场抽取"
+    },
+    "o3_old_reproduction": {
+      "result": "3/4",
+      "note": "旧版 4 探针（o3_reproduction_probes_20261125.json）第 3 轮要求 f_care，实际回答“具体是什么时候发现的我说不准。”未满足旧探针；两份探针对可接受回答的定义不同，未据此认定病例缺陷，保留失败批次；原子版 4 探针已更新并通过。",
+      "detail_log": "local-only/2026-11-29-o3-reproduction-verify.json"
+    },
+    "appy_trauma_boundary": {
+      "result": "8/8",
+      "file": "docs/evidence/2026-11-29-agent-handoff/appy-trauma.json",
+      "note": "预选 APPY-001 v1/v2 的外伤问答边界；未进行评审现场抽取"
+    },
+    "mcp_submit_boundary": {
+      "result": "all_checks_pass",
+      "file": "docs/evidence/2026-11-29-agent-handoff/mcp-submit-boundary.json",
+      "note": "同一进程的 MCP 服务线程通过真实 HTTP 套接字运行，submit_fact_selection 成功提交、重复提交、未授权事实均记录边界；committed 边界 request_id 与 turn.request_id 一致。",
+      "detail_log": "local-only/2026-11-29-mcp-boundary/"
+    },
+    "o10a_latency": {
+      "result": "passed",
+      "file": "docs/evidence/2026-11-29-agent-handoff/o10a-latency-run.json",
+      "note": "规则模拟器下 first-ask click→visible 约 66.6 ms；真实平台复测需新预算。",
+      "detail_log": "local-only/2026-11-29-o10a-latency/"
+    },
+    "frontend": {
+      "typecheck": "passed",
+      "build": "passed",
+      "npm_audit": "0 vulnerabilities"
+    },
+    "compileall": "passed"
+  },
+  "open_blockers": {
+    "first_word_5s": "模拟器路径不构成 5 秒指标证据；真实复测需预算。",
+    "real_model_trials": 0,
+    "clinical_review": "未开展",
+    "student_trials": "未开展",
+    "official_pr_merge": "未合入",
+    "formal_acceptance": false
+  }
+}

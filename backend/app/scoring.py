@@ -129,6 +129,28 @@ def _matching_keys(event, text, case) -> set[str]:
             and (candidate == _normalize(content) or information_length >= 4 and candidate in _normalize(content))}
 
 
+_EVIDENCE_SEPARATORS = re.compile(r"[、；;，,。\n]+")
+
+
+def _evidence_pieces(texts, cited, case) -> list[str]:
+    """Split one evidence box listing several facts ("A、B") when every part maps to cited evidence.
+
+    Text that already matches, or whose parts do not all match, is kept whole so that partial or
+    vague wording still goes to teacher review instead of earning credit piecemeal.
+    """
+    pieces: list[str] = []
+    for text in texts:
+        if any(_matching_keys(event, text, case) for event in cited):
+            pieces.append(text)
+            continue
+        parts = [part.strip() for part in _EVIDENCE_SEPARATORS.split(text) if part.strip()]
+        if len(parts) > 1 and all(any(_matching_keys(event, part, case) for event in cited) for part in parts):
+            pieces.extend(parts)
+        else:
+            pieces.append(text)
+    return pieces
+
+
 def _score_differential(rubric, candidate, events, event_ids, case):
     """Rule-based differential scoring. Returns (score, hit, review, evidence, reason, improvement)."""
     rule = rubric.differential
@@ -146,7 +168,7 @@ def _score_differential(rubric, candidate, events, event_ids, case):
         ("supporting", candidate.get("supporting_evidence", [])),
         ("opposing", candidate.get("opposing_evidence", [])),
     ):
-        for text in texts:
+        for text in _evidence_pieces(texts, cited, case):
             matched = [event for event in cited if _matching_keys(event, text, case)]
             keys = set().union(*(_matching_keys(event, text, case) for event in matched)) if matched else set()
             on_side = keys & (support_keys if role == "supporting" else oppose_keys)
@@ -191,7 +213,7 @@ def _score_differential(rubric, candidate, events, event_ids, case):
         notes.append("当前分数仅计有效证据，须教师复核后定分")
     reason = "已找到符合病例规则的支持/反对证据" if full else "；".join(notes) or "证据不足"
     improvement = "" if full else (rubric.improvement or "；".join(advice) or "补充可核对的证据")
-    evidence = sorted(used_events) if used_events else [e for e in cited_ids if e in event_ids]
+    evidence = [e.event_id for e in cited if e.event_id in used_events] if used_events else [e for e in cited_ids if e in event_ids]
     return score, full, review, evidence, reason, improvement
 
 
@@ -205,6 +227,54 @@ def _default_improvement(rubric) -> str:
         "treatment_execution": f"需在确认后实际执行：{rubric.description}（仅计划不计入执行）",
         "ddx_evidence": f"请补充：{rubric.description}，并引用已取得结果的事件。",
     }.get(rubric.evidence_type, f"建议改进：{rubric.description}")
+
+
+STEWARDSHIP_ITEM = "exam_stewardship"
+STEWARDSHIP_PENALTY = 0.25
+
+
+def _exam_stewardship(events, case) -> ScoreItem:
+    """Penalise orders the case does not call for: the student chose from the full catalogue."""
+    from . import exam_catalog
+
+    case_ids = {e.exam_id for e in case.exams if e.configured}
+    case_names = {e.exam_id: e.standard_name for e in case.exams}
+    acceptable = set(getattr(case, "acceptable_exams", []) or [])
+
+    def entry_of(exam_id: str):
+        return exam_catalog.find(exam_id) or exam_catalog.entry_for_name(case_names.get(exam_id, ""))
+
+    def tolerated(exam_id: str) -> bool:
+        if exam_id in case_ids:
+            return True
+        entry = entry_of(exam_id)
+        return entry is not None and (entry.baseline or entry.name in acceptable
+                                      or any(a in acceptable for a in entry.aliases))
+
+    orders = [e for e in events if e.action == ActionKind.ORDER_EXAM]
+    extra = [e for e in orders if not tolerated(e.payload.get("exam_id", ""))]
+    names = []
+    cost = 0
+
+    for event in orders:
+        entry = entry_of(event.payload.get("exam_id", ""))
+        if entry is not None:
+            cost += entry.cost
+    for event in extra:
+        entry = entry_of(event.payload.get("exam_id", ""))
+        names.append(entry.name if entry else event.payload.get("exam_id", ""))
+    score = max(0.0, 1.0 - STEWARDSHIP_PENALTY * len(extra))
+    if not orders:
+        reason, improvement = "未开立任何检查", "根据问诊结果有针对性地开立检查。"
+        score = 0.0
+    elif extra:
+        reason = f"开立了与本病例无关的检查 {len(extra)} 项：{'、'.join(names)}"
+        improvement = "开单前先明确想验证或排除的诊断，只开能改变处理决策的检查，避免增加费用和等待时间。"
+    else:
+        reason, improvement = "未开立与本病例无关的检查（常规基础检查不扣分）", ""
+    return ScoreItem(item_id=STEWARDSHIP_ITEM, stage="检查选择", hit=not extra and bool(orders), score=score,
+                     max_score=1.0, evidence_event_ids=[e.event_id for e in extra],
+                     reason=f"{reason}（目录价合计约 {cost} 元）", improvement=improvement)
 
 
 def score_session(state: SessionState, case) -> ScoreSnapshot:
@@ -221,13 +291,31 @@ def score_session(state: SessionState, case) -> ScoreSnapshot:
         improvement: str | None = None
         reason = "未找到满足时点和证据类型的事件"
         if rubric.evidence_type == "ask_event":
-            evidence = [
-                event.event_id
-                for event in events
-                if event.action == ActionKind.ASK
-                and rubric.item_id in event.payload.get("matched_fact_ids", [])
-            ]
-            hit = bool(evidence)
+            if rubric.required_atom_ids:
+                required = set(rubric.required_atom_ids)
+                evidence, covered = [], set()
+                for event in events:
+                    if event.action != ActionKind.ASK:
+                        continue
+                    answered = set(event.result.get("answer_atom_ids", []))
+                    # Pre-atom events recorded full disclosure only; an explicit empty atom list is not legacy.
+                    if "answer_atom_ids" not in event.result and rubric.item_id in event.payload.get("matched_fact_ids", []):
+                        answered = required
+                    gained = (required & answered) - covered
+                    if gained:
+                        evidence.append(event.event_id)
+                        covered |= gained
+                hit = required <= covered
+                if not hit and covered:
+                    reason = f"已取得 {len(covered)}/{len(required)} 项量表要求的问答，尚未问齐"
+            else:
+                evidence = [
+                    event.event_id
+                    for event in events
+                    if event.action == ActionKind.ASK
+                    and rubric.item_id in event.payload.get("matched_fact_ids", [])
+                ]
+                hit = bool(evidence)
         elif rubric.evidence_type == "exam_order":
             matching_events = [
                 event.event_id
@@ -349,6 +437,8 @@ def score_session(state: SessionState, case) -> ScoreSnapshot:
                 improvement=improvement,
             )
         )
+
+    items.append(_exam_stewardship(events, case))
 
     return ScoreSnapshot(
         session_id=state.session_id,

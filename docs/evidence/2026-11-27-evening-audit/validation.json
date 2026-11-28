@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-27",
+  "base_sha": "4b525dd00299d7d86b108c485ed1ca883724b0fe",
+  "working_tree_changes": true,
+  "pytest": {
+    "passed": 888,
+    "failed": 0,
+    "seconds": 179.28
+  },
+  "engineering_samples": {
+    "complete": 12,
+    "passed": 12,
+    "formal_acceptance": false
+  },
+  "teacher_panel_browser": {
+    "passed": 16,
+    "failed": 0
+  },
+  "student_teacher_browser": {
+    "passed": 13,
+    "failed": 0
+  },
+  "typecheck": "passed",
+  "build": "passed",
+  "compileall": "passed",
+  "npm_audit_vulnerabilities": 0,
+  "python_dependency_audit": "verify final SHA CI",
+  "real_model_calls": 0,
+  "clinical_or_official_acceptance": false,
+  "source_sha256": {
+    "backend/app/roster.py": "20fb83779d85f1013433c2558342d2adc32d0a5722cc3266a32078f3b83ce3b0",
+    "backend/app/export.py": "13b6a6a30118824daa1885c8e878323a0f86fcc725070c23e46fd92eb766c835",
+    "backend/app/teacher_export_api.py": "abb2b48ad9c71afa19e5de798148f73bc5de888232ff6ed6c99af10ccca85a98",
+    "backend/app/teacher_scope.py": "ce4fcf3f8ec21b6b177ca0538c3293bfab6144c2d94171eec8a84edb45f72eb0",
+    "web/e2e/teacher-panel.mjs": "b07e4df74ba496452a52c77271d2036e6b233b13dc11fb53880d52b9bf75b58b",
+    "web/e2e/teacher_panel_stack.py": "4511faf37357baa8222d0eb4e379aa37b5ca696494a3388aef205b340a340e51",
+    "web/dist/assets/main.js": "b3e5d5c8c29b808f57644c939cde251f067b27a85c46b54a1a6fbf8a39cc918a"
+  }
+}

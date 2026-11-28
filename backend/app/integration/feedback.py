@@ -10,7 +10,8 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, Iterator
 
-from ..models import CaseDefinition, SessionState
+from ..adapters import diagnosis_leak_terms
+from ..models import ActionKind, CaseDefinition, SessionState
 from ..scoring import student_score_snapshot
 from ..storage import ConcurrentUpdateError, SessionRepository
 from . import turns as turn_states
@@ -22,6 +23,23 @@ from .turns import TurnStore
 
 
 logger = logging.getLogger(__name__)
+
+
+
+def _initialise(connect, schema: str, attempts: int = 50) -> None:
+    import time as _time
+
+    for attempt in range(attempts):
+        try:
+            with connect() as connection:
+                if connection.execute("PRAGMA journal_mode").fetchone()[0].lower() != "wal":
+                    connection.execute("PRAGMA journal_mode=WAL")
+                connection.executescript(schema)
+            return
+        except sqlite3.OperationalError as exc:
+            if "locked" not in str(exc) or attempt == attempts - 1:
+                raise
+            _time.sleep(0.05)
 
 
 class FeedbackUnavailable(RuntimeError):
@@ -72,15 +90,15 @@ class FeedbackStore:
     def __init__(self, path: str | Path):
         self.path = str(path)
         Path(self.path).parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as connection:
-            connection.executescript(_SCHEMA)
+        # WAL is persistent in the file; switch once here. Switching needs an exclusive lock and does not
+        # wait on the busy handler, so doing it on every connection fails under concurrent requests.
+        _initialise(self._connect, _SCHEMA)
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
         connection = sqlite3.connect(self.path, timeout=10, isolation_level=None)
         try:
             connection.row_factory = sqlite3.Row
-            connection.execute("PRAGMA journal_mode=WAL")
             connection.execute("PRAGMA busy_timeout=10000")
             yield connection
         finally:
@@ -227,6 +245,171 @@ class FeedbackStore:
         return row["revision"]
 
 
+_GAP_LABELS = {
+    "病史采集": "未找到采集记录",
+    "检查选择": "未找到开立记录",
+    "鉴别诊断": "未提交鉴别证据",
+    "诊断": "未提交诊断",
+    "治疗": "未执行处置",
+}
+
+# Neutral per-stage action names used when the rubric has no mapping for an item, or when the
+# author's description is not safe to forward (diagnosis/marker content).
+_NEUTRAL_ACTIONS = {
+    "病史采集": "病史采集",
+    "检查选择": "检查选择",
+    "鉴别诊断": "鉴别诊断",
+    "诊断": "提交诊断",
+    "治疗": "治疗措施",
+}
+
+_INTERNAL_MARKERS = ("sentinel", "traceback", "api_key", "turn_token", "secret")
+
+# Standard action-name prefixes per evidence type. Only these controlled forms may be forwarded
+# as a teaching action; any other authored text (free teacher notes) falls back to the neutral name.
+_ACTION_PREFIXES = {
+    "ask_event": ("询问",),
+    "exam_order": ("开立", "优先开立", "测量"),
+    "ddx_evidence": ("提供",),
+    "diagnosis": ("提交",),
+    "treatment_execution": ("确认",),
+}
+_ACTION_MAX_LEN = 40
+
+
+def _controlled_action(rubric_item, case: CaseDefinition | None) -> bool:
+    """True only for standard authored action names: controlled verb, bounded length, and no
+    diagnosis or internal-marker content. Free teacher text is never forwarded to the model."""
+    description = (rubric_item.description or "").strip()
+    if not description or len(description) > _ACTION_MAX_LEN:
+        return False
+    if not description.startswith(_ACTION_PREFIXES.get(rubric_item.evidence_type, ())):
+        return False
+    lowered = "".join(description.casefold().split())
+    if any(marker in lowered for marker in _INTERNAL_MARKERS):
+        return False
+    if case is not None and any(term in lowered for term in diagnosis_leak_terms(case)):
+        return False
+    return True
+
+
+def teaching_gap(item, rubric_item, case: CaseDefinition | None = None) -> str:
+    """A de-identified teaching-action gap a sealed score can prove, safe to show the model.
+
+    Uses the authored teaching-action description only when it is a controlled action name;
+    otherwise falls back to the stage's neutral name. The diagnosis stage is always neutral. A
+    missing record is never phrased as the patient lacking a symptom.
+    """
+    action = _NEUTRAL_ACTIONS.get(item.stage, item.stage)
+    if rubric_item is not None and item.stage != "诊断" and _controlled_action(rubric_item, case):
+        action = rubric_item.description
+    if "复核" in (item.reason or ""):
+        status = "待教师判断"
+    elif item.score > 0:
+        status = "部分完成"
+    else:
+        status = _GAP_LABELS.get(item.stage, "未找到记录")
+    return f"{action}：{status}"
+
+
+def _safe_evidence_text(text: str, case: CaseDefinition) -> bool:
+    lowered = "".join(text.casefold().split())
+    if any(marker in lowered for marker in _INTERNAL_MARKERS):
+        return False
+    return not any(term in lowered for term in diagnosis_leak_terms(case))
+
+
+def treatment_evidence(state: SessionState, case: CaseDefinition) -> dict[str, Any]:
+    """Per-treatment sealed records: execution status plus the directly related returned exams.
+
+    Only facts with a clear link (a case delay rule ties its anchor exam to the exclusion
+    treatment) and safe text are listed. Filtered or unmappable records are omitted — never
+    asserted as not-happened — and internal ids are never emitted.
+    """
+    anchor_by_treatment: dict[str, str] = {}
+    for rule in case.rules:
+        if rule.delay_anchor_exam is not None:
+            for treatment_id in rule.delay_exclusion_treatments:
+                anchor_by_treatment[treatment_id] = rule.delay_anchor_exam
+    exam_by_id = {exam.exam_id: exam for exam in case.exams}
+    returned: dict[str, dict[str, Any]] = {}
+    for event in state.events:
+        for exam_id in event.result.get("ready_exam_ids", []):
+            if exam_id in returned:
+                continue
+            exam = exam_by_id.get(exam_id)
+            if exam is not None and exam.result and _safe_evidence_text(exam.standard_name + exam.result, case):
+                returned[exam_id] = {"检查": exam.standard_name, "结果": exam.result,
+                                     "回报时间分": event.sim_time}
+    executed_at: dict[str, int] = {}
+    for event in state.events:
+        if event.action == ActionKind.EXECUTE_TREATMENT and event.executed:
+            treatment_id = str(event.payload.get("treatment_id", ""))
+            if treatment_id not in executed_at:
+                executed_at[treatment_id] = event.sim_time
+    entries: list[dict[str, Any]] = []
+    for treatment in case.treatments:
+        if not _safe_evidence_text(treatment.name, case):
+            continue  # omit the entry entirely instead of asserting anything about it
+        anchor = anchor_by_treatment.get(treatment.treatment_id)
+        related = [dict(returned[anchor])] if anchor and anchor in returned else []
+        exec_time = executed_at.get(treatment.treatment_id)
+        entries.append({
+            "处置": treatment.name,
+            "执行状态": f"{exec_time}分已执行" if exec_time is not None else "未见执行记录",
+            "相关已回报检查": related,
+        })
+    return {"封存时间分": state.seal_sim_time, "治疗依据": entries}
+
+
+def treatment_evidence_by_item(state: SessionState, case: CaseDefinition) -> dict[str, dict[str, Any]]:
+    """Per-treatment-item sealed evidence for the teacher review page (teacher-facing facts).
+
+    For each treatment: the directly related returned exam with its visible time and the sealed
+    event id (locatable), the execution status derived from the complete pre-seal event list, and
+    the seal time. A missing execution is a real absence in the event list, never a fake event.
+    """
+    anchor_by_treatment: dict[str, str] = {}
+    for rule in case.rules:
+        if rule.delay_anchor_exam is not None:
+            for treatment_id in rule.delay_exclusion_treatments:
+                anchor_by_treatment[treatment_id] = rule.delay_anchor_exam
+    exam_by_id = {exam.exam_id: exam for exam in case.exams}
+    returned: dict[str, dict[str, Any]] = {}
+    for event in state.events:
+        for exam_id in event.result.get("ready_exam_ids", []):
+            if exam_id in returned:
+                continue
+            exam = exam_by_id.get(exam_id)
+            if exam is not None and exam.result:
+                returned[exam_id] = {"检查": exam.standard_name, "结果": exam.result,
+                                     "回报时间分": event.sim_time, "event_id": event.event_id}
+    executed_at: dict[str, int] = {}
+    for event in state.events:
+        if event.action == ActionKind.EXECUTE_TREATMENT and event.executed:
+            treatment_id = str(event.payload.get("treatment_id", ""))
+            if treatment_id not in executed_at:
+                executed_at[treatment_id] = event.sim_time
+    out: dict[str, dict[str, Any]] = {}
+    for treatment in case.treatments:
+        anchor = anchor_by_treatment.get(treatment.treatment_id)
+        anchor_name = None
+        if anchor is not None:
+            anchor_exam = exam_by_id.get(anchor)
+            if anchor_exam is not None:
+                anchor_name = anchor_exam.standard_name
+        exec_time = executed_at.get(treatment.treatment_id)
+        out[treatment.treatment_id] = {
+            "处置": treatment.name,
+            "已执行": exec_time is not None,
+            "执行时间分": exec_time,
+            "关联检查": anchor_name,
+            "相关已回报检查": [dict(returned[anchor])] if anchor and anchor in returned else [],
+            "封存时间分": state.seal_sim_time,
+        }
+    return out
+
+
 class FeedbackService:
     def __init__(
         self,
@@ -257,8 +440,10 @@ class FeedbackService:
                 return existing
             if self.settings.uses_nexent:
                 items, source, trace = self._from_nexent(state, case, request_id)
-            else:
+            elif self.settings.mode == "simulator":
                 items, source, trace = self._from_local_rules(state, case)
+            else:
+                raise FeedbackUnavailable("unavailable", "反馈运行模式无效，请检查服务端 NEXENT_MODE 配置")
             self.store.save_once(
                 state.session_id, state.owner_id, source, items, self.knowledge.status, trace,
                 self.knowledge.snapshot(items, case.case_id, case.version),
@@ -268,6 +453,40 @@ class FeedbackService:
         return stored
 
     # ------------------------------------------------------------------ real chain
+    def _compact_query(self, state: SessionState, case: CaseDefinition) -> str:
+        snapshot = state.score_snapshot
+        assert snapshot is not None
+        snapshot = student_score_snapshot(snapshot, case)
+        rubric = {item.item_id: item for item in case.rubric}
+        stage_summary: dict[str, list[dict[str, Any]]] = {}
+        for stage in FEEDBACK_STAGES:
+            entries: list[dict[str, Any]] = []
+            for item in snapshot.items:
+                if item.stage != stage:
+                    continue
+                entry: dict[str, Any] = {"得分": item.score, "满分": item.max_score}
+                if item.score < item.max_score:
+                    entry["缺口"] = teaching_gap(item, rubric.get(item.item_id), case)
+                entries.append(entry)
+            stage_summary[stage] = entries
+        return (
+            "训练已封存。以下各环节依次列出分项得分与满分；未满分项附注一条封存评分能够证明的教学动作缺口，"
+            "格式为「教学动作：状态」。缺口只说明记录缺失、部分完成或待教师判断，"
+            "不得把「未找到记录」理解为患者没有该症状。仅作为反馈数据。"
+            "另附与治疗环节直接相关的封存记录（含模拟时间）：「治疗依据」逐项给出处置的执行状态"
+            "（已执行的时间或未见执行记录）及该处置直接相关的已回报检查；"
+            "仅引用列出的记录，不要推断未列出项的状态或相关性；执行状态以列表为准，"
+            "不得把未见执行记录写成执行过，也不得写成执行得太晚；评语只陈述已回报与执行状态的事实，"
+            "不得断言病情变化由未执行处置导致。治疗环节评语按「相关已回报检查→执行状态」陈述；"
+            "没有相关已回报检查时只说明执行状态。"
+            + json.dumps({"环节": stage_summary, "封存记录": treatment_evidence(state, case)},
+                         ensure_ascii=False, separators=(",", ":"))
+            + "请根据封存训练与下游可信工具提供的教学依据，每个环节写一句评语和一句改进建议，"
+            "评语须准确指出该环节的实际缺口。一次调用 submit_feedback，items 每项只含 stage、comment、improvement，"
+            "设置 use_stage_basis=True。只评价得分与完成程度，不凭分数判断诊疗合理性。"
+            "不得推断或披露隐藏诊断，不得改分或编造观察结果。"
+        )
+
     def _from_nexent(self, state: SessionState, case: CaseDefinition, request_id: str):
         turn, token = self.turns.issue(
             kind=turn_states.FEEDBACK,
@@ -278,23 +497,30 @@ class FeedbackService:
             request_id=request_id,
             state_version=state.state_version,
             ttl_s=max(self.settings.turn_ttl_s, self.settings.total_timeout_s + 30),
+            mode=self.settings.mode,
+        )
+        query = self._compact_query(state, case) if self.settings.feedback_protocol == "compact" else (
+            "训练已封存。一次调用 get_sealed_review 读取评分、事件和 stage_basis 中的五环节依据，"
+            "调用 search_teaching_basis 检索，"
+            "再调用 submit_feedback，按病史采集、检查选择、鉴别诊断、诊断、治疗各提交一条评语，"
+            "每条必须有非空改进建议，且引用的教学依据 stages 必须包含该环节；不得公布参考诊断或编造事件。"
         )
         try:
             run = self.client().run(
                 agent_name=self.settings.feedback_agent_name,
-                query=(
-                    "【系统回合】训练已封存。一次调用 get_sealed_review 读取评分、事件和 stage_basis 中的五环节依据，"
-                    "调用 knowledge_base_search 检索，"
-                    "再调用 submit_feedback，按病史采集、检查选择、鉴别诊断、诊断、治疗各提交一条评语，"
-                    "每条必须有非空改进建议，且引用的教学依据 stages 必须包含该环节；不得公布参考诊断或编造事件。"
-                    f"turn_token 为 {token}。"
-                ),
+                query=f"【系统回合】{query} turn_token 为 {token}。",
                 metadata={"turn_token": token, "role": "feedback"},
                 audit_metadata={"turn_id": turn.turn_id, "request_id": request_id},
                 idempotency_key=turn.turn_id,
+                trusted_completion=(
+                    lambda: self.turns.get(turn.turn_id).status == turn_states.SUBMITTED
+                ) if self.settings.feedback_protocol == "compact" else None,
             )
         except NexentError as exc:
             self.turns.cancel(turn.turn_id, "run_failed")
+            # De-identified platform failure summary goes to the audit store, never the regular log.
+            if exc.detail:
+                self.turns.record_call(turn.turn_id, "run", ok=False, detail=exc.detail[:200])
             raise FeedbackUnavailable(exc.kind, "反馈服务暂不可用，请稍后重试") from exc
         current = self.turns.get(turn.turn_id)
         calls = self.turns.calls(turn.turn_id)
@@ -307,6 +533,7 @@ class FeedbackService:
             "platform_first_event_ms": run.first_event_ms,
             "platform_first_final_event_ms": run.first_final_event_ms,
             "total_ms": run.total_ms,
+            "trusted_completion": run.trusted_completion,
             "tool_calls": [{"tool": c["tool"], "ok": c["ok"]} for c in calls],
         }
         if current.status != turn_states.SUBMITTED:

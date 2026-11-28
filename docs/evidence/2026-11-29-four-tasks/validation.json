@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "round": "2026-11-29 第三轮：评测汇总修正 / 导出脱敏保导入性 / stall 偶发调查 / 恢复演练",
+  "baseline": {
+    "sha": "0194770ae832ce7c5f38d82c68ef600c9609c07d",
+    "verified": "Push 46180128111、PR 46180132325 均 success"
+  },
+  "batches": {
+    "tool_tests": {
+      "file": "tests/test_delivery_and_forms_tools.py",
+      "passed": 10,
+      "failed": 0,
+      "note": "评测汇总 8 项 + 导出准备相关；全部按新语义重写"
+    },
+    "deadline_tests": {
+      "file": "tests/test_nexent_deadlines.py",
+      "passed": 31,
+      "failed": 0,
+      "note": "容差修正后全文件通过（含参数化三变体）"
+    },
+    "full_pytest": {
+      "passed": 976,
+      "failed": 0,
+      "seconds": 235.75,
+      "command": ".venv/Scripts/python.exe -m pytest -q",
+      "log": "local-only/full-pytest-20261129-four-tasks.log",
+      "log_note": "本轮起保存完整输出（此前 tail 导致失败断言丢失）"
+    },
+    "engineering_samples": {
+      "samples": 12,
+      "complete": 12,
+      "engineering_pass": 12,
+      "code_sha_note": "在未提交工作树运行（记录 HEAD=0194770 基线）；最终 SHA 的 CI 将再运行",
+      "original_database_unchanged": true
+    },
+    "compileall": "pass",
+    "evidence_runs": {
+      "qa_repro": "docs/evidence/2026-11-29-delivery-tools/qa-repro-19-plus-1-failure.json（19/19 与 19/20）",
+      "empty_forms_baseline": "docs/evidence/2026-11-29-delivery-tools/forms-baseline-unfilled.json（新结构重录）",
+      "export_before_after": [
+        "docs/evidence/2026-11-29-delivery-tools/repro/before-fix-review.json",
+        "docs/evidence/2026-11-29-delivery-tools/repro/before-fix-observations.txt",
+        "docs/evidence/2026-11-29-delivery-tools/repro/after-fix-review.json",
+        "docs/evidence/2026-11-29-delivery-tools/repro/after-fix-observations.txt"
+      ],
+      "deadline_experiments": [
+        "exp-normal-30.json",
+        "exp-load4-20.json",
+        "exp-postfix-load6-20.json",
+        "investigation.md（整文件 ×3 记录在案）"
+      ],
+      "restore_drill": "docs/evidence/2026-11-29-restore-drill/report.json（15/15，backup 0.03s/restore 0.02s）"
+    }
+  },
+  "real_provider_calls": 0,
+  "business_database_touched": false,
+  "incidents": [
+    "调试期间用旧版脚本（git show 0194770 提取）做修前复现时，其 DELIVERABLES 相对自身路径解析到正式交付目录，写入合成 agent.json/feedback副本；已即时删除并以 git status 复核正式目录为干净状态。后续修前复现改在隔离沙箱（脚本副本置于 sandbox/scripts 下）完成。"
+  ],
+  "not_done": [
+    "两份正式 agent.json 仍缺（须授权平台导出；本轮交付目录实际状态保持为缺失，验证器 exit 2）",
+    "stall 套件内触发条件未复现：只给出已排除解释与诊断改进，不宣称根因已修复",
+    "评测表单仍为空表；现场随机抽取待评审；CAP 4 评分差异与 10 教学歧义待裁决"
+  ]
+}

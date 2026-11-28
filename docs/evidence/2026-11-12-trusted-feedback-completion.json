@@ -1,0 +1,229 @@
+{
+  "date": "2026-11-12",
+  "platform": "Nexent v2.8.4",
+  "base_code_sha": "c87b2c8e021b7790f9dffbccff8ab11bebc741ed",
+  "patched_source_sha256": {
+    "backend/app/integration/nexent_client.py": "2581435b2d0a1068d32496a1b6cd5e6d3a1ce4d5ca9ec391aff6442306d89e19",
+    "backend/app/integration/feedback.py": "5ab78bfe5f199ec59f61de7c9abd6bcb492d8bfb537fff956ab4d8cd66ab7723"
+  },
+  "feedback_agent_version": 13,
+  "model": "spark-x2.6-4b",
+  "protocol": "compact",
+  "prompt_sha256": "89021596fcb75b37775a12a2640f71f3f91a578c868f80352a2081babf4b85e6",
+  "scope": "Same backed-up synthetic sealed STEMI training; fresh integration database and restarted API/MCP for every request. Original business database untouched.",
+  "root_causes": [
+    "Prior raw runtime response combined code action and final envelope; platform correctly rejected the mixed response. Earlier SSE extraction omitted the final envelope.",
+    "A successful trusted submission could be lost while waiting for model closing prose; compact feedback now checks local trusted submission at execution events and retains validation before saving."
+  ],
+  "attempts": [
+    {
+      "attempt": "1",
+      "http_status": 504,
+      "elapsed_ms": 54844,
+      "fresh_integration_db": true,
+      "score_equal": true,
+      "sealed_write_status": 400,
+      "other_owner_read_status": 404,
+      "feedback_count": 0,
+      "original_db_hash_unchanged": true,
+      "code_variant": "c87b2c8 baseline",
+      "trusted_calls": [
+        {
+          "tool": "submit_feedback",
+          "ok": true
+        }
+      ],
+      "turn_states": [
+        {
+          "status": "cancelled",
+          "cancel_reason": "run_failed"
+        }
+      ]
+    },
+    {
+      "attempt": "2",
+      "http_status": 504,
+      "elapsed_ms": 54875,
+      "fresh_integration_db": true,
+      "score_equal": true,
+      "sealed_write_status": 400,
+      "other_owner_read_status": 404,
+      "feedback_count": 0,
+      "original_db_hash_unchanged": true,
+      "code_variant": "c87b2c8 plus trusted-completion patch",
+      "trusted_calls": [],
+      "turn_states": [
+        {
+          "status": "cancelled",
+          "cancel_reason": "run_failed"
+        }
+      ]
+    },
+    {
+      "attempt": "3",
+      "http_status": 200,
+      "elapsed_ms": 24485,
+      "fresh_integration_db": true,
+      "score_equal": true,
+      "sealed_write_status": 400,
+      "other_owner_read_status": 404,
+      "source": "nexent",
+      "stages": [
+        "病史采集",
+        "检查选择",
+        "鉴别诊断",
+        "诊断",
+        "治疗"
+      ],
+      "readback_equal": true,
+      "feedback_count": 1,
+      "original_db_hash_unchanged": true,
+      "code_variant": "c87b2c8 plus trusted-completion patch",
+      "trusted_calls": [
+        {
+          "tool": "submit_feedback",
+          "ok": true
+        }
+      ],
+      "turn_states": [
+        {
+          "status": "finalized",
+          "cancel_reason": null
+        }
+      ],
+      "trace": {
+        "trusted_completion": true,
+        "event_types": {
+          "conversation_created": 1,
+          "other": 1,
+          "agent_new_run": 2,
+          "step_count": 1,
+          "model_attempt_control": 4,
+          "model_output_thinking": 328,
+          "parse": 1,
+          "tool": 1,
+          "execution_logs": 1
+        },
+        "first_event_ms": 313,
+        "platform_first_final_event_ms": null,
+        "total_ms": 24406
+      }
+    },
+    {
+      "attempt": "4",
+      "http_status": 200,
+      "elapsed_ms": 16719,
+      "fresh_integration_db": true,
+      "score_equal": true,
+      "sealed_write_status": 400,
+      "other_owner_read_status": 404,
+      "source": "nexent",
+      "stages": [
+        "病史采集",
+        "检查选择",
+        "鉴别诊断",
+        "诊断",
+        "治疗"
+      ],
+      "readback_equal": true,
+      "feedback_count": 1,
+      "original_db_hash_unchanged": true,
+      "code_variant": "c87b2c8 plus trusted-completion patch",
+      "trusted_calls": [
+        {
+          "tool": "submit_feedback",
+          "ok": true
+        }
+      ],
+      "turn_states": [
+        {
+          "status": "finalized",
+          "cancel_reason": null
+        }
+      ],
+      "trace": {
+        "trusted_completion": true,
+        "event_types": {
+          "conversation_created": 1,
+          "other": 1,
+          "agent_new_run": 2,
+          "step_count": 1,
+          "model_attempt_control": 2,
+          "model_output_thinking": 350,
+          "parse": 1,
+          "tool": 1,
+          "execution_logs": 1
+        },
+        "first_event_ms": 218,
+        "platform_first_final_event_ms": null,
+        "total_ms": 16656
+      }
+    },
+    {
+      "attempt": "5",
+      "http_status": 200,
+      "elapsed_ms": 27515,
+      "fresh_integration_db": true,
+      "score_equal": true,
+      "sealed_write_status": 400,
+      "other_owner_read_status": 404,
+      "source": "nexent",
+      "stages": [
+        "病史采集",
+        "检查选择",
+        "鉴别诊断",
+        "诊断",
+        "治疗"
+      ],
+      "readback_equal": true,
+      "feedback_count": 1,
+      "original_db_hash_unchanged": true,
+      "code_variant": "c87b2c8 plus trusted-completion patch",
+      "trusted_calls": [
+        {
+          "tool": "submit_feedback",
+          "ok": true
+        }
+      ],
+      "turn_states": [
+        {
+          "status": "finalized",
+          "cancel_reason": null
+        }
+      ],
+      "trace": {
+        "trusted_completion": true,
+        "event_types": {
+          "conversation_created": 1,
+          "other": 1,
+          "agent_new_run": 2,
+          "step_count": 1,
+          "model_attempt_control": 4,
+          "model_output_thinking": 389,
+          "parse": 1,
+          "tool": 1,
+          "execution_logs": 1
+        },
+        "first_event_ms": 234,
+        "platform_first_final_event_ms": null,
+        "total_ms": 27453
+      }
+    }
+  ],
+  "consecutive_successful_generations": 3,
+  "timeout_budget_seconds": 55,
+  "remaining_connection_issue": "Patched attempt 2 hit model initial-chunk timeout before any trusted call.",
+  "feedback_quality_review": {
+    "clinical_acceptance": false,
+    "unsupported_clinical_judgments_observed": true,
+    "example_from_attempt_3": [
+      "诊断基本准确，完整性稍缺",
+      "治疗选择合理，覆盖有缺"
+    ],
+    "limitation": "Numeric scores alone do not establish diagnostic accuracy or treatment appropriateness. These generated comments require teacher review; engineering success is not medical validation."
+  },
+  "independent_platform_import_verified": false,
+  "formal_acceptance": false,
+  "official_public_reply_count": 2,
+  "official_process_new_confirmation": false
+}

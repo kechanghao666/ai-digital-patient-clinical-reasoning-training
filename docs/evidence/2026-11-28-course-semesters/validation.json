@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "round": "2026-11-28 M3/M11 学期/课程关联与同课程跨班复用",
+  "feature_shas": {
+    "backend": "b8317da",
+    "frontend": "5b4eafc"
+  },
+  "batches": {
+    "full_pytest": {
+      "passed": 947,
+      "failed": 0,
+      "seconds": 349.61,
+      "python": "3.11.18",
+      "command": ".venv/Scripts/python.exe -m pytest -q",
+      "note": "本轮无偶发失败；939 基线 + 新增 8 项学期/课程专项"
+    },
+    "specialized": {
+      "files": [
+        "tests/test_roster.py",
+        "tests/test_roster_templates.py",
+        "tests/test_course_terms.py"
+      ],
+      "passed": 25,
+      "failed": 0
+    },
+    "engineering_samples": {
+      "samples": 12,
+      "complete": 12,
+      "engineering_pass": 12,
+      "code_sha": "5b4eafc14636d42b9299534cf26fb3c2d5772d81",
+      "original_database_unchanged": true
+    },
+    "browser": {
+      "probe": "web/e2e/teacher-panel.mjs",
+      "checks_total": 44,
+      "passed": 44,
+      "new_semester_course_checks": 5,
+      "evidence": "docs/evidence/2026-11-28-course-semesters/teacher-panel-run.json",
+      "screenshot": "docs/evidence/2026-11-28-course-semesters/course-semesters.png"
+    },
+    "frontend": {
+      "typecheck": "pass",
+      "build": "pass",
+      "npm_audit": "0 vulnerabilities"
+    },
+    "compileall": "pass"
+  },
+  "reuse_semantics": {
+    "copied_with_course": "任务设置：病例、标题、要求；截止日期可统一覆写或沿用源值",
+    "not_copied": "学生与班级归属、班内分组及组员关系、训练记录、评分与审计均留在原班级",
+    "skipped": "分组任务不复制并单独报告；目标班已有同病例进行中任务时幂等跳过",
+    "guards": "4eb29e9 的课程关系在写事务开始前检查；事务内复核教师对班级的归属和重复任务。原始浏览器记录只建一个学期，未覆盖两个学期。"
+  },
+  "real_provider_calls": 0,
+  "business_database_touched": false,
+  "scope_and_limits": [
+    "学期/课程按教师隔离；删除有引用保护（有课程/有班级时 409）",
+    "轮转、带教、补考与正式历史成绩口径仍待教学负责人确认，本轮未实现",
+    "课程不自动聚合跨班成绩，正式历史成绩册仍缺"
+  ]
+}

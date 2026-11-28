@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "title": "O3 复合事实问答多答修复前 API 复现探针",
+  "authorship": "开发者编写的修复前工程复现样例；非独立评审、盲测或医学审核",
+  "baseline_sha": "51901bd644519df4d57042eff4a684abaf2ee628",
+  "session_policy": "四个探针分别新建训练，避免会话历史影响结果",
+  "cases": [
+    {"case_id": "APPY-001", "version": 2, "source_file": "cases/appendicitis_case_v2.json"},
+    {"case_id": "STROKE-001", "version": 2, "source_file": "cases/stroke_case_v2.json"},
+    {"case_id": "CAP-001", "version": 2, "source_file": "cases/pneumonia_case_v2.json"}
+  ],
+  "probes": [
+    {
+      "probe_id": "appendicitis-surgery-single",
+      "case_id": "APPY-001",
+      "version": 2,
+      "session_group": "appendicitis-surgery-single",
+      "question": "以前做过手术吗？",
+      "required_fact_ids": ["f_hx"],
+      "allowed_fact_ids": ["f_hx"],
+      "prohibited_fact_ids": [],
+      "acceptable_no_fact_answers": [],
+      "semantic_target": "仅回答手术史；不得夹带既往体健或药物过敏"
+    },
+    {
+      "probe_id": "appendicitis-allergy-single",
+      "case_id": "APPY-001",
+      "version": 2,
+      "session_group": "appendicitis-allergy-single",
+      "question": "您有药物过敏吗？",
+      "required_fact_ids": ["f_hx"],
+      "allowed_fact_ids": ["f_hx"],
+      "prohibited_fact_ids": [],
+      "acceptable_no_fact_answers": [],
+      "semantic_target": "仅回答药物过敏；不得夹带既往健康或手术史"
+    },
+    {
+      "probe_id": "stroke-discovery-time",
+      "case_id": "STROKE-001",
+      "version": 2,
+      "session_group": "stroke-discovery-time",
+      "question": "家里人什么时候发现症状的？",
+      "required_fact_ids": ["f_care"],
+      "allowed_fact_ids": ["f_care"],
+      "prohibited_fact_ids": [],
+      "acceptable_no_fact_answers": ["我不太确定您的问题，能否换一种方式询问？", "具体是什么时候发现的我说不准。"],
+      "semantic_target": "病例只写发现后马上拨打120，没有发现的钟点；不得用120处置或途中无用药代答"
+    },
+    {
+      "probe_id": "cap-family-disease-single",
+      "case_id": "CAP-001",
+      "version": 2,
+      "session_group": "cap-family-disease-single",
+      "question": "家族里有人得过相似的病吗？",
+      "required_fact_ids": ["f_family"],
+      "allowed_fact_ids": ["f_family"],
+      "prohibited_fact_ids": [],
+      "acceptable_no_fact_answers": [],
+      "semantic_target": "仅回答家族中是否有相似疾病；不得额外披露结核史"
+    }
+  ],
+  "evaluation_scope": "仅基线代码、本机规则模拟器、学生问诊 API 与隔离合成数据库；不代表真实模型、临床或官方验收"
+}

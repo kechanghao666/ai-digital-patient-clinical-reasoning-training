@@ -1,0 +1,35 @@
+{
+  "checked_date": "2026-11-27",
+  "upstream": "https://atomgit.com/ModelEngine/AgentsHub.git",
+  "commit": "0f3403ff87215a34e8c32e16a1b86536d811e960",
+  "files": [
+    {
+      "file": "requirements.md",
+      "source_path": "需求包详情与交付要求.md",
+      "blob": "c101bdaba0df486bb5c3a7a40d7ba63cdedd1567",
+      "sha256": "f424888290719860db0cbb59e532243f09a1384b6909358ad634119f1a270271"
+    },
+    {
+      "file": "upstream-readme.md",
+      "source_path": "README.md",
+      "blob": "abd74bf74968c9d0a3e5eb37d2d994ad7504e16f",
+      "sha256": "232d57cbe0cc710a64faee36aefbbd8f3964959b3429d4fbba3ff95bada99c3a"
+    },
+    {
+      "file": "upstream-LICENSE",
+      "source_path": "LICENSE",
+      "blob": "e8b07c890a30697a133e21e649de220f55ad06d5",
+      "sha256": "e1f39b07cdadf5448e1efb9d92032ab8edbb927fc2896689d98e1685d9003c98"
+    },
+    {
+      "file": "announcement.md",
+      "url": "https://gitcode.com/org/ModelEngine/discussions/26",
+      "method": "POST /api/v1/discuss/detail (public read)",
+      "sha256": "34f82c6d3aa6ea220e84279f3aa1aed310dba03002921dd768c0911a27d7db00"
+    }
+  ],
+  "notes": [
+    "Announcement retrieved without login. No comment or message posted.",
+    "Requirements appendix B conflicts with announcement on multiple applicants; use current announcement and request organizer confirmation if needed."
+  ]
+}

@@ -1,0 +1,135 @@
+{
+  "date": "2026-11-13",
+  "direction": "User selected dark professional workspace after rejecting repeated cards",
+  "changes": [
+    "continuous aligned case register",
+    "graphite surfaces and blue actions",
+    "native accessible task navigation",
+    "borderless task columns",
+    "compact teacher lookup forms via shared CSS"
+  ],
+  "tests": {
+    "targeted_passed": 93,
+    "seconds": 30.2,
+    "scope": "six existing frontend, authoring, feedback and score review suites; full backend suite was not rerun for this visual change"
+  },
+  "browser": {
+    "date": "2026-11-13",
+    "checks": [
+      "dark library reflows at 390/320px; native sidebar radio retains visible keyboard focus",
+      "real patient answer visible in new tab layout",
+      "tabs retain drafts and active selection; unsaved notes block seal; submissions persist",
+      "explicit treatment confirmation; seal opens review; model draft stays teacher-only",
+      "replay filter preserves event sequence and readable expandable evidence",
+      "390px viewport has aligned summary cards, visible title, no horizontal page overflow; all tabs reachable",
+      "320px reflow keeps all four tabs reachable",
+      "teacher readable evidence and raw records available; no approval written; original score and owner isolation preserved",
+      "empty search has recovery guidance; selected sealed history restores the original read-only session"
+    ],
+    "complete": true,
+    "answer_visible_ms": 6015,
+    "mobile_geometry": {
+      "documentOverflow": 0,
+      "mainOverflow": 0,
+      "headingTop": 179.578125,
+      "toolbarBottom": 60,
+      "metrics": [
+        {
+          "top": 280.109375,
+          "left": 16
+        },
+        {
+          "top": 280.109375,
+          "left": 137.453125
+        },
+        {
+          "top": 280.109375,
+          "left": 258.921875
+        }
+      ]
+    },
+    "page_errors": [],
+    "business_database_unchanged": true
+  },
+  "visual": {
+    "sidebar_full_width": true,
+    "teacher_lookup_aligned": true,
+    "teacher_score_loaded": true,
+    "mobile_library_no_overflow": [
+      390,
+      320
+    ],
+    "primary_colors": {
+      "text": "rgb(20, 32, 56)",
+      "background": "rgb(166, 196, 255)"
+    },
+    "page_errors": []
+  },
+  "text_contrast_samples": [
+    {
+      "role": "正文",
+      "foreground": "#e7e9ee",
+      "background": "#181a1e",
+      "ratio": 14.34
+    },
+    {
+      "role": "次要文字",
+      "foreground": "#a0a6b2",
+      "background": "#202329",
+      "ratio": 6.44
+    },
+    {
+      "role": "主要按钮",
+      "foreground": "#142038",
+      "background": "#a6c4ff",
+      "ratio": 9.25
+    },
+    {
+      "role": "开始训练",
+      "foreground": "#b6cefa",
+      "background": "#181a1e",
+      "ratio": 10.95
+    },
+    {
+      "role": "教学提示",
+      "foreground": "#b9b1a3",
+      "background": "#181a1e",
+      "ratio": 8.2
+    }
+  ],
+  "screenshots": [
+    "library-desktop.png",
+    "library-390.png",
+    "library-320.png",
+    "intake-empty-desktop.png",
+    "intake-desktop.png",
+    "reasoning-desktop.png",
+    "treatment-desktop.png",
+    "review-desktop.png",
+    "review-mobile.png",
+    "review-320.png",
+    "history-desktop.png",
+    "teacher-desktop.png",
+    "teacher-score-desktop.png",
+    "teacher-cases-desktop.png"
+  ],
+  "source_sha256": {
+    "frontend/app.py": "302fedb4f7a12439bc6ea44b0e03d1a0f5e6fed7761de88a348fa632faf8743c",
+    "frontend/styles.css": "ea43ddb3089b3d3d3772f9ac59e0029404049ca67826465fb8ffa1123d20ec5d",
+    ".streamlit/config.toml": "280a083a863d2bef85f1d190bda4efc53ce828cbe3ba23e74702501edadf8a61"
+  },
+  "backend_changed": false,
+  "production_dependencies_added": false,
+  "remote_published": false,
+  "iteration_notes": [
+    "SVG removed by HTML sanitizer; replaced with CSS-only marks",
+    "Preview retains imported teacher modules; kept module code unchanged and applied compact lookup layout in shared CSS",
+    "Screenshot script waits for the keyed teacher field and completed sidebar resize to avoid stale-control races"
+  ],
+  "limits": [
+    "No complete screen-reader or human usability audit",
+    "Real response still exceeds five seconds",
+    "Design is not user-approved or medically approved",
+    "CSS needs revalidation after a Streamlit upgrade"
+  ]
+}

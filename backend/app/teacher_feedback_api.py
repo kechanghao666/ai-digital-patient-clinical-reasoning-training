@@ -6,10 +6,22 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from .case_store import CaseStore
+from .integration.embedding import EmbeddingError
+from .integration.knowledge import STAGES
+from .integration.ocr import OcrError, validate_image_data_url
+from .integration.rerank import RerankError
 from .integration.runtime import IntegrationRuntime
 from .integration.tools import _event_digest, validate_feedback_items, validate_feedback_record
 from .models import CaseDefinition, SessionState
 from .storage import ConcurrentUpdateError, SessionRepository
+from .teacher_scope import require_teacher_student
+
+# Cosine-similarity floor below which a teaching-basis entry is not offered as a semantic match.
+_BASIS_MIN_SCORE = 0.45
+# The teacher only needs a shortlist to choose from; never a full dump of the library.
+_BASIS_RESULT_LIMIT = 3
+# The library is an unreviewed engineering draft; every result must carry this label.
+_BASIS_DRAFT_NOTICE = "草稿，未医学审核"
 
 
 class FeedbackReviewRequest(BaseModel):
@@ -22,13 +34,48 @@ class FeedbackReviewRequest(BaseModel):
     basis_hashes: dict[str, str]
 
 
+class BasisSearchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    session_id: str = Field(min_length=1, max_length=200)
+    owner_id: str = Field(min_length=1, max_length=200)
+    query: str = Field(min_length=1, max_length=200)
+    # The feedback stage the teacher is currently looking at; absent means the whole-case scope.
+    stage: str | None = Field(default=None, max_length=20)
+
+
+class BasisRerankRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    session_id: str = Field(min_length=1, max_length=200)
+    owner_id: str = Field(min_length=1, max_length=200)
+    query: str = Field(min_length=1, max_length=200)
+    stage: str | None = Field(default=None, max_length=20)
+    # Optional fixed submission order (a permutation of the in-scope basis ids); absent means
+    # the library's own candidate order. Explicit, validated, never silently reordered.
+    order: list[str] | None = Field(default=None, max_length=10)
+
+
+class ChecklistOcrRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=False)
+    # Rough wire limit: a 2 MiB decoded image is ~2.7 MiB of base64 text. The strict decoded-size
+    # and format checks live in validate_image_data_url; this only keeps oversized payloads out.
+    image_data_url: str = Field(min_length=1, max_length=2_800_000)
+
+
+def _entry_summary(entry) -> dict[str, Any]:
+    return {"basis_id": entry.basis_id, "title": entry.title, "stages": list(entry.stages),
+            "applies_to_cases": list(entry.applies_to_cases), "sources": list(entry.sources),
+            "revision": entry.revision, "text": entry.text}
+
+
 def build_router(
     get_repository: Callable[[], SessionRepository], get_cases: Callable[[], CaseStore],
     get_runtime: Callable[[], IntegrationRuntime], current_teacher: Callable[..., str],
+    get_roster: Callable | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/api/teacher/feedback", tags=["teacher"])
 
-    def context(session_id: str, owner_id: str) -> tuple[SessionState, CaseDefinition]:
+    def context(session_id: str, owner_id: str, teacher_id: str) -> tuple[SessionState, CaseDefinition]:
+        require_teacher_student(get_roster, teacher_id, owner_id)
         try:
             state = get_repository().get(session_id, owner_id)
         except KeyError as exc:
@@ -43,8 +90,8 @@ def build_router(
 
     @router.get("/{session_id}")
     def read(session_id: str, owner_id: str = Query(min_length=1, max_length=200),
-             _: str = Depends(current_teacher)) -> dict[str, Any]:
-        state, case = context(session_id, owner_id)
+             teacher_id: str = Depends(current_teacher)) -> dict[str, Any]:
+        state, case = context(session_id, owner_id, teacher_id)
         runtime = get_runtime()
         original = runtime.feedback_store.get(session_id, owner_id)
         reviews = runtime.feedback_store.reviews(session_id, owner_id)
@@ -67,6 +114,7 @@ def build_router(
             "editable_items": effective["items"] if effective else [],
             "basis_provenance": ("snapshot" if effective.get("basis_snapshot") is not None else "legacy_unversioned") if effective else None,
             "teaching_basis": [{"basis_id": e.basis_id, "title": e.title, "stages": e.stages,
+                                "applies_to_cases": list(e.applies_to_cases), "kind": e.kind,
                                 "text": e.text, "sources": e.sources,
                                 "revision": e.revision, "content_hash": e.content_hash}
                                for e in runtime.knowledge.for_case(case.case_id, case.version)],
@@ -77,7 +125,7 @@ def build_router(
     @router.post("/{session_id}")
     def review(session_id: str, request: FeedbackReviewRequest,
                teacher_id: str = Depends(current_teacher)) -> dict[str, Any]:
-        state, case = context(session_id, request.owner_id)
+        state, case = context(session_id, request.owner_id, teacher_id)
         runtime = get_runtime()
         request_hash = SessionRepository.hash_payload({"teacher_id": teacher_id, **request.model_dump(exclude={"owner_id", "request_id"})})
         try:
@@ -103,5 +151,115 @@ def build_router(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {"revision": revision, "score_status": state.score_snapshot.status,
                 "notice": "已保存反馈复核版本，原始反馈、轨迹和封存分数保持不变。"}
+
+    @router.post("/basis/search")
+    def search_basis(request: BasisSearchRequest, teacher_id: str = Depends(current_teacher)) -> dict[str, Any]:
+        # Read-only helper: rank the teaching-basis entries that apply to the sealed training's
+        # case/version and to the feedback stage the teacher picked, so the semantic shortlist can
+        # never surface another specialty's material. Candidates are narrowed BEFORE any similarity
+        # is computed; taking the whole library's top matches and filtering afterwards would let an
+        # unrelated high score push out an applicable entry. It never writes feedback, scores or
+        # training records, and it never auto-cites a result.
+        if request.stage is not None and request.stage not in STAGES:
+            raise HTTPException(status_code=422, detail="环节不在反馈环节范围内")
+        _state, case = context(request.session_id, request.owner_id, teacher_id)
+        runtime = get_runtime()
+        applies = runtime.knowledge.for_case(case.case_id, case.version)
+        candidates = [
+            entry for entry in applies
+            if entry.kind == "clinical" and (request.stage is None or request.stage in entry.stages)
+        ]
+        scope = {"case_id": case.case_id, "case_version": case.version, "stage": request.stage,
+                 "clinical_candidates": len(candidates)}
+        if not runtime.settings.embedding_enabled:
+            return {"available": False, "reason": "embedding_unconfigured", "scope": scope, "results": []}
+        if not candidates:
+            # No specialty clinical basis applies here. Report that honestly instead of ranking the
+            # whole library, and never offer the general feedback guidance as clinical evidence.
+            return {"available": True, "status": runtime.knowledge.status,
+                    "notice": _BASIS_DRAFT_NOTICE, "scope": scope, "results": []}
+        try:
+            # basis_search lives on the runtime, so each candidate's vector is embedded once and
+            # reused across queries; only the query text is embedded per request.
+            ranked = runtime.basis_search.search(candidates, request.query, limit=_BASIS_RESULT_LIMIT)
+        except EmbeddingError as exc:
+            return {"available": False, "reason": exc.reason, "scope": scope, "results": []}
+        results = [
+            {"basis_id": entry.basis_id, "title": entry.title, "stages": list(entry.stages),
+             "applies_to_cases": list(entry.applies_to_cases), "sources": list(entry.sources),
+             "revision": entry.revision, "score": round(score, 4), "text": entry.text}
+            for score, entry in ranked
+            if score >= _BASIS_MIN_SCORE
+        ]
+        return {"available": True, "status": runtime.knowledge.status,
+                "notice": _BASIS_DRAFT_NOTICE, "scope": scope, "results": results}
+
+    @router.post("/basis/rerank")
+    def rerank_basis(request: BasisRerankRequest, teacher_id: str = Depends(current_teacher)) -> dict[str, Any]:
+        # Read-only rerank of the already-narrowed candidates for the sealed training's case/version
+        # and the teacher's stage. No embedding call is made here: the candidate list comes from the
+        # scope filter alone. The documents are submitted in the given fixed order; the response
+        # array order is never trusted, ranking comes from relevance_score. On any service failure
+        # the original order is returned and clearly marked as "not reranked" — a failed rerank must
+        # never look like a successful model output. Read-only: never writes feedback or scores.
+        if request.stage is not None and request.stage not in STAGES:
+            raise HTTPException(status_code=422, detail="环节不在反馈环节范围内")
+        _state, case = context(request.session_id, request.owner_id, teacher_id)
+        runtime = get_runtime()
+        candidates = [
+            entry for entry in runtime.knowledge.for_case(case.case_id, case.version)
+            if entry.kind == "clinical" and (request.stage is None or request.stage in entry.stages)
+        ]
+        scope = {"case_id": case.case_id, "case_version": case.version, "stage": request.stage,
+                 "clinical_candidates": len(candidates)}
+        by_id = {entry.basis_id: entry for entry in candidates}
+        if request.order is not None:
+            if sorted(request.order) != sorted(by_id) or len(set(request.order)) != len(request.order):
+                raise HTTPException(status_code=422, detail="order 必须是当前范围候选的一次排列")
+            ordered = [by_id[basis_id] for basis_id in request.order]
+        else:
+            ordered = candidates
+        original = [_entry_summary(entry) for entry in ordered]
+        if not runtime.reranker.enabled:
+            return {"available": False, "reason": "rerank_unconfigured", "reranked": False,
+                    "notice": _BASIS_DRAFT_NOTICE, "status": runtime.knowledge.status,
+                    "scope": scope, "results": original}
+        if not ordered:
+            return {"available": True, "reranked": False, "status": runtime.knowledge.status,
+                    "notice": _BASIS_DRAFT_NOTICE, "scope": scope, "results": []}
+        try:
+            ranked = runtime.reranker.rerank(request.query, [entry.text for entry in ordered])
+        except RerankError as exc:
+            return {"available": False, "reason": exc.reason, "reranked": False,
+                    "notice": "重排失败，显示原顺序；" + _BASIS_DRAFT_NOTICE,
+                    "status": runtime.knowledge.status, "scope": scope, "results": original}
+        results = [
+            {**original[index], "relevance_score": round(score, 4)}
+            for score, index in ranked
+        ]
+        return {"available": True, "reranked": True, "status": runtime.knowledge.status,
+                "notice": _BASIS_DRAFT_NOTICE, "scope": scope,
+                "original_order": [entry.basis_id for entry in ordered],
+                "results": results}
+
+    @router.post("/ocr/draft")
+    def ocr_draft(request: ChecklistOcrRequest, _: str = Depends(current_teacher)) -> dict[str, Any]:
+        # Read-only teacher helper: transcribe a (synthetic) teaching checklist image into a text
+        # draft the teacher checks by hand. It never writes anything — no case fact, no score, no
+        # feedback item — and on any service failure no draft is returned at all, so a stale or
+        # partial transcription can never be mistaken for a fresh one.
+        try:
+            image = validate_image_data_url(request.image_data_url)
+        except OcrError as exc:
+            raise HTTPException(status_code=422, detail=exc.reason) from exc
+        runtime = get_runtime()
+        if not runtime.ocr.enabled:
+            return {"available": False, "reason": "ocr_unconfigured"}
+        try:
+            draft = runtime.ocr.extract_draft(image)
+        except OcrError as exc:
+            return {"available": False, "reason": exc.reason}
+        return {"available": True, "notice": "文字草稿，未经核对", "draft_text": draft,
+                "warning": "缺失字段须人工核对，不得作为已识别值使用；仅辅助阅读，不自动写入病例或评分。"}
 
     return router

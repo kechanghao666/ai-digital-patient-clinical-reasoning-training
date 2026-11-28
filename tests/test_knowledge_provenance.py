@@ -13,6 +13,13 @@ from app.integration.runtime import IntegrationRuntime
 from test_feedback_contract import sealed
 from test_feedback_reviews import payload, read, save
 from test_integration import Env, ROOT, feedback_agent, select, _play_and_seal
+from test_cases_config import configure_department_catalog
+from teacher_scope_helpers import bind_demo_class
+
+
+@pytest.fixture(autouse=True)
+def teacher_memberships(tmp_path, monkeypatch):
+    bind_demo_class(tmp_path, monkeypatch, ["teacher-reviewer"], ["demo-integration"])
 
 
 def library_copy(tmp_path):
@@ -149,7 +156,8 @@ def test_api_and_mcp_enforce_same_case_version(tmp_path, monkeypatch, versions):
         case_id=case.case_id, case_version=case.version, request_id="basis", state_version=state.state_version, ttl_s=60)
     found = env.service.search_teaching_basis(token, "心电图 优先", "检查选择")
     assert found["ok"]
-    assert ("kb_ecg_first" in {entry["basis_id"] for entry in found["results"]}) == (2 in versions)
+    # New sessions use the latest STEMI version; basis applies only when that version is listed.
+    assert ("kb_ecg_first" in {entry["basis_id"] for entry in found["results"]}) == (case.version in versions)
     assert all(len(entry["content_hash"]) == 64 and entry["revision"] == 1 for entry in found["results"])
 
 
@@ -228,9 +236,11 @@ def test_new_case_version_does_not_inherit_previous_clinical_coverage(tmp_path, 
     env = Env(tmp_path, monkeypatch, mode="simulator")
     from app.case_store import CaseStore
     cases = CaseStore(ROOT / "cases", tmp_path / "teacher_cases")
+    configure_department_catalog(tmp_path)
     monkeypatch.setattr(main, "CASE_STORE", cases)
     case = cases.get("STEMI-001", 2).model_dump(mode="json")
-    case.update(case_id="TEACH-PIN", public_id="CASE-T-PIN", version=1)
+    case.update(case_id="TEACH-PIN", public_id="CASE-T-PIN", version=1,
+                department_code="03", subspecialty_code="03.04")
     directory = library_copy(tmp_path)
     def bind(data):
         for entry in data["entries"]:

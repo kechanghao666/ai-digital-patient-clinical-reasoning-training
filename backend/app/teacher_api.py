@@ -1,22 +1,37 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
+import sqlite3
 from typing import Any, Callable
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from .accounts import AccountStore, ReviewerQualificationError
 from .case_authoring import Issue, check_case, has_errors, schema_errors
 from .case_store import CaseStore, CaseStoreError
+from .department_catalog import catalog_for_teacher, get_parent_department, map_legacy_specialty
+from .department_config import (
+    DepartmentConfigError,
+    config_path_for_case_store,
+    load_department_config,
+)
+from .integration.case_training import CaseTrainingStore
 from .integration.knowledge import KnowledgeStore
 from .models import CaseDefinition, ReviewStatus
+from .storage import ConcurrentUpdateError
 
 
 class PublishRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    reviewer: str
     review_date: str
-    confirm_medical_review: bool
+    confirm_medical_review: bool = Field(strict=True)
+
+
+class StopTrainingRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    reason: str = Field(min_length=1, max_length=500)
+    request_id: str = Field(min_length=1, max_length=100)
 
 
 def _parse_case(raw: Any) -> CaseDefinition:
@@ -41,20 +56,90 @@ def _summary(case: CaseDefinition) -> dict[str, Any]:
         "public_id": case.public_id,
         "review_status": case.review_status.value,
         "authored_by": case.authored_by,
+        "source_case_id": case.source_case_id,
+        "source_version": case.source_version,
     }
 
 
 def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[..., str],
-                 get_knowledge: Callable[[], KnowledgeStore]) -> APIRouter:
+                 get_knowledge: Callable[[], KnowledgeStore],
+                 get_training: Callable[[], CaseTrainingStore],
+                 get_accounts: Callable[[], AccountStore]) -> APIRouter:
     router = APIRouter(prefix="/api/teacher", tags=["teacher"])
 
-    def checked_issues(case: CaseDefinition, for_publish: bool = False) -> list[Issue]:
-        issues = check_case(case, for_publish=for_publish)
+    def checked_issues(
+        case: CaseDefinition,
+        for_publish: bool = False,
+        require_classification: bool = False,
+        require_enabled: bool = False,
+    ) -> list[Issue]:
+        config = None
+        department_code = case.department_code
+        subspecialty_code = case.subspecialty_code
+        if (require_classification or require_enabled) and not department_code and not subspecialty_code:
+            department_code, subspecialty_code = map_legacy_specialty(case.specialty)
+        if require_classification or require_enabled:
+            try:
+                config = load_department_config(config_path_for_case_store(get_store()))
+            except DepartmentConfigError as exc:
+                raise HTTPException(status_code=503, detail=str(exc)) from exc
+        require_subspecialty = None
+        if require_classification and config is not None:
+            require_subspecialty = bool(
+                department_code
+                and any(get_parent_department(code) == department_code for code in config.enabled_subspecialties)
+            )
+        issues = check_case(
+            case,
+            for_publish=for_publish,
+            require_classification=require_classification,
+            require_subspecialty=require_subspecialty,
+        )
+        if require_enabled and config is not None:
+            if not department_code or department_code not in config.enabled_departments:
+                issues.append(Issue("error", "department_not_enabled", "所选科室未由部署管理员启用"))
+            if subspecialty_code and subspecialty_code not in config.enabled_subspecialties:
+                issues.append(Issue("error", "subspecialty_not_enabled", "所选亚专科未由部署管理员启用"))
         missing = get_knowledge().coverage(case.case_id, case.version)["missing_clinical_stages"]
         if missing:
             issues.append(Issue("warning", "missing_clinical_basis",
                                 "缺少适用于当前病例的专科临床依据：" + "、".join(missing) + "；通用反馈规范不能替代。"))
         return issues
+
+    @router.get("/reviewer-qualifications")
+    def reviewer_qualifications(teacher_id: str = Depends(current_teacher)) -> dict[str, Any]:
+        try:
+            account = get_accounts().get(teacher_id)
+        except KeyError:
+            return {"account_linked": False, "records": [], "server_today": date.today().isoformat()}
+        except sqlite3.Error as exc:
+            raise HTTPException(status_code=503, detail="审核资质暂不可读取") from exc
+        try:
+            records = get_accounts().reviewer_qualifications_for_account(teacher_id)
+        except sqlite3.Error as exc:
+            raise HTTPException(status_code=503, detail="审核资质暂不可读取") from exc
+        return {
+            "server_today": date.today().isoformat(),
+            "account_linked": account["role"] == "teacher" and not account["disabled"],
+            "account_id": teacher_id,
+            "display_name": account["display_name"],
+            "records": records,
+        }
+
+    @router.get("/department-catalog")
+    def department_catalog(_: str = Depends(current_teacher)) -> dict[str, Any]:
+        """返回部署管理员已启用的参考目录项；教师账号只能读取。"""
+        try:
+            config = load_department_config(config_path_for_case_store(get_store()))
+        except DepartmentConfigError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        return {
+            **catalog_for_teacher(
+                enabled_departments=set(config.enabled_departments),
+                enabled_subspecialties=set(config.enabled_subspecialties),
+            ),
+            "configured": config.configured,
+        }
 
     @router.get("/cases/{case_id}/versions/{version}/teaching-basis")
     def basis_coverage(case_id: str, version: int, _: str = Depends(current_teacher)) -> dict[str, Any]:
@@ -66,23 +151,50 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
 
     @router.get("/cases")
     def list_cases(_: str = Depends(current_teacher)) -> list[dict[str, Any]]:
-        return get_store().list_all()
+        stops = get_training().all()
+        result = []
+        for item in get_store().list_all():
+            stop = stops.get((item["case_id"], item["version"]))
+            result.append({**item,
+                           "training_stopped": stop is not None,
+                           "stopped_at": stop["created_at"] if stop else None,
+                           "stopped_by": stop["teacher_id"] if stop else None,
+                           "stop_reason": stop["reason"] if stop else None})
+        return result
 
     @router.get("/cases/{case_id}/versions/{version}")
     def read_case(case_id: str, version: int, _: str = Depends(current_teacher)) -> dict[str, Any]:
         try:
-            return get_store().get(case_id, version).model_dump(mode="json")
+            case = get_store().get(case_id, version)
+            result = case.model_dump(mode="json")
+            if not result["department_code"] and not result["subspecialty_code"]:
+                from .department_catalog import map_legacy_specialty
+                department, subspecialty = map_legacy_specialty(case.specialty)
+                result["department_code"] = result["department_code"] or department
+                result["subspecialty_code"] = result["subspecialty_code"] or subspecialty
+            return result
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="病例版本不存在") from exc
 
     @router.post("/cases/validate")
     def validate(raw: dict[str, Any], _: str = Depends(current_teacher)) -> dict[str, Any]:
         case = _parse_case(raw)
-        issues = checked_issues(case, for_publish=True)
+        store = get_store()
+        is_new_case = not store.versions(case.case_id)
+        issues = checked_issues(
+            case,
+            for_publish=True,
+            require_classification=is_new_case,
+            require_enabled=is_new_case,
+        )
         try:
-            get_store().check_identifiers(case)
+            store.check_identifiers(case)
         except CaseStoreError as exc:
             issues.append(Issue("error", "identifier_conflict", str(exc)))
+        try:
+            store.check_source(case)
+        except CaseStoreError as exc:
+            issues.append(Issue("error", "source_reference", str(exc)))
         return {"valid": not has_errors(issues), "issues": _issues(issues)}
 
     @router.put("/cases/{case_id}")
@@ -93,9 +205,20 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
         raw = dict(raw)
         raw.setdefault("public_id", store.next_public_id())
         raw.setdefault("version", 1)
-        raw.setdefault("review_status", "draft")
+        raw.update(review_status="draft", reviewer=None, review_date=None,
+                   reviewer_account_id=None, reviewer_qualification_id=None)
         case = _parse_case(raw)
-        issues = checked_issues(case)
+        versions = store.versions(case.case_id)
+        is_new_case = not versions
+        same_classification = bool(versions) and (
+            (case.department_code, case.subspecialty_code)
+            == (versions[-1].department_code, versions[-1].subspecialty_code)
+        )
+        issues = checked_issues(
+            case,
+            require_classification=is_new_case,
+            require_enabled=is_new_case or not same_classification,
+        )
         if has_errors(issues):
             raise HTTPException(status_code=422, detail={"issues": _issues(issues)})
         try:
@@ -104,7 +227,9 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {**_summary(stored), "issues": _issues(checked_issues(stored))}
 
-    def _transition(case_id: str, version: int, target: ReviewStatus, **extra: Any) -> dict[str, Any]:
+    def _transition(
+        case_id: str, version: int, target: ReviewStatus, actor_id: str, **extra: Any
+    ) -> dict[str, Any]:
         store = get_store()
         try:
             current = store.get(case_id, version)
@@ -112,39 +237,115 @@ def build_router(get_store: Callable[[], CaseStore], current_teacher: Callable[.
             raise HTTPException(status_code=404, detail="病例版本不存在") from exc
         issues: list[Issue] = []
         if target in {ReviewStatus.VALIDATED, ReviewStatus.UNDER_REVIEW, ReviewStatus.PUBLISHED}:
-            issues = checked_issues(current, for_publish=True)
+            issues = checked_issues(
+                current,
+                for_publish=True,
+                require_classification=current.authored_by is not None,
+                require_enabled=current.authored_by is not None,
+            )
             if has_errors(issues):
                 raise HTTPException(status_code=422, detail={"issues": _issues(issues)})
         try:
-            updated = store.transition(case_id, version, target, **extra)
+            updated = store.transition(case_id, version, target, actor_id=actor_id, **extra)
         except CaseStoreError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         return {**_summary(updated), "issues": _issues(issues)}
 
     @router.post("/cases/{case_id}/versions/{version}/validate")
-    def mark_validated(case_id: str, version: int, _: str = Depends(current_teacher)) -> dict[str, Any]:
-        return _transition(case_id, version, ReviewStatus.VALIDATED)
+    def mark_validated(case_id: str, version: int, actor_id: str = Depends(current_teacher)) -> dict[str, Any]:
+        return _transition(case_id, version, ReviewStatus.VALIDATED, actor_id)
 
     @router.post("/cases/{case_id}/versions/{version}/submit-review")
-    def submit_review(case_id: str, version: int, _: str = Depends(current_teacher)) -> dict[str, Any]:
-        return _transition(case_id, version, ReviewStatus.UNDER_REVIEW)
+    def submit_review(case_id: str, version: int, actor_id: str = Depends(current_teacher)) -> dict[str, Any]:
+        return _transition(case_id, version, ReviewStatus.UNDER_REVIEW, actor_id)
 
     @router.post("/cases/{case_id}/versions/{version}/withdraw")
-    def withdraw(case_id: str, version: int, _: str = Depends(current_teacher)) -> dict[str, Any]:
-        return _transition(case_id, version, ReviewStatus.DRAFT)
+    def withdraw(case_id: str, version: int, actor_id: str = Depends(current_teacher)) -> dict[str, Any]:
+        return _transition(case_id, version, ReviewStatus.DRAFT, actor_id)
 
     @router.post("/cases/{case_id}/versions/{version}/publish")
-    def publish(case_id: str, version: int, request: PublishRequest, _: str = Depends(current_teacher)) -> dict[str, Any]:
+    def publish(case_id: str, version: int, request: PublishRequest,
+                actor_id: str = Depends(current_teacher)) -> dict[str, Any]:
         if not request.confirm_medical_review:
-            raise HTTPException(status_code=422, detail="发布须由负责人确认已完成真实的医学审核")
+            raise HTTPException(status_code=422, detail="发布须确认已完成真实的医学审核")
         try:
             reviewed_on = date.fromisoformat(request.review_date)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail="review_date 须为 YYYY-MM-DD") from exc
+        if reviewed_on.isoformat() != request.review_date:
+            raise HTTPException(status_code=422, detail="review_date 须为 YYYY-MM-DD")
         if reviewed_on > date.today():
             raise HTTPException(status_code=422, detail="审核日期不能晚于今天")
-        return _transition(
-            case_id, version, ReviewStatus.PUBLISHED, reviewer=request.reviewer, review_date=request.review_date
-        )
+        store = get_store()
+        try:
+            case = store.get(case_id, version)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="病例版本不存在") from exc
+        if not store.is_teacher_case(case_id, version):
+            raise HTTPException(status_code=409, detail="只有教师病例副本可以发布")
+        department_code, subspecialty_code = case.department_code, case.subspecialty_code
+        if not department_code and not subspecialty_code:
+            department_code, subspecialty_code = map_legacy_specialty(case.specialty)
+        try:
+            with get_accounts().verified_reviewer_for_publication(
+                actor_id, department_code, subspecialty_code, request.review_date
+            ) as reviewer:
+                return _transition(
+                    case_id, version, ReviewStatus.PUBLISHED, actor_id,
+                    reviewer=reviewer["display_name"],
+                    review_date=request.review_date,
+                    reviewer_account_id=reviewer["account_id"],
+                    reviewer_qualification_id=reviewer["qualification_id"],
+                )
+        except ReviewerQualificationError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except sqlite3.Error as exc:
+            raise HTTPException(status_code=503, detail="审核资质暂不可校验，未执行发布") from exc
+
+    @router.get("/cases/{case_id}/versions/{version}/audit")
+    def case_audit(case_id: str, version: int, _: str = Depends(current_teacher)) -> list[dict[str, Any]]:
+        store = get_store()
+        try:
+            case = store.get(case_id, version)
+            events = store.audit_events(case_id, version)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="病例版本不存在") from exc
+        except CaseStoreError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        stop = get_training().all().get((case_id, version))
+        if stop is not None:
+            events.append({
+                "case_id": case_id,
+                "case_version": version,
+                "public_id": case.public_id,
+                "action": "training_stopped",
+                "actor_id": stop["teacher_id"],
+                "occurred_at": datetime.fromtimestamp(stop["created_at"], timezone.utc)
+                    .isoformat(timespec="seconds").replace("+00:00", "Z"),
+                "department_code": case.department_code,
+                "subspecialty_code": case.subspecialty_code,
+                "reason": stop["reason"],
+            })
+        return sorted(events, key=lambda event: event["occurred_at"])
+
+    @router.post("/cases/{case_id}/versions/{version}/stop")
+    def stop_training(case_id: str, version: int, request: StopTrainingRequest,
+                      teacher_id: str = Depends(current_teacher)) -> dict[str, Any]:
+        # Stop new trainings for one published version. Does not delete the case, rewrite the
+        # medical review fields, unseal scores, or change existing trainings.
+        store = get_store()
+        try:
+            case = store.get(case_id, version)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="病例版本不存在") from exc
+        if case.review_status != ReviewStatus.PUBLISHED:
+            raise HTTPException(status_code=409, detail="只有已发布版本可以停止新训练")
+        try:
+            record = get_training().stop(case_id, version, teacher_id, request.reason, request.request_id)
+        except ConcurrentUpdateError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {"case_id": case_id, "case_version": version, "public_id": case.public_id,
+                "stopped_at": record["created_at"], "stopped_by": record["teacher_id"],
+                "reason": record["reason"], "already_stopped": record["already_stopped"]}
 
     return router

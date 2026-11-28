@@ -1,0 +1,98 @@
+{
+  "date": "2026-11-12",
+  "base_commit": "8547719787c42f312959b220fd4a4c94e7e834e1",
+  "scope": "UI redesign and unsaved-note seal protection; synthetic training only",
+  "source_sha256": {
+    "frontend/app.py": "32feb712c9a2706a57d536a817deeedcb4cec3fd01d609fba0c396210aa5fe85",
+    "frontend/teacher.py": "3c0eec5960a82d8c1e75b3a96761a1805567bac15cc44ed8a8754c0c9b81a050",
+    "frontend/styles.css": "c3dfc318c2c80fe730239ff8b1fb256d97a83d1226e0889f27cc20c902d256f7"
+  },
+  "automated_tests": {
+    "passed": 462,
+    "seconds": 66.49,
+    "note": "Full suite after tab state fix; subsequent presentation-only alert placement and CSS have targeted and browser verification; exact final commit CI tracked separately"
+  },
+  "regression": "Unsaved notes could be sealed: new regression failed before fix and passes after saving, sealing and checking persisted notes",
+  "browser": {
+    "engine": "Microsoft Edge headless",
+    "complete_continuous_flow": true,
+    "checks": [
+      "real patient answer visible in new tab layout",
+      "tabs retain drafts and active selection; unsaved notes block seal; submissions persist",
+      "explicit treatment confirmation; seal opens review; model draft stays teacher-only",
+      "390px viewport has aligned summary cards, visible title, no horizontal page overflow; all tabs reachable",
+      "teacher readable evidence and raw records available; no approval written; original score and owner isolation preserved"
+    ],
+    "answer_visible_ms": 6203,
+    "mobile_geometry": {
+      "documentOverflow": 0,
+      "mainOverflow": 0,
+      "headingTop": 72,
+      "toolbarBottom": 60,
+      "metrics": [
+        {
+          "top": 360.46875,
+          "left": 14.390625
+        },
+        {
+          "top": 360.46875,
+          "left": 136.921875
+        },
+        {
+          "top": 360.46875,
+          "left": 259.46875
+        }
+      ]
+    },
+    "page_errors": [],
+    "business_database_unchanged": true,
+    "teacher_approval_written": false,
+    "original_score_unchanged": true
+  },
+  "earlier_attempts": [
+    {
+      "result": "Automation sampled state before asynchronous update finished; exam and wait later confirmed persisted; changed to wait for event count"
+    },
+    {
+      "answer_visible_ms": 54000,
+      "result": "Flow reached seal but tab did not switch; fixed tab identity across session/sealed transitions; full new flow then passed"
+    }
+  ],
+  "deployment": {
+    "ui_port": 8504,
+    "ui_source": "current working tree frontend files, hashes above",
+    "backend_port": 8003,
+    "backend": "existing isolated snapshot documented in 2026-11-12-patient-completion-browser.json; no production DB used"
+  },
+  "official": {
+    "date": "2026-11-12",
+    "http_status": 200,
+    "reply_count": 2,
+    "replies": [
+      {
+        "author": "atomgit_01",
+        "created_at": "2026-11-09T09:17:11+08:00"
+      },
+      {
+        "author": "kechanghao",
+        "created_at": "2026-11-10T03:47:16+08:00"
+      }
+    ]
+  },
+  "official_requirements": {
+    "upstream_main": "f4bb5a52b9111caa4aac5b5e7ed773cd6569377b",
+    "requirement_blob": "c101bdaba0df486bb5c3a7a40d7ba63cdedd1567",
+    "changed": false
+  },
+  "not_completed": [
+    "5-second response target and long-tail stability",
+    "five-specialty medical review",
+    "formal authentication",
+    "independent clean deployment",
+    "real student and expert evaluation",
+    "full manual accessibility audit",
+    "official invitation/process acceptance and final PR acceptance"
+  ],
+  "medical_review_completed": false,
+  "formal_acceptance": false
+}

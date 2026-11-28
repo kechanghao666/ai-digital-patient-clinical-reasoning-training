@@ -1,0 +1,101 @@
+{
+  "title": "patient prompt candidate recheck (zero real model calls)",
+  "replacement": {
+    "old_sentence_occurrences": 1,
+    "replaced_once": true,
+    "preserved_rule_intact": true,
+    "candidate_present_once": true
+  },
+  "samples": [
+    {
+      "turn": "hypertension",
+      "step": 1,
+      "attempt": 1,
+      "called_tool": "get_turn_context",
+      "platform_can_parse": true,
+      "tool_matches_step": true,
+      "archived_expected": "ExecutableAction"
+    },
+    {
+      "turn": "hypertension",
+      "step": 2,
+      "attempt": 1,
+      "called_tool": "submit_fact_selection",
+      "platform_can_parse": false,
+      "tool_matches_step": true,
+      "archived_expected": "malformed_action"
+    },
+    {
+      "turn": "hypertension",
+      "step": 2,
+      "attempt": 2,
+      "called_tool": "get_turn_context",
+      "platform_can_parse": false,
+      "tool_matches_step": false,
+      "archived_expected": "malformed_action"
+    },
+    {
+      "turn": "hypertension",
+      "step": 2,
+      "attempt": 3,
+      "called_tool": "submit_fact_selection",
+      "platform_can_parse": true,
+      "tool_matches_step": true,
+      "archived_expected": "ExecutableAction"
+    },
+    {
+      "turn": "diabetes",
+      "step": 1,
+      "attempt": 1,
+      "called_tool": "get_turn_context",
+      "platform_can_parse": true,
+      "tool_matches_step": true,
+      "archived_expected": "ExecutableAction"
+    },
+    {
+      "turn": "diabetes",
+      "step": 2,
+      "attempt": 1,
+      "called_tool": "submit_fact_selection",
+      "platform_can_parse": false,
+      "tool_matches_step": true,
+      "archived_expected": "malformed_action"
+    },
+    {
+      "turn": "diabetes",
+      "step": 2,
+      "attempt": 2,
+      "called_tool": "submit_fact_selection",
+      "platform_can_parse": false,
+      "tool_matches_step": true,
+      "archived_expected": "malformed_action"
+    },
+    {
+      "turn": "diabetes",
+      "step": 2,
+      "attempt": 3,
+      "called_tool": "submit_fact_selection",
+      "platform_can_parse": false,
+      "tool_matches_step": true,
+      "archived_expected": "malformed_action"
+    },
+    {
+      "turn": "surgery",
+      "step": 1,
+      "attempt": 1,
+      "called_tool": "get_turn_context",
+      "platform_can_parse": true,
+      "tool_matches_step": true,
+      "archived_expected": "ExecutableAction"
+    },
+    {
+      "turn": "surgery",
+      "step": 2,
+      "attempt": 1,
+      "called_tool": "submit_fact_selection",
+      "platform_can_parse": true,
+      "tool_matches_step": true,
+      "archived_expected": "ExecutableAction"
+    }
+  ]
+}

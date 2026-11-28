@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "title": "O3 问答路由问题修复前开发复现探针",
+  "authorship": "开发者编写的复现样例；不是独立评审或盲测",
+  "purpose": "通过学生问诊 API 验证同关键词、不同意图的反例；不用于官方 20 轮验收",
+  "session_policy": "每个探针使用独立训练，避免上一轮披露状态影响判定",
+  "cases": [
+    {"case_id": "APPY-001", "version": 2, "source_file": "cases/appendicitis_case_v2.json"},
+    {"case_id": "STROKE-001", "version": 2, "source_file": "cases/stroke_case_v2.json"}
+  ],
+  "probes": [
+    {
+      "probe_id": "surgery-management-vs-history-management",
+      "case_id": "APPY-001",
+      "version": 2,
+      "session_group": "surgery-management",
+      "question": "现在需要做手术吗？",
+      "required_fact_ids": [],
+      "allowed_fact_ids": [],
+      "prohibited_fact_ids": ["f_hx"],
+      "acceptable_no_fact_answers": ["这我不清楚，得请医生结合检查判断。", "我不太确定您的问题，能否换一种方式询问？"],
+      "rationale": "问当前处置决策；不能用既往手术史替代，也不应由病人给出临床处置建议。"
+    },
+    {
+      "probe_id": "surgery-management-vs-history-history",
+      "case_id": "APPY-001",
+      "version": 2,
+      "session_group": "surgery-history",
+      "question": "以前做过手术吗？",
+      "required_fact_ids": ["f_hx"],
+      "allowed_fact_ids": ["f_hx"],
+      "prohibited_fact_ids": [],
+      "acceptable_no_fact_answers": [],
+      "rationale": "使用相同关键词询问既往经历；病例中存在相应既往事实时应回答。"
+    },
+    {
+      "probe_id": "family-discovery-vs-history-discovery",
+      "case_id": "STROKE-001",
+      "version": 2,
+      "session_group": "family-discovery",
+      "question": "家里人什么时候发现症状的？",
+      "required_fact_ids": ["f_care"],
+      "allowed_fact_ids": ["f_care"],
+      "prohibited_fact_ids": ["f_family"],
+      "acceptable_no_fact_answers": [],
+      "rationale": "问病例叙事中的症状发现时间；病例记载于就诊经过事实，不是家族史。"
+    },
+    {
+      "probe_id": "family-discovery-vs-history-history",
+      "case_id": "STROKE-001",
+      "version": 2,
+      "session_group": "family-history",
+      "question": "家族里有人得过类似的病吗？",
+      "required_fact_ids": ["f_family"],
+      "allowed_fact_ids": ["f_family"],
+      "prohibited_fact_ids": [],
+      "acceptable_no_fact_answers": [],
+      "rationale": "使用相同亲属语汇明确询问家族史；应回答病例配置的家族史事实。"
+    }
+  ]
+}

@@ -6,11 +6,24 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from .case_store import CaseStore
+from .integration.feedback import treatment_evidence_by_item
 from .integration.runtime import IntegrationRuntime
 from .integration.tools import _event_digest
 from .models import ScoreSnapshot
 from .scoring import student_score_snapshot
 from .storage import ConcurrentUpdateError, SessionRepository
+from .teacher_scope import require_teacher_student
+
+
+def _model_stage_comments(runtime: IntegrationRuntime, session_id: str, owner_id: str) -> dict[str, str]:
+    """The model's original stage comments (before any teacher edit), if a real draft exists."""
+    try:
+        feedback = runtime.feedback_store.get(session_id, owner_id)
+    except Exception:
+        return {}
+    if not feedback or feedback.get("source") != "nexent":
+        return {}
+    return {item.get("stage", ""): item.get("comment", "") for item in feedback.get("items", [])}
 
 
 class ScoreDecision(BaseModel):
@@ -51,10 +64,12 @@ def reviewed_snapshot(original: ScoreSnapshot, request: ScoreReviewRequest, even
 
 
 def build_router(get_repository: Callable[[], SessionRepository], get_cases: Callable[[], CaseStore],
-                 get_runtime: Callable[[], IntegrationRuntime], current_teacher: Callable[..., str]) -> APIRouter:
+                 get_runtime: Callable[[], IntegrationRuntime], current_teacher: Callable[..., str],
+                 get_roster: Callable | None = None) -> APIRouter:
     router = APIRouter(prefix="/api/teacher/scores", tags=["teacher"])
 
-    def context(session_id: str, owner_id: str):
+    def context(session_id: str, owner_id: str, teacher_id: str):
+        require_teacher_student(get_roster, teacher_id, owner_id)
         try:
             state = get_repository().get(session_id, owner_id)
         except KeyError as exc:
@@ -69,22 +84,26 @@ def build_router(get_repository: Callable[[], SessionRepository], get_cases: Cal
 
     @router.get("/{session_id}")
     def read(session_id: str, owner_id: str = Query(min_length=1, max_length=200),
-             _: str = Depends(current_teacher)) -> dict:
-        state, case = context(session_id, owner_id)
+             teacher_id: str = Depends(current_teacher)) -> dict:
+        state, case = context(session_id, owner_id, teacher_id)
         reviews = get_runtime().score_reviews.list(session_id, owner_id)
+        model_comments = _model_stage_comments(get_runtime(), session_id, owner_id)
         return {"session_id": session_id, "owner_id": owner_id,
                 "case": {"title": case.title, "public_id": case.public_id, "version": case.version},
                 "original_score": state.score_snapshot.model_dump(mode="json"), "reviews": reviews,
                 "current_revision": reviews[-1]["revision"] if reviews else 0,
                 "events": [_event_digest(event, case) for event in state.events[:state.seal_seq]],
-                "rubric": [item.model_dump(mode="json") for item in case.rubric],
+                "rubric": [item.model_dump(mode="json") for item in case.rubric]
+                + [{"item_id": "exam_stewardship", "description": "检查合理性（避免无关检查）", "stage": "检查选择"}],
                 "submissions": {"diagnosis": state.diagnosis_submission, "differential": state.differential_submission,
                                 "treatment": state.treatment_submission}, "case_notes": state.case_notes,
-                "basis_coverage": get_runtime().knowledge.coverage(case.case_id, case.version)}
+                "basis_coverage": get_runtime().knowledge.coverage(case.case_id, case.version),
+                "treatment_evidence": treatment_evidence_by_item(state, case),
+                "model_comments": model_comments}
 
     @router.post("/{session_id}")
     def save(session_id: str, request: ScoreReviewRequest, teacher_id: str = Depends(current_teacher)) -> dict:
-        state, case = context(session_id, request.owner_id)
+        state, case = context(session_id, request.owner_id, teacher_id)
         if not request.confirmed:
             raise HTTPException(status_code=422, detail="须明确确认已逐项核对分数、事件和量表")
         try:

@@ -1,0 +1,85 @@
+{
+  "checks": [
+    {
+      "name": "有数据：观测面板显示记录回合数",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "刷新后观测面板仍显示数据",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "导出预览显示 1 条去标识化记录",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "导出下载生成 JSON 文件",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "下载内容不含身份/自由文本",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "下载字段与预览相同",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "切换班级清除旧下载",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "旧班级迟到响应不恢复下载",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "导出失败不提供下载",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "接口故障显示统计暂不可用",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "重试后恢复数据",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "班级统计失败不展示旧班级明细",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "班级统计重试恢复",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "无数据：空班级教师显示暂无",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "无前端脚本错误",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "服务退出且临时数据清理",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "passed": true
+}

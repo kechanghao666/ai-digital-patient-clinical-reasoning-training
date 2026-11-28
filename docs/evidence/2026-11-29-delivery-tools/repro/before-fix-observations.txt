@@ -1,0 +1,5 @@
+max_tokens after OLD sanitisation: '<redacted>'
+get_turn_context properties after OLD: {"turn_token": "<redacted>"}
+get_turn_context required after OLD: ["turn_token"]
+submit_fact_selection properties after OLD: {"turn_token": "<redacted>", "fact_ids": {"type": "array", "items": {"type": "string"}}}
+api_key after OLD: '<redacted>'

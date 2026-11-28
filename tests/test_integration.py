@@ -17,6 +17,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import main
+from app.adapters import diagnosis_leak_terms
 from app.case_store import CaseStore
 from app.integration.config import IntegrationSettings
 from app.integration.knowledge import KnowledgeStore
@@ -75,7 +76,7 @@ def settings_for(tmp_path: Path, **overrides) -> IntegrationSettings:
 class Env:
     """Scripted Nexent fake plus an API client wired to temporary stores."""
 
-    def __init__(self, tmp_path: Path, monkeypatch, agent=None, mode: str = "nexent"):
+    def __init__(self, tmp_path: Path, monkeypatch, agent=None, mode: str = "nexent", feedback_protocol: str = "review_tool"):
         self.runs: list[dict] = []
         self.stops: list[str] = []
         self.requests: list[httpx.Request] = []
@@ -85,7 +86,7 @@ class Env:
         monkeypatch.setenv("APP_ENV", "development")
         monkeypatch.setattr(main, "REPOSITORY", self.repository)
         monkeypatch.setattr(main, "MACHINE", StateMachine(cases, self.repository))
-        self.settings = settings_for(tmp_path, mode=mode)
+        self.settings = settings_for(tmp_path, mode=mode, feedback_protocol=feedback_protocol)
         self.runtime = IntegrationRuntime(self.settings, httpx.MockTransport(self._handle))
         monkeypatch.setattr(main, "RUNTIME", self.runtime)
         self.service = TrustedToolService(
@@ -160,6 +161,102 @@ def test_nexent_selection_subset_is_rendered_by_backend(tmp_path, monkeypatch):
     # The audit-only block carries no owner or session identifiers.
     assert "demo-integration" not in json.dumps(env.runs[0], ensure_ascii=False)
     assert sid not in json.dumps(env.runs[0], ensure_ascii=False)
+
+
+@pytest.mark.parametrize("pause_at", ["before_submission", "after_submission", "after_validation"])
+def test_answer_waits_for_platform_wakeup_validation_and_save(tmp_path, monkeypatch, pause_at):
+    """A submitted selection is not yet a saved answer; no real platform or timing threshold."""
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+
+    paused, release = threading.Event(), threading.Event()
+    observed = []
+
+    def pause(stage):
+        observed.append(stage)
+        if stage == pause_at:
+            paused.set()
+            assert release.wait(5), "test did not release the controlled wait"
+
+    def agent(request, body, service):
+        class Stream(httpx.AsyncByteStream):
+            async def __aiter__(self):
+                token = token_of(body)
+                assert service.get_turn_context(token)["ok"]
+                yield sse({"type": "model_output_thinking", "content": "untrusted draft"})
+                await asyncio.to_thread(pause, "before_submission")
+                assert service.submit_fact_selection(token, ["f_hx_htn"])["ok"]
+                await asyncio.to_thread(pause, "after_submission")
+                yield sse({"type": "execution_result", "content": "submitted"})
+        return httpx.Response(200, headers={"conversation_id": "42"}, stream=Stream())
+
+    env = Env(tmp_path, monkeypatch, agent)
+    sid = env.new_session()
+    original = main.authorized_answer_or_fallback
+
+    def validate(*args, **kwargs):
+        result = original(*args, **kwargs)
+        pause("after_validation")
+        return result
+
+    monkeypatch.setattr(main, "authorized_answer_or_fallback", validate)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(env.ask, sid, "有高血压吗", "controlled-wait")
+        try:
+            assert paused.wait(5)
+            assert not future.done()
+            assert env.stored_events(sid) == []
+            if pause_at == "after_submission":
+                assert "after_validation" not in observed
+        finally:
+            release.set()
+        response = future.result(timeout=5)
+    assert response.status_code == 200, response.text
+    assert response.json()["answer"] == "有高血压10年。"
+    assert env.stored_events(sid)[0].result["answer"] == response.json()["answer"]
+    replay = env.ask(sid, "有高血压吗", "controlled-wait")
+    assert replay.json()["event"]["event_id"] == response.json()["event"]["event_id"]
+    assert len(env.stored_events(sid)) == len(env.runs) == 1
+
+
+def test_ask_records_request_scoped_stage_and_trace_timestamps(tmp_path, monkeypatch):
+    """Ask response + persisted event carry monotonic stage stamps; no token or model text leaks."""
+
+    def agent(request, body, service):
+        token = token_of(body)
+        assert service.get_turn_context(token)["ok"]
+        assert service.submit_fact_selection(token, ["f_hx_htn"])["ok"]
+        return httpx.Response(
+            200,
+            headers={"content-type": "text/event-stream", "conversation_id": "42"},
+            content=sse({"type": "execution_result", "content": "submitted"}),
+        )
+
+    env = Env(tmp_path, monkeypatch, agent)
+    sid = env.new_session()
+    response = env.ask(sid, "有高血压吗", "r-stages")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    stages = body["timing"]["stages"]
+    for key in ("request_entry", "classified", "adapter_returned", "validated", "saved"):
+        assert isinstance(stages[key], int) and stages[key] >= 0
+    assert stages["request_entry"] == 0
+    values = [stages[k] for k in ("request_entry", "classified", "adapter_returned", "validated", "saved")]
+    assert values == sorted(values) and values[-1] <= body["timing"]["api_ready_ms"]
+    assert "turn_token" not in json.dumps(stages, ensure_ascii=False)
+    event = env.stored_events(sid)[0]
+    persisted_stages = event.result["server_stage_ms"]
+    # The persisted event snapshots the stages up to validation; "saved" is stamped after save.
+    for key in ("request_entry", "classified", "adapter_returned", "validated"):
+        assert persisted_stages[key] == stages[key]
+    assert "saved" not in persisted_stages
+    trace = event.result["adapter"]["trace"]
+    assert isinstance(trace["trusted_completion_ms"], int)
+    assert isinstance(trace["finalize_ms"], int)
+    # The submit-fact landing itself is wall-clock turn_calls.at, not these monotonic stages.
+    calls = env.runtime.turns.calls(trace["turn_id"])
+    assert {c["tool"] for c in calls} == {"get_turn_context", "submit_fact_selection"}
+    assert all(isinstance(c["at"], float) for c in calls)
 
 
 def test_questions_without_authorized_facts_do_not_call_the_model(tmp_path, monkeypatch):
@@ -327,7 +424,7 @@ def test_concurrent_change_during_model_call_discards_stale_answer(tmp_path, mon
 
 
 # ---------------------------------------------------------------------- token / tool boundary
-def _issue(env: Env, sid: str, *, kind=PATIENT, version=0, ttl=60.0):
+def _issue(env: Env, sid: str, *, kind=PATIENT, version=0, ttl=60.0, mode="simulator"):
     session = env.repository.get(sid, "demo-integration")
     return env.runtime.turns.issue(
         kind=kind,
@@ -340,7 +437,428 @@ def _issue(env: Env, sid: str, *, kind=PATIENT, version=0, ttl=60.0):
         question="有高血压吗",
         candidate_fact_ids=["f_hx_htn"],
         ttl_s=ttl,
+        mode=mode,
     )
+
+
+def test_turn_stats_aggregate_calls_latency_and_mode(tmp_path, monkeypatch):
+    env = Env(tmp_path, monkeypatch)
+    sid = env.new_session()
+    turns = env.runtime.turns
+
+    # A finalized turn with one ok and one failed tool call.
+    turn, _token = _issue(env, sid, kind=PATIENT, mode="nexent")
+    assert turns.submit(turn.turn_id, {"fact_ids": ["f_hx_htn"]})
+    turns.record_call(turn.turn_id, "get_turn_context", ok=True)
+    turns.record_call(turn.turn_id, "submit_fact_selection", ok=False, detail="rejected")
+    assert turns.finalize(turn.turn_id)
+
+    # An unfinalized turn with no calls.
+    _issue(env, sid, kind=PATIENT, mode="simulator")
+
+    stats = turns.stats()
+    assert stats["coverage"].startswith("recorded trusted turns only")
+    assert stats["turns_total"] == 2
+    assert stats["by_adapter_mode"] == {"nexent": 1, "simulator": 1}
+    assert stats["by_kind"] == {PATIENT: 2}
+    assert stats["tool_calls_total"] == 2
+    assert stats["tool_calls_failed"] == 1
+    assert stats["tool_calls_failure_rate"] == 0.5
+    assert stats["turn_completion"]["measured_count"] == 1
+    assert stats["turn_completion"]["negative_count"] == 0
+    assert stats["token_usage"] == "unknown" and stats["cost"] == "unknown"
+    # The finalized turn carries the mode and a finalized_at timestamp.
+    assert turns.get(turn.turn_id).mode == "nexent"
+    assert turns.get(turn.turn_id).finalized_at is not None
+
+
+def test_turn_stats_median_handles_empty_single_odd_even_and_negative(tmp_path, monkeypatch):
+    import sqlite3
+
+    counter = 0
+
+    def store_with_intervals(intervals):
+        # Fresh store per case (unique subdir) so empty/single/odd/even are independent.
+        nonlocal counter
+        case_dir = tmp_path / f"case{counter}"
+        counter += 1
+        env = Env(case_dir, monkeypatch)
+        sid = env.new_session()
+        turns = env.runtime.turns
+        for created, finalized in intervals:
+            turn, _ = _issue(env, sid, kind=PATIENT)
+            assert turns.submit(turn.turn_id, {"fact_ids": ["f_hx_htn"]})
+            assert turns.finalize(turn.turn_id)
+            with sqlite3.connect(env.settings.integration_db_path) as db:
+                db.execute("UPDATE turns SET created_at=?, finalized_at=? WHERE turn_id=?",
+                           (created, finalized, turn.turn_id))
+        return turns.stats()["turn_completion"]
+
+    empty = store_with_intervals([])
+    assert empty["measured_count"] == 0 and empty["negative_count"] == 0
+    assert empty["min_ms"] is None and empty["median_ms"] is None and empty["max_ms"] is None
+
+    single = store_with_intervals([(0.0, 2.5)])
+    assert single["measured_count"] == 1
+    assert single["median_ms"] == 2500 and single["min_ms"] == 2500 and single["max_ms"] == 2500
+
+    odd = store_with_intervals([(0.0, 1.0), (0.0, 2.0), (0.0, 4.0)])
+    assert odd["measured_count"] == 3
+    assert odd["median_ms"] == 2000 and odd["min_ms"] == 1000 and odd["max_ms"] == 4000
+
+    even = store_with_intervals([(0.0, 1.0), (0.0, 3.0)])
+    assert even["measured_count"] == 2
+    assert even["median_ms"] == 2000  # not the upper median 3000
+
+    mixed = store_with_intervals([(0.0, 1.0), (0.0, 3.0), (5.0, 4.0)])
+    assert mixed["measured_count"] == 2 and mixed["negative_count"] == 1
+    assert mixed["median_ms"] == 2000 and mixed["min_ms"] == 1000 and mixed["max_ms"] == 3000
+
+
+def test_turn_stats_read_only_and_missing_path(tmp_path, monkeypatch):
+    import sqlite3
+
+    from app.integration.turns import read_stats
+
+    env = Env(tmp_path, monkeypatch)
+    sid = env.new_session()
+    turns = env.runtime.turns
+    turn, _ = _issue(env, sid, kind=PATIENT)
+    turns.submit(turn.turn_id, {"fact_ids": ["f_hx_htn"]})
+    turns.finalize(turn.turn_id)
+
+    result = read_stats(env.settings.integration_db_path)
+    assert result["ok"] is True
+    assert result["stats"]["turns_total"] == 1
+    assert "schema_note" not in result["stats"]
+
+    # Missing path -> explicit failure and no file/dir is created.
+    missing = tmp_path / "does-not-exist" / "integration.db"
+    result = read_stats(missing)
+    assert result["ok"] is False
+    assert not missing.exists()
+
+    # Old store predating the observability columns -> compatible result + schema note, not migrated.
+    old_path = tmp_path / "old.db"
+    db = sqlite3.connect(old_path)
+    db.executescript(
+        """
+        CREATE TABLE turns (
+            turn_id TEXT PRIMARY KEY, secret_hash TEXT NOT NULL, kind TEXT NOT NULL,
+            owner_id TEXT NOT NULL, session_id TEXT NOT NULL, case_id TEXT NOT NULL,
+            case_version INTEGER NOT NULL, request_id TEXT NOT NULL, state_version INTEGER NOT NULL,
+            question TEXT NOT NULL, candidates_json TEXT NOT NULL, status TEXT NOT NULL,
+            expires_at REAL NOT NULL, submission_json TEXT, cancel_reason TEXT, created_at REAL NOT NULL
+        );
+        CREATE TABLE turn_calls (
+            call_id INTEGER PRIMARY KEY AUTOINCREMENT, turn_id TEXT NOT NULL,
+            tool TEXT NOT NULL, ok INTEGER NOT NULL, detail TEXT NOT NULL, at REAL NOT NULL
+        );
+        """
+    )
+    db.execute(
+        "INSERT INTO turns(turn_id, secret_hash, kind, owner_id, session_id, case_id, case_version, "
+        "request_id, state_version, question, candidates_json, status, expires_at, created_at) "
+        "VALUES ('t1','h','patient','o','s','c',1,'r',0,'q','[]','open',0.0,0.0)"
+    )
+    db.commit()
+    db.close()
+
+    result = read_stats(old_path)
+    assert result["ok"] is True
+    assert result["stats"]["turns_total"] == 1
+    assert result["stats"]["by_adapter_mode"] == {"unknown": 1}
+    assert "schema_note" in result["stats"]
+
+    # read_stats did not migrate the old store.
+    db = sqlite3.connect(old_path)
+    columns = {row[1] for row in db.execute("PRAGMA table_info(turns)")}
+    db.close()
+    assert "finalized_at" not in columns and "mode" not in columns
+
+
+def test_read_stats_reports_corrupt_and_incomplete_stores(tmp_path):
+    import sqlite3
+
+    from app.integration.turns import read_stats
+
+    # A non-SQLite file is reported as corrupted, never as empty data, and leaks no path/detail.
+    text_db = tmp_path / "text.db"
+    text_db.write_text("this is not a database", encoding="utf-8")
+    result = read_stats(text_db)
+    assert result["ok"] is False and result["reason"] == "corrupted"
+    assert str(text_db) not in result["error"]
+
+    # A store with `turns` but no `turn_calls` is reported as incomplete.
+    no_calls = tmp_path / "no_calls.db"
+    db = sqlite3.connect(no_calls)
+    db.execute(
+        "CREATE TABLE turns (turn_id TEXT PRIMARY KEY, secret_hash TEXT, kind TEXT, owner_id TEXT, "
+        "session_id TEXT, case_id TEXT, case_version INTEGER, request_id TEXT, state_version INTEGER, "
+        "question TEXT, candidates_json TEXT, status TEXT, expires_at REAL, submission_json TEXT, "
+        "cancel_reason TEXT, created_at REAL, finalized_at REAL, mode TEXT)"
+    )
+    db.commit()
+    db.close()
+    result = read_stats(no_calls)
+    assert result["ok"] is False and result["reason"] == "incomplete"
+
+    # A valid store reports ok with empty stats (no turns recorded yet).
+    normal = tmp_path / "normal.db"
+    db = sqlite3.connect(normal)
+    db.executescript(
+        """
+        CREATE TABLE turns (turn_id TEXT PRIMARY KEY, secret_hash TEXT, kind TEXT, owner_id TEXT,
+            session_id TEXT, case_id TEXT, case_version INTEGER, request_id TEXT, state_version INTEGER,
+            question TEXT, candidates_json TEXT, status TEXT, expires_at REAL, submission_json TEXT,
+            cancel_reason TEXT, created_at REAL, finalized_at REAL, mode TEXT);
+        CREATE TABLE turn_calls (call_id INTEGER PRIMARY KEY AUTOINCREMENT, turn_id TEXT,
+            tool TEXT, ok INTEGER, detail TEXT, at REAL);
+        """
+    )
+    db.commit()
+    db.close()
+    result = read_stats(normal)
+    assert result["ok"] is True and result["stats"]["turns_total"] == 0
+
+
+def test_turn_store_concurrent_init_on_old_schema(tmp_path):
+    import concurrent.futures
+    import sqlite3
+
+    from app.integration.turns import TurnStore
+
+    # An old store (pre-observability columns) shared by API and MCP processes.
+    old_path = tmp_path / "old.db"
+    db = sqlite3.connect(old_path)
+    db.executescript(
+        """
+        CREATE TABLE turns (
+            turn_id TEXT PRIMARY KEY, secret_hash TEXT NOT NULL, kind TEXT NOT NULL,
+            owner_id TEXT NOT NULL, session_id TEXT NOT NULL, case_id TEXT NOT NULL,
+            case_version INTEGER NOT NULL, request_id TEXT NOT NULL, state_version INTEGER NOT NULL,
+            question TEXT NOT NULL, candidates_json TEXT NOT NULL, status TEXT NOT NULL,
+            expires_at REAL NOT NULL, submission_json TEXT, cancel_reason TEXT, created_at REAL NOT NULL
+        );
+        CREATE TABLE turn_calls (
+            call_id INTEGER PRIMARY KEY AUTOINCREMENT, turn_id TEXT NOT NULL,
+            tool TEXT NOT NULL, ok INTEGER NOT NULL, detail TEXT NOT NULL, at REAL NOT NULL
+        );
+        """
+    )
+    db.execute(
+        "INSERT INTO turns(turn_id, secret_hash, kind, owner_id, session_id, case_id, case_version, "
+        "request_id, state_version, question, candidates_json, status, expires_at, created_at) "
+        "VALUES ('t1','h','patient','o','s','c',1,'r',0,'q','[]','open',0.0,0.0)"
+    )
+    db.commit()
+    db.close()
+
+    def init():
+        TurnStore(old_path)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        list(executor.map(lambda _: init(), range(8)))
+
+    # The columns exist exactly once and the original row survived.
+    db = sqlite3.connect(old_path)
+    columns = {row[1] for row in db.execute("PRAGMA table_info(turns)")}
+    row = db.execute("SELECT mode FROM turns WHERE turn_id='t1'").fetchone()
+    db.close()
+    assert "finalized_at" in columns and "mode" in columns
+    assert row[0] == "unknown"
+
+
+def test_teacher_observability_is_permission_isolated_and_read_only(tmp_path, monkeypatch):
+    from app.accounts import AccountStore
+
+    env = Env(tmp_path, monkeypatch, select("f_hx_htn"))
+    sid = env.new_session()
+    assert env.ask(sid, "有高血压吗", "r1").status_code == 200
+    monkeypatch.setenv("APP_AUTH_MODE", "local")
+    accounts = AccountStore(tmp_path / "accounts.db")
+    monkeypatch.setattr(main, "ACCOUNTS", accounts)
+    teacher_id = accounts.create("teachera", "Ta-Pass-2026", "teacher", "老师甲")
+
+    # Students/owners and anonymous callers are rejected.
+    assert env.client.get("/api/teacher/observability", headers=env.headers).status_code in (401, 403)
+    assert env.client.get("/api/teacher/observability", headers={}).status_code in (401, 403)
+
+    # A teacher with no classes sees an empty scoped aggregate, not the full library.
+    login = env.client.post("/api/auth/login", json={"username": "teachera", "password": "Ta-Pass-2026"})
+    headers = {"Authorization": "Bearer " + login.json()["token"]}
+    res = env.client.get("/api/teacher/observability", headers=headers)
+    assert res.status_code == 200
+    body = res.json()
+    assert body["ok"] is True
+    assert body["stats"]["turns_total"] == 0
+    assert body["stats"]["token_usage"] == "unknown" and body["stats"]["cost"] == "unknown"
+
+
+def test_teacher_observability_scopes_to_own_class_members(tmp_path, monkeypatch):
+    from app.accounts import AccountStore
+    from app.roster import RosterStore
+
+    env = Env(tmp_path, monkeypatch, select("f_hx_htn"))
+    monkeypatch.setenv("APP_AUTH_MODE", "local")
+    accounts = AccountStore(tmp_path / "accounts.db")
+    monkeypatch.setattr(main, "ACCOUNTS", accounts)
+
+    ta = accounts.create("teachera", "Ta-Pass-2026", "teacher", "老师甲")
+    tb = accounts.create("teacherb", "Tb-Pass-2026", "teacher", "老师乙")
+    roster = RosterStore(accounts)
+    class_a = roster.create_class(ta, "甲班")
+    class_b = roster.create_class(tb, "乙班")
+    roster.add_students(class_a["id"], ta, [{"username": "s001", "display_name": "学生一"}])
+    roster.add_students(class_b["id"], tb, [{"username": "s002", "display_name": "学生二"},
+                                            {"username": "s003", "display_name": "学生三"}])
+
+    def add_turn(owner_id, rid):
+        turn, _ = env.runtime.turns.issue(
+            kind=PATIENT, owner_id=owner_id, session_id=f"ses-{rid}", case_id="CASE-001",
+            case_version=1, request_id=rid, state_version=0, question="有高血压吗",
+            candidate_fact_ids=["f_hx_htn"], mode="nexent",
+        )
+        env.runtime.turns.record_call(turn.turn_id, "get_turn_context", ok=True)
+        env.runtime.turns.record_call(turn.turn_id, "submit_fact_selection", ok=True)
+        env.runtime.turns.submit(turn.turn_id, {"fact_ids": ["f_hx_htn"]})
+        env.runtime.turns.finalize(turn.turn_id)
+
+    add_turn(accounts.find("s001")["id"], "r1")
+    add_turn(accounts.find("s002")["id"], "r2")
+    add_turn(accounts.find("s003")["id"], "r3")
+
+    def login(username, password):
+        res = env.client.post("/api/auth/login", json={"username": username, "password": password})
+        assert res.status_code == 200, res.text
+        return {"Authorization": "Bearer " + res.json()["token"]}
+
+    a = env.client.get("/api/teacher/observability", headers=login("teachera", "Ta-Pass-2026")).json()
+    b = env.client.get("/api/teacher/observability", headers=login("teacherb", "Tb-Pass-2026")).json()
+
+    # Each teacher sees only their own class members' turns; tool calls follow the same scope.
+    assert a["ok"] is True and a["stats"]["turns_total"] == 1
+    assert b["ok"] is True and b["stats"]["turns_total"] == 2
+    assert a["stats"]["tool_calls_total"] == 2
+    assert b["stats"]["tool_calls_total"] == 4
+
+
+def test_observability_roster_failure_is_unavailable_not_empty(tmp_path, monkeypatch):
+    from app.accounts import AccountStore
+
+    env = Env(tmp_path, monkeypatch, select("f_hx_htn"))
+    monkeypatch.setenv("APP_AUTH_MODE", "local")
+    accounts = AccountStore(tmp_path / "accounts.db")
+    monkeypatch.setattr(main, "ACCOUNTS", accounts)
+    accounts.create("teachera", "Ta-Pass-2026", "teacher", "老师甲")
+
+    class BrokenRoster:
+        def classes(self, teacher_id):
+            raise RuntimeError("roster store corrupted")
+
+    # A broken roster must be reported as "statistics unavailable", not silently as "no class".
+    monkeypatch.setattr(main, "roster_for", lambda accounts: BrokenRoster())
+    login = env.client.post("/api/auth/login", json={"username": "teachera", "password": "Ta-Pass-2026"})
+    headers = {"Authorization": "Bearer " + login.json()["token"]}
+    res = env.client.get("/api/teacher/observability", headers=headers)
+    assert res.status_code == 503
+
+
+def test_teacher_export_is_scoped_and_deidentified(tmp_path, monkeypatch):
+    import json as _json
+
+    from app.accounts import AccountStore
+    from app.export import ExportAudit
+    from app.models import ActionKind, Event, ScoreItem, ScoreSnapshot, SessionState
+    from app.roster import RosterStore
+
+    env = Env(tmp_path, monkeypatch, select("f_hx_htn"))
+    monkeypatch.setenv("APP_AUTH_MODE", "local")
+    accounts = AccountStore(tmp_path / "accounts.db")
+    monkeypatch.setattr(main, "ACCOUNTS", accounts)
+    audit = ExportAudit(tmp_path / "accounts.db")
+    monkeypatch.setattr(main, "EXPORT_AUDIT", audit)
+
+    ta = accounts.create("teachera", "Ta-Pass-2026", "teacher", "老师甲")
+    tb = accounts.create("teacherb", "Tb-Pass-2026", "teacher", "老师乙")
+    roster = RosterStore(accounts)
+    ca = roster.create_class(ta, "甲班")
+    cb = roster.create_class(tb, "乙班")
+    student_created = roster.add_students(ca["id"], ta, [{"username": "s001", "display_name": "学生一"}])[0]
+    roster.add_students(cb["id"], tb, [{"username": "s002", "display_name": "学生二"}])
+    s1 = accounts.find("s001")["id"]
+    s2 = accounts.find("s002")["id"]
+
+    case = main.CASE_STORE.get_by_public_id("CASE-001")
+    case_id, case_version = case.case_id, case.version
+
+    def save_state(owner_id, mark):
+        env.repository.create(SessionState(
+            session_id=f"sid-{owner_id}",
+            owner_id=owner_id,
+            case_id=case_id,
+            case_version=case_version,
+            events=[Event(request_id="req-internal", seq=1, actor="student", action=ActionKind.ASK,
+                          intent=f"我的手机号 13800001111 {mark}", payload={},
+                          result={"answer": "有高血压10年。", "fact_ids": ["f_hx_htn"]},
+                          sim_time=0, state_before={}, state_after={})],
+            case_notes=f"姓名张三 {mark}",
+            score_snapshot=ScoreSnapshot(session_id=f"sid-{owner_id}", seal_seq=1, total_score=1.0,
+                                         max_score=5.0, status="complete",
+                                         items=[ScoreItem(item_id="i1", stage="病史采集", hit=True,
+                                                          score=1.0, max_score=1.0,
+                                                          evidence_event_ids=[], reason="命中")]),
+        ))
+
+    save_state(s1, "AAA")
+    save_state(s2, "BBB")
+
+    def login(u, p):
+        r = env.client.post("/api/auth/login", json={"username": u, "password": p})
+        assert r.status_code == 200, r.text
+        return {"Authorization": "Bearer " + r.json()["token"]}
+
+    # Student and anonymous callers are rejected.
+    first_login = login("s001", student_created["temporary_password"])
+    changed = env.client.post("/api/auth/password", headers=first_login,
+                              json={"current_password": student_created["temporary_password"],
+                                    "new_password": "S001-Pass-2026"})
+    assert changed.status_code == 200
+    student_headers = {"Authorization": "Bearer " + changed.json()["token"]}
+    assert env.client.post("/api/teacher/export", headers=student_headers, json={}).status_code == 403
+    assert env.client.post("/api/teacher/export", headers={}, json={}).status_code in (401, 403)
+
+    ta_headers = login("teachera", "Ta-Pass-2026")
+    tb_headers = login("teacherb", "Tb-Pass-2026")
+
+    # Teacher A exports their own class (no class_id -> all owned) -> only s001's record.
+    a = env.client.post("/api/teacher/export", headers=ta_headers, json={}).json()
+    assert a["ok"] is True and a["record_count"] == 1
+    blob = _json.dumps(a["records"], ensure_ascii=False)
+    for forbidden in ("s001", "s002", "sid-", "req-internal", "13800001111", "张三", "有高血压", "我的手机号", "AAA", "BBB"):
+        assert forbidden not in blob, forbidden
+    rec = a["records"][0]
+    assert rec["export_index"] == 1
+    assert rec["events"][0]["action"] == "ask"
+    assert rec["score"]["items"][0]["stage"] == "病史采集"
+
+    # Teacher B sees only their own student's record.
+    b = env.client.post("/api/teacher/export", headers=tb_headers, json={}).json()
+    assert b["ok"] is True and b["record_count"] == 1
+
+    # Tampered class id (B's class requested by A) is rejected, not leaked.
+    assert env.client.post("/api/teacher/export", headers=ta_headers, json={"class_id": cb["id"]}).status_code == 404
+
+    # Audit records success and rejection, and never stores the removed identity strings.
+    audit_rows = audit.recent()
+    assert any(r["result"] == "success" and r["record_count"] == 1 for r in audit_rows)
+    assert any(r["result"] == "rejected" for r in audit_rows)
+    audit_blob = _json.dumps(audit_rows, ensure_ascii=False)
+    assert "13800001111" not in audit_blob and "张三" not in audit_blob and "sid-" not in audit_blob
+
+    # Original trainings are unchanged (the export is read-only).
+    assert env.repository.get(f"sid-{s1}", s1).case_notes == "姓名张三 AAA"
+    assert env.repository.get(f"sid-{s2}", s2).case_notes == "姓名张三 BBB"
 
 
 def test_tokens_are_bound_and_unforgeable(tmp_path, monkeypatch):
@@ -380,7 +898,7 @@ def test_tool_signatures_never_accept_authoritative_fields():
         "submit_fact_selection": {"turn_token", "fact_ids"},
         "get_sealed_review": {"turn_token"},
         "search_teaching_basis": {"turn_token", "query", "stage"},
-        "submit_feedback": {"turn_token", "items"},
+        "submit_feedback": {"turn_token", "items", "use_stage_basis"},
     }
     forbidden = {"session_id", "owner_id", "case_id", "case_version", "score", "facts", "hidden_diagnosis"}
     assert not forbidden & set().union(*tools.values())
@@ -489,6 +1007,8 @@ def _play_and_seal(env: Env) -> str:
 
 def feedback_agent(items_factory=None, record=None):
     def agent(request, body, service):
+        assert "search_teaching_basis" in body["query"]
+        assert "knowledge_base_search" not in body["query"]
         token = token_of(body)
         review = service.get_sealed_review(token)
         assert review["ok"], review
@@ -540,7 +1060,9 @@ def test_feedback_chain_is_independent_after_seal_and_idempotent(tmp_path, monke
     assert first.status_code == 200, first.text
     body = first.json()
     assert body["source"] == "nexent"
-    assert [item["stage"] for item in body["items"]] == list(FEEDBACK_STAGES)
+    assert body["review_status"] == "pending_teacher_review" and body["items"] == []
+    stored = env.runtime.feedback_store.get(sid, "demo-integration")
+    assert [item["stage"] for item in stored["items"]] == list(FEEDBACK_STAGES)
     assert results == [{"ok": True, "accepted_items": 5}]
     again = env.client.post(f"/api/sessions/{sid}/feedback", headers=env.headers, json={"request_id": "f2"})
     assert again.json() == body
@@ -565,6 +1087,21 @@ def test_feedback_rejected_before_seal(tmp_path, monkeypatch):
         case_version=session.case_version, request_id="f", state_version=0,
     )
     assert env.service.get_sealed_review(token)["error"] == "not_sealed"
+
+
+@pytest.mark.parametrize("mode", ["nexnet", "bogus"])
+def test_feedback_invalid_mode_never_falls_back_to_local_rules(tmp_path, monkeypatch, mode):
+    env = Env(tmp_path, monkeypatch, agent=select("f_pain_character"))
+    sid = _play_and_seal(env)
+    before = env.repository.get(sid, "demo-integration").model_dump_json()
+    calls_before = len(env.runs)
+    env.runtime.__dict__["settings"] = settings_for(tmp_path, mode=mode)
+    endpoint = f"/api/sessions/{sid}/feedback"
+    response = env.client.post(endpoint, headers=env.headers, json={"request_id": "invalid-mode"})
+    assert response.status_code == 502
+    assert env.runtime.feedback_store.get(sid, "demo-integration") is None
+    assert len(env.runs) == calls_before
+    assert env.repository.get(sid, "demo-integration").model_dump_json() == before
 
 
 @pytest.mark.parametrize(
@@ -757,6 +1294,11 @@ def test_settings_validation(monkeypatch):
     monkeypatch.setenv("NEXENT_TOTAL_TIMEOUT_S", "30")
     monkeypatch.setenv("NEXENT_MODE", " NEXENT ")
     assert IntegrationSettings.from_env().uses_nexent
+    monkeypatch.setenv("NEXENT_FEEDBACK_PROTOCOL", "compact")
+    assert IntegrationSettings.from_env().feedback_protocol == "compact"
+    monkeypatch.setenv("NEXENT_FEEDBACK_PROTOCOL", "unknown")
+    with pytest.raises(ValueError, match="NEXENT_FEEDBACK_PROTOCOL"):
+        IntegrationSettings.from_env()
 
 
 # ------------------------------------------------------------------------- MCP transport auth
@@ -809,3 +1351,46 @@ def test_second_specialty_uses_the_same_trusted_chain(tmp_path, monkeypatch):
     session = env.repository.get(sid, "demo-integration")
     assert session.case_id == "APPY-001"
     assert session.events[0].result["adapter"]["source"] == "nexent"
+
+
+def test_compact_feedback_binds_sealed_references_without_model_ids(tmp_path, monkeypatch):
+    env = Env(tmp_path, monkeypatch, agent=select("f_pain_character"), feedback_protocol="compact")
+    sid = _play_and_seal(env)
+    original = env.repository.get(sid, env.headers["X-Owner-Id"])
+    case = CaseStore(ROOT / "cases").get(original.case_id, original.case_version)
+
+    def agent(_, body, service):
+        assert "use_stage_basis=True" in body["query"]
+        normalized_query = "".join(body["query"].casefold().split())
+        assert all(term not in normalized_query for term in diagnosis_leak_terms(case))
+        assert all(stage in body["query"] for stage in FEEDBACK_STAGES)
+        items = [
+            {"stage": stage, "comment": "复核本环节记录。", "improvement": "补充可核对的依据。"}
+            for stage in FEEDBACK_STAGES
+        ]
+        invalid = [dict(items[0], basis_ids=["bad"]), *items[1:]]
+        assert service.submit_feedback(token_of(body), invalid, True)["error"] == "invalid_feedback"
+        assert service.submit_feedback(token_of(body), items, True) == {"ok": True, "accepted_items": 5}
+        return ok_response("反馈已提交")
+
+    env.agent = agent
+    endpoint = f"/api/sessions/{sid}/feedback"
+    response = env.client.post(endpoint, headers=env.headers, json={"request_id": "compact"})
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert result["source"] == "nexent"
+    assert result["review_status"] == "pending_teacher_review" and result["items"] == []
+    stored = env.runtime.feedback_store.get(sid, "demo-integration")
+    assert len(stored["items"]) == 5
+    for item in stored["items"]:
+        assert item["basis_ids"]
+        for basis_id in item["basis_ids"]:
+            assert item["stage"] in env.service.knowledge.entries[basis_id].stages
+        expected = {
+            event_id for score in original.score_snapshot.items if score.stage == item["stage"]
+            for event_id in score.evidence_event_ids
+        }
+        assert set(item["evidence_event_ids"]) == expected
+    assert env.client.get(endpoint, headers=env.headers).json() == result
+    assert env.client.post(endpoint, headers=env.headers, json={"request_id": "compact"}).json() == result
+    assert env.repository.get(sid, env.headers["X-Owner-Id"]) == original

@@ -10,8 +10,14 @@ from app.integration.score_reviews import ScoreReviewStore
 from app.storage import ConcurrentUpdateError
 from test_integration import Env, ROOT
 from test_frontend_smoke import _route_requests
+from teacher_scope_helpers import bind_demo_class
 
 TEACHER = {"X-Owner-Id": "teacher-score"}
+
+
+@pytest.fixture(autouse=True)
+def teacher_memberships(tmp_path, monkeypatch):
+    bind_demo_class(tmp_path, monkeypatch, ["teacher-score", "teacher-demo"], ["demo-integration"])
 
 
 def needs_review_env(tmp_path, monkeypatch):
@@ -183,8 +189,8 @@ def test_score_review_rejects_production_identity_and_mismatching_student(tmp_pa
     assert env.client.get(f"/api/teacher/scores/{sid}", headers=TEACHER,
                           params={"owner_id": "demo-other"}).status_code == 404
     monkeypatch.setenv("APP_ENV", "production")
-    assert read(env, sid, state).status_code == 403
-    assert env.client.post(f"/api/teacher/scores/{sid}", headers=TEACHER, json=body(state, original)).status_code == 403
+    assert read(env, sid, state).status_code == 401
+    assert env.client.post(f"/api/teacher/scores/{sid}", headers=TEACHER, json=body(state, original)).status_code == 401
 
 
 def test_unsealed_training_cannot_be_adjudicated(tmp_path, monkeypatch):

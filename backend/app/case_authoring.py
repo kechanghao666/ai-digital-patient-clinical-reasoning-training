@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from pydantic import ValidationError
 
+from . import exam_catalog
 from .adapters import diagnosis_leak_terms
 from .disclosure import normalize
 from .models import CaseDefinition
@@ -39,13 +40,61 @@ def schema_errors(error: ValidationError) -> list[dict[str, str]]:
     ]
 
 
-def check_case(case: CaseDefinition, for_publish: bool = False) -> list[Issue]:
+def check_case(
+    case: CaseDefinition,
+    for_publish: bool = False,
+    require_classification: bool = False,
+    require_subspecialty: bool | None = None,
+) -> list[Issue]:
     issues: list[Issue] = []
     leaks = diagnosis_leak_terms(case)
 
     def leaks_in(text: str) -> list[str]:
         folded = "".join(text.casefold().split())
         return sorted(term for term in leaks if "".join(term.split()) in folded)
+
+    # 科室/亚专科编码验证
+    from .department_catalog import (
+        department_has_subspecialties,
+        is_valid_combination,
+        validate_department_code,
+        validate_subspecialty_code,
+        get_parent_department,
+    )
+    if case.department_code and validate_department_code(case.department_code) is None:
+        issues.append(Issue("error", "invalid_department_code",
+                            f"科室编码 '{case.department_code}' 不在受控字典中"))
+    if case.subspecialty_code and validate_subspecialty_code(case.subspecialty_code) is None:
+        issues.append(Issue("error", "invalid_subspecialty_code",
+                            f"亚专科编码 '{case.subspecialty_code}' 不在受控字典中"))
+    if case.subspecialty_code and not case.department_code:
+        issues.append(Issue("error", "department_missing", "选择亚专科时必须同时选择所属科室"))
+    elif case.department_code and case.subspecialty_code and not is_valid_combination(
+        case.department_code, case.subspecialty_code
+    ):
+        parent = get_parent_department(case.subspecialty_code)
+        if parent:
+            message = f"亚专科 '{case.subspecialty_code}' 属于科室 '{parent}'，与所选科室 '{case.department_code}' 不匹配"
+        else:
+            message = "科室与亚专科组合不属于受控目录"
+        issues.append(Issue("error", "department_mismatch", message))
+
+    if for_publish or require_classification:
+        # 旧内置病例在读取时由兼容映射补充展示值，不写回原文件；新教师病例必须显式分类。
+        classification_required = require_classification or case.authored_by is not None
+        if not case.department_code:
+            level = "error" if classification_required else "warning"
+            message = "发布前须选择科室" if classification_required else "建议设置科室编码"
+            issues.append(Issue(level, "missing_department", message))
+        needs_subspecialty = (
+            department_has_subspecialties(case.department_code)
+            if require_subspecialty is None and case.department_code
+            else bool(require_subspecialty)
+        )
+        if not case.subspecialty_code and case.department_code and needs_subspecialty:
+            level = "error" if classification_required else "warning"
+            message = "发布前须选择亚专科" if classification_required else "建议设置亚专科编码"
+            issues.append(Issue(level, "missing_subspecialty", message))
 
     visible = {
         "标题": case.title,
@@ -68,6 +117,10 @@ def check_case(case: CaseDefinition, for_publish: bool = False) -> list[Issue]:
         found = leaks_in(text)
         if found:
             issues.append(Issue("error", "diagnosis_leak", f"{where} 含有诊断词 {found}，会向学生泄露答案"))
+
+    for name in exam_catalog.unmapped_case_exams(case):
+        issues.append(Issue("error", "exam_not_in_catalog",
+                            f"检查 \"{name}\" 不在全院检查目录中，学生无法开立；请改用目录名称或其别名"))
 
     rule_fact_ids = {fid for rule in case.rules for fid in rule.effect.new_fact_ids}
     facts = {fact.fact_id: fact for fact in case.facts}

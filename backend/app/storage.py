@@ -55,6 +55,12 @@ class SessionRepository:
             ).fetchall()
         return [SessionState.model_validate_json(row[0]) for row in rows]
 
+    def list_all(self) -> list[SessionState]:
+        """Every training, newest first; for teacher-only aggregate views."""
+        with self.lock, closing(sqlite3.connect(self.database_path)) as connection, connection:
+            rows = connection.execute("SELECT state_json FROM sessions ORDER BY rowid DESC").fetchall()
+        return [SessionState.model_validate_json(row[0]) for row in rows]
+
     def save(self, state: SessionState, expected_version: int | None = None) -> None:
         with self.lock, closing(sqlite3.connect(self.database_path)) as connection, connection:
             if expected_version is None:
