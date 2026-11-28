@@ -213,7 +213,7 @@ def _score_differential(rubric, candidate, events, event_ids, case):
         notes.append("当前分数仅计有效证据，须教师复核后定分")
     reason = "已找到符合病例规则的支持/反对证据" if full else "；".join(notes) or "证据不足"
     improvement = "" if full else (rubric.improvement or "；".join(advice) or "补充可核对的证据")
-    evidence = sorted(used_events) if used_events else [e for e in cited_ids if e in event_ids]
+    evidence = [e.event_id for e in cited if e.event_id in used_events] if used_events else [e for e in cited_ids if e in event_ids]
     return score, full, review, evidence, reason, improvement
 
 

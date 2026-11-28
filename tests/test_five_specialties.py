@@ -105,7 +105,12 @@ def ideal_run(api: Api, public_id: str, script: dict) -> tuple[str, dict]:
 @pytest.mark.parametrize("public_id", sorted(SPECIALTY_RUNS))
 def test_ideal_run_earns_full_automatic_five_stage_score(tmp_path, monkeypatch, public_id):
     api = Api(tmp_path, monkeypatch)
-    _, score = ideal_run(api, public_id, SPECIALTY_RUNS[public_id])
+    sid, score = ideal_run(api, public_id, SPECIALTY_RUNS[public_id])
+    seq = {e["event_id"]: e["seq"] for e in api.state(sid)["events"]}
+    for graded in score["items"]:
+        if graded["stage"] == "鉴别诊断":
+            cited = [seq[key] for key in graded["evidence_event_ids"]]
+            assert cited == sorted(cited)
     missed = [(i["item_id"], i["reason"]) for i in score["items"] if not i["hit"]]
     assert not missed, missed
     assert score["total_score"] == score["max_score"]
