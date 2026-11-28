@@ -1,8 +1,0 @@
-{
-  "package_dir": "deliverables\\AgentsHub\\行业智能体\\医疗\\AI数字病人临床思维训练",
-  "offline_verified": false,
-  "agent_json": {
-    "present": false,
-    "note": "agent.json must be exported from Nexent; do not hand-write"
-  }
-}

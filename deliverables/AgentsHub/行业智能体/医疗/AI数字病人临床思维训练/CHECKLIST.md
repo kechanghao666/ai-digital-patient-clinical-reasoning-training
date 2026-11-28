@@ -13,10 +13,12 @@
 | README.md | ✅ | 实现概述、依赖、运行入口 |
 | IMPORT.md | ✅ | 平台导入步骤 |
 | CHECKLIST.md | ✅ | 本文件 |
-| mcp-config.example.json | ✅ | 自定义 MCP 注册示例（无凭据） |
-| agent.json | ❌ | **须从 Nexent 平台实际导出；当前缺失** |
+| mcps/mcp-config.example.json | ✅ | 自定义 MCP 注册示例（无凭据） |
+| `agent.json`、`feedback/agent.json` | ❌ | **须从 Nexent 平台实际导出；当前缺失** |
 | skills/ | N/A | 未使用平台 Skill |
 | mcps/ | ✅ | 代码在 `backend/app/mcp_server.py`，示例配置已提供 |
+
+在当前产品分支根目录运行 `python scripts/verify_delivery_package.py`，报告写到标准输出。缺任一角色导出、有结构错误或命中凭据模式时退出码为 2。检查覆盖公开文本与导出的基本结构；仍需人工脱敏审查、角色绑定核对和独立实例导入。
 
 ## 2. 依赖与构建
 
@@ -24,8 +26,7 @@
 |---|---|---|
 | Python 3.11 锁文件 | ✅ | `requirements.lock` |
 | npm 锁文件 | ✅ | `web/package-lock.json` |
-| 后端全量测试 | ✅ | `.
-.venv\Scripts\python.exe -m pytest -q` → 952 passed |
+| 后端全量测试 | ✅ | `.\.venv\Scripts\python.exe -m pytest -q` → 952 passed |
 | 前端类型检查 | ✅ | `npm run typecheck`（在 `web/`） |
 | 前端构建 | ✅ | `npm run build`（在 `web/`） |
 | npm 审计 | ✅ | 0 vulnerabilities |
@@ -44,8 +45,8 @@
 
 | 项 | 状态 | 要求 |
 |---|---|---|
-| 病人智能体名称/版本 | ❌ | 由 `agent.json` 提供；仅启用 `get_turn_context`、`submit_fact_selection` |
-| 反馈智能体名称/版本 | ❌ | 由 `agent.json` 提供；按协议启用反馈工具 |
+| 病人智能体名称/版本 | ❌ | 由 两份平台导出分别提供；仅启用 `get_turn_context`、`submit_fact_selection` |
+| 反馈智能体名称/版本 | ❌ | 由 两份平台导出分别提供；按协议启用反馈工具 |
 | 模型 | ⚠️ | 目标实例须实际可用并授权 |
 | 知识库挂载 | ⚠️ | 仅反馈智能体挂载教学依据库 |
 | `allow_chat_metadata` | ⚠️ | 两智能体均须为 `true` |
@@ -61,7 +62,7 @@
 | CASE-004 CAP-001 v2 | ✅ | ⚠️ | 🎲 |
 | CASE-005 DKA-001 v2 | ✅ | ⚠️ | 🎲 |
 
-模拟器轨迹见 [`docs/demo-20261209.md`](../../../../../docs/demo-20261209.md)。
+模拟器轨迹见 [`docs/demo-20261209.md`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/77616e7a83f6278a22c238b1c921885bea8a55dd/docs/demo-20261209.md)。
 
 ## 6. 现场随机抽取记录（12 月 9 日）
 
@@ -82,7 +83,7 @@
 
 ## 8. 已知缺失与开放项
 
-- `agent.json` 尚未从 Nexent 平台最终导出。
+- `agent.json`（病人）和 `feedback/agent.json`（反馈） 尚未从 Nexent 平台最终导出。
 - 真实模型授权、额度与实例导入未执行。
 - 医学审核、临床分支、教学歧义（CAP 4 评分差异 + 10 待审场景）待裁决。
 - 学生/专家真实评测、演示视频官方发布、上游 PR 合入与验收申请由负责人处理。
