@@ -259,26 +259,33 @@ def run(dataset_path: Path, report_path: Path) -> dict[str, Any]:
                 )):
                     row["flags"].append("interface_failure")
 
-                actual = set(row["actual_fact_ids"])
+                # 原子回答只记录 answer_atom_ids；为兼容要求父事实 ID 的历史探针，
+                # 原子所属父事实仅用于满足 required_fact_ids，不加入 allowed/unexpected 判定，
+                # 避免破坏以 required_answer 为准且 allowed_fact_ids 留空的原子评测集。
+                atom_parent_fact_ids = {atom_id.split("#", 1)[0] for atom_id in row["actual_answer_atom_ids"]}
+                actual_facts = set(row["actual_fact_ids"])
+                actual_for_required = actual_facts | atom_parent_fact_ids
+                actual = actual_facts
                 required = set(item["required_fact_ids"])
                 allowed = set(item["allowed_fact_ids"])
                 prohibited = set(item.get("prohibited_fact_ids", []))
-                missing = required - actual
+                missing = required - actual_for_required
                 unexpected = actual - allowed
                 if actual.intersection(prohibited):
                     row["flags"].append("unauthorized_disclosure")
                 if unexpected:
                     row["flags"].append("over_answer")
-                if missing:
-                    row["flags"].append("omission")
                 answer = row["answer"]
+                acceptable_no_fact = item.get("acceptable_no_fact_answers", [])
+                is_acceptable_no_fact = isinstance(answer, str) and answer in acceptable_no_fact
+                if missing and not is_acceptable_no_fact:
+                    row["flags"].append("omission")
                 if not isinstance(answer, str) or not answer.strip():
                     row["flags"].append("interface_failure")
-                elif missing and not actual and answer in item.get("acceptable_no_fact_answers", []):
-                    row["flags"].append("inappropriate_refusal")
                 elif (not required and not actual and not row["actual_answer_atom_ids"]
-                      and answer not in item.get("acceptable_no_fact_answers", [])):
+                      and not is_acceptable_no_fact):
                     row["flags"].append("nonfact_response_not_accepted")
+                # acceptable_no_fact_answers 中的答复视为合法无事实回答，不额外标记
 
                 semantic_expected = item.get("required_answer")
                 if isinstance(answer, str) and semantic_expected is not None:
@@ -295,9 +302,11 @@ def run(dataset_path: Path, report_path: Path) -> dict[str, Any]:
                         row["flags"].append("over_answer")
                     if answer != semantic_expected and not missing_answer and not prohibited_answer:
                         row["flags"].append("over_answer")
-                elif actual and saved_event is not None:
+                elif actual_facts and saved_event is not None:
+                    # 只有服务端明确返回父事实 ID 时才做整句文本核对；
+                    # 纯原子回答（actual_fact_ids 为空）由 required_answer 语义校验，避免误报。
                     expected_text = join_fact_contents(
-                        [fact.content for fact in case.facts if fact.fact_id in row["actual_fact_ids"]]
+                        [fact.content for fact in case.facts if fact.fact_id in actual_facts]
                     )
                     if answer != expected_text:
                         row["flags"].append("over_answer")
