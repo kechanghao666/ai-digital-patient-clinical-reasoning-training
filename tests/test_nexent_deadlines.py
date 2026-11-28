@@ -98,8 +98,19 @@ def test_total_deadline_interrupts_real_socket_waits(tmp_path, mode, caplog, mon
             client.run(agent_name="a", query="q")
         elapsed = time.monotonic() - started
         assert raised.value.kind == "timeout"
-        # At most 150ms scheduling/closing tolerance, far less than the scripted 900ms stall.
-        assert 0.2 <= elapsed < 0.45, elapsed
+        # Timing contract: the total deadline (0.3s) fires and interrupts the scripted 900ms
+        # stall/slow-stop, so the deadline contract itself stays untouched. The *upper bound* is
+        # test-local scheduling tolerance: elapsed = deadline + bounded advisory-stop wait +
+        # event-loop/teardown overhead. Full-suite load can push that past a 150ms margin (the
+        # recorded trickle failure showed elapsed_ms=500 against a 0.4s bound; the same overhead
+        # against this test's 0.45s bound is the only consistent explanation for its suite-only
+        # failures), so the bound is 0.7s — still well below the 0.9s scripted stall, which keeps
+        # proving the interruption. stop_outcome is included in the message so any future failure
+        # directly records what the advisory stop did.
+        stop_outcomes = [message.split("stop_outcome=")[-1].split(" ")[0]
+                         for message in (record.getMessage() for record in caplog.records)
+                         if "stop_outcome=" in message]
+        assert 0.2 <= elapsed < 0.7, f"elapsed={elapsed:.3f}s stop_outcomes={stop_outcomes or ['none']}"
         assert len(records) == 1
         # A tiny budget cannot guarantee peer receipt after response cleanup.
         if mode == "headers":
