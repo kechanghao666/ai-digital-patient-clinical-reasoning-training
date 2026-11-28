@@ -1,0 +1,44 @@
+{
+  "ok": true,
+  "frozen_case_versions": [
+    "APPY-001/2",
+    "CAP-001/2",
+    "DKA-001/2",
+    "STEMI-001/3",
+    "STROKE-001/2"
+  ],
+  "summaries": {
+    "qa_20rounds": {
+      "planned_rows": 20,
+      "filled_rows": 0,
+      "consistent": 0,
+      "inconsistent": 0,
+      "judgement_missing": 0,
+      "failed_or_timeout": 0,
+      "agreement_rate_excluding_failures": null,
+      "agreement_rate_including_failures_as_miss": null,
+      "unfrozen_case_references": [],
+      "note": "两个口径并列展示；分母口径由评审确认后才可作为正式一致率。"
+    },
+    "student_expert": {
+      "students_recorded": 0,
+      "complete_students": 0,
+      "overall_complete_students_rate_as_recorded": null,
+      "students": [],
+      "unfrozen_case_references": [],
+      "note": "只统计实际匿名编号非空的行；≥3 名学生须每人都含五环节，分项容差与聚合公式由评审确认。"
+    },
+    "error_evolution": {
+      "planned_rows": 30,
+      "in_denominator": 0,
+      "triggered": 0,
+      "feedback_accuracy_among_triggered": null,
+      "trigger_rate_as_recorded": null,
+      "rows_excluded_from_denominator": 30,
+      "unfrozen_case_references": [],
+      "note": "分母以『是否纳入错误触发分母=是』为准；正常对照与例外不自动计入，遗漏分支不得静默排除。"
+    }
+  },
+  "verdicts_as_recorded": null,
+  "scope": "Counts and rates over filled rows only; missing rows never enter a rate."
+}

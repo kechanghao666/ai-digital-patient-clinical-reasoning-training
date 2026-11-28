@@ -1,0 +1,9 @@
+{
+  "problems": [],
+  "exports": {
+    "agent.json": "missing",
+    "feedback/agent.json": "missing"
+  },
+  "offline_verified": false,
+  "scope": "File checks only. Export provenance, role bindings, disclosure and target import require separate review."
+}
