@@ -24,6 +24,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", nargs="?")
     parser.add_argument("--record", action="store_true", help="Record a 3–8 minute simulator demo using installed ffmpeg")
+    parser.add_argument('--case', choices=[f'CASE-{n:03d}' for n in range(1, 6)], default='CASE-001',
+                        help='Frozen teaching case for the isolated browser rehearsal')
     args = parser.parse_args()
     node = shutil.which("node")
     browser = next((p for p in [
@@ -43,7 +45,7 @@ def main() -> int:
     out = (Path(args.output).resolve() if args.output else
            ROOT / "local-only" / ("isolated-demo-" + secrets.token_hex(6)))
     out.mkdir(parents=True, exist_ok=False)
-    evidence = {"mode": "simulator", "auth": "local", "real_model_calls": 0,
+    evidence = {"mode": "simulator", "auth": "local", "public_case": args.case, "real_model_calls": 0,
                 "isolated_data": True, "temporary_data_removed": False,
                 "code_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
                 "dirty_worktree": bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT)),
@@ -83,7 +85,7 @@ def main() -> int:
             server.start()
             env = dict(os.environ, BASE=f"http://127.0.0.1:{server.port}", OUT=str(out),
                        TEACHER="demo_teacher", TEACHER_PW=password, CHROME=browser,
-                       RECORD_DEMO="1" if args.record else "0")
+                       DEMO_CASE=args.case, RECORD_DEMO="1" if args.record else "0")
             result = subprocess.run([node, str(ROOT / "web/e2e/smoke.mjs")], cwd=ROOT, env=env,
                                     timeout=480, capture_output=True, text=True, encoding="utf-8")
             (out / "browser.log").write_text(result.stdout + result.stderr, encoding="utf-8")
