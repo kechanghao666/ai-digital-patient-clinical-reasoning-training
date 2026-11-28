@@ -7,16 +7,16 @@
 ## 工程状态
 
 - 代码分支：`codex/feedback-protocol-fix`
-- 当前验证基线：`77616e7a83f6278a22c238b1c921885bea8a55dd`
-- 本地全量回归：952 passed / 0 failed（该基线的历史本机批次）
+- 产品源码固定版本：`c7460cd83ce2c09d627a35ee7d324bf8ef0ad32e`
+- 本批模拟器演练：五个不同专科各自完成师生浏览器流程，其中每例均通过 13 项检查
 - 真实模型/供应商调用：0（本目录准备阶段）
 - 医学审核、正式学生/专家评测、官方验收：未完成
 
 完整工程与验收状态见：
-- [`docs/官方要求核对.md`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/77616e7a83f6278a22c238b1c921885bea8a55dd/docs/官方要求核对.md)
-- [`docs/第一阶段覆盖表.md`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/77616e7a83f6278a22c238b1c921885bea8a55dd/docs/第一阶段覆盖表.md)
-- [`docs/工程接手.md`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/77616e7a83f6278a22c238b1c921885bea8a55dd/docs/工程接手.md)
-- [`docs/evidence/2026-11-29-boundary-review/verification.json`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/77616e7a83f6278a22c238b1c921885bea8a55dd/docs/evidence/2026-11-29-boundary-review/verification.json)
+- [`docs/官方要求核对.md`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/c7460cd83ce2c09d627a35ee7d324bf8ef0ad32e/docs/官方要求核对.md)
+- [`docs/第一阶段覆盖表.md`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/c7460cd83ce2c09d627a35ee7d324bf8ef0ad32e/docs/第一阶段覆盖表.md)
+- [`docs/工程接手.md`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/c7460cd83ce2c09d627a35ee7d324bf8ef0ad32e/docs/工程接手.md)
+- [`docs/evidence/2026-11-29-boundary-review/verification.json`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/c7460cd83ce2c09d627a35ee7d324bf8ef0ad32e/docs/evidence/2026-11-29-boundary-review/verification.json)
 
 ## 交付内容
 
@@ -47,7 +47,7 @@
 ```powershell
 git clone https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training.git patient-training
 cd patient-training
-git checkout --detach 77616e7a83f6278a22c238b1c921885bea8a55dd
+git checkout --detach c7460cd83ce2c09d627a35ee7d324bf8ef0ad32e
 ```
 
 Python 3.11，按锁文件安装依赖：

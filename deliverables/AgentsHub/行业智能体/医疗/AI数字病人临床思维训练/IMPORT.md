@@ -43,7 +43,7 @@
 - 启用工具：仅 `get_turn_context`、`submit_fact_selection`。
 - 不挂载教学知识库。
 - 必须设置 `allow_chat_metadata=true`。
-- 提示词要点：见 [`docs/nexent-integration.md`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/77616e7a83f6278a22c238b1c921885bea8a55dd/docs/nexent-integration.md)。
+- 提示词要点：见 [`docs/nexent-integration.md`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/c7460cd83ce2c09d627a35ee7d324bf8ef0ad32e/docs/nexent-integration.md)。
 
 ### 反馈智能体（二选一）
 
@@ -87,6 +87,6 @@
 
 ## 参考文档
 
-- [`docs/nexent-integration.md`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/77616e7a83f6278a22c238b1c921885bea8a55dd/docs/nexent-integration.md)
-- [`docs/agent-config-draft.md`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/77616e7a83f6278a22c238b1c921885bea8a55dd/docs/agent-config-draft.md)
-- [`docs/deployment.md`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/77616e7a83f6278a22c238b1c921885bea8a55dd/docs/deployment.md)
+- [`docs/nexent-integration.md`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/c7460cd83ce2c09d627a35ee7d324bf8ef0ad32e/docs/nexent-integration.md)
+- [`docs/agent-config-draft.md`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/c7460cd83ce2c09d627a35ee7d324bf8ef0ad32e/docs/agent-config-draft.md)
+- [`docs/deployment.md`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/c7460cd83ce2c09d627a35ee7d324bf8ef0ad32e/docs/deployment.md)

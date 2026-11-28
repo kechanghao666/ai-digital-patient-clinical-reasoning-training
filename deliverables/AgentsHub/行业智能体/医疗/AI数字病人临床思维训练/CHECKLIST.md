@@ -26,7 +26,7 @@
 |---|---|---|
 | Python 3.11 锁文件 | ✅ | `requirements.lock` |
 | npm 锁文件 | ✅ | `web/package-lock.json` |
-| 后端全量测试 | ✅ | `.\.venv\Scripts\python.exe -m pytest -q` → 952 passed |
+| 后端全量测试 | ✅ | `.\.venv\Scripts\python.exe -m pytest -q` （以该次输出为准） |
 | 前端类型检查 | ✅ | `npm run typecheck`（在 `web/`） |
 | 前端构建 | ✅ | `npm run build`（在 `web/`） |
 | npm 审计 | ✅ | 0 vulnerabilities |
@@ -62,7 +62,7 @@
 | CASE-004 CAP-001 v2 | ✅ | ⚠️ | 🎲 |
 | CASE-005 DKA-001 v2 | ✅ | ⚠️ | 🎲 |
 
-模拟器轨迹见 [`docs/demo-20261209.md`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/77616e7a83f6278a22c238b1c921885bea8a55dd/docs/demo-20261209.md)。
+模拟器轨迹见 [`docs/demo-20261209.md`](https://github.com/kechanghao666/ai-digital-patient-clinical-reasoning-training/blob/c7460cd83ce2c09d627a35ee7d324bf8ef0ad32e/docs/demo-20261209.md)。
 
 ## 6. 现场随机抽取记录（12 月 9 日）
 
