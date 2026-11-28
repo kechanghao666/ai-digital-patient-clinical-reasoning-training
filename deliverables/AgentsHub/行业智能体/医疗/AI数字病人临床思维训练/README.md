@@ -1,27 +1,92 @@
 # AI 数字病人临床思维训练
 
-课题1，医疗健康方向，报名账号 `kechanghao`。本目录是交付准备入口，**缺最终可公开导入的 agent.json，尚不是正式成果**。当前工程状态见[全面复盘](../../../../../docs/全面复盘与交接-20261127-晚间.md)和[逐项官方台账](../../../../../docs/官方要求核对.md)，历史版本不再作为当前结果。
+课题 1，医疗健康方向，报名账号 `kechanghao`。
+
+> 本目录是官方 AgentsHub 预交付入口。**`agent.json` 尚未由 Nexent 平台最终导出，因此当前不是可公开导入的最终成果。** 结构、依赖、自定义 MCP 与导入说明已离线核验；最终导出件须从实际平台获取并替换占位说明。
+
+## 工程状态
+
+- 代码分支：`codex/feedback-protocol-fix`
+- 当前验证基线：`77616e7a83f6278a22c238b1c921885bea8a55dd`
+- 本地全量回归：952 passed / 0 failed（ hosted 与本机一致）
+- 真实模型/供应商调用：0（本目录准备阶段）
+- 医学审核、正式学生/专家评测、官方验收：未完成
+
+完整工程与验收状态见：
+- [`docs/官方要求核对.md`](../../../../../docs/官方要求核对.md)
+- [`docs/第一阶段覆盖表.md`](../../../../../docs/第一阶段覆盖表.md)
+- [`docs/工程接手.md`](../../../../../docs/工程接手.md)
+- [`docs/evidence/2026-11-29-boundary-review/verification.json`](../../../../../docs/evidence/2026-11-29-boundary-review/verification.json)
+
+## 交付内容
+
+| 文件/目录 | 说明 | 状态 |
+|---|---|---|
+| `README.md` | 本文件：实现概述、安装与导入入口 | 已提供 |
+| `IMPORT.md` | 逐步导入说明 | 已提供 |
+| `CHECKLIST.md` | 独立实例复验清单，含缺失项 | 已提供 |
+| `mcp-config.example.json` | 自定义 MCP 注册示例（无凭据） | 已提供 |
+| `agent.json` | **平台导出的病人/反馈智能体配置** | **缺失，须从 Nexent 导出后替换** |
+| `skills/` | 仅当实际使用平台 Skill 时提供；本项目当前使用自定义 MCP，未使用 Skill | 不适用 |
+| `mcps/` | 自定义 MCP 代码与启动说明见仓库 `backend/app/mcp_server.py` | 已提供 |
 
 ## 实现与依赖
 
-学生使用 React 工作台问诊、选检查、看回报、写病历、提交鉴别/诊断/执行处置并查看封存评分；教师管理班级、病例及评分/反馈复核。FastAPI 提供业务服务，Nexent 编排病人和反馈智能体，自定义 FastMCP 负责可信回合读取、事实选择、反馈提交，知识资产按病例版本管理。规则模拟器仅作离线工程演示，不能替代最终平台验收。
+- 学生 React 工作台：问诊、选检查、看回报、写病历、提交鉴别/诊断/执行处置、查看封存评分。
+- 教师 React 工作台：班级、病例、任务、完成情况、评分/反馈复核。
+- 后端：FastAPI（`backend/app/main.py`）。
+- 编排：Nexent 病人/反馈智能体（`backend/app/integration/nexent_client.py`）。
+- 可信工具：自定义 FastMCP 服务（`backend/app/mcp_server.py`），负责回合读取、事实选择、反馈提交。
+- 知识资产：按病例版本管理（`knowledge/teaching_basis/`），只挂载到反馈智能体。
+- 规则模拟器：离线工程演示用（`NEXENT_MODE=simulator`），不能替代真实平台验收。
 
-安装依赖、账号、模型与MCP配置按[部署指南](../../../../../docs/deployment.md)、[平台集成](../../../../../docs/nexent-integration.md)、[工具清单](../../../../../docs/agent-config-draft.md)。Python 使用 `requirements.lock`，前端使用 `web/package-lock.json`。知识资产在 `knowledge/`，病例在 `cases/`，均须按[来源及AI披露](../../../../../docs/third-party-and-ai-disclosure.md)完成最终审核。
+## 安装
 
-## 最终平台导出与导入步骤
+Python 3.11，锁文件安装：
 
-1. 在Nexent核对最终病人/反馈智能体的实际模型、提示词版本和SHA、工具绑定、知识库引用；默认dual，single v1仍属实验。开发候选不自动等于最终发布版本。
-2. 由平台实际导出 `agent.json`，不是手写占位文件。检查导出内容中的密钥、服务令牌、带访问权限的URL及个人字段；脱敏后需要在干净实例重新绑定，再验证导入有效。
-3. 本项目确有自定义MCP依赖：交付实际可安装的MCP代码/配置与启动说明，核对 `backend/app/mcp_server.py` 及其依赖。先配置依赖、再导入智能体，不能只交README链接而遗漏必要文件。仅实际使用自定义Skill时才提供skills。
-4. 在独立实例复验模型权限、MCP、知识挂载、五病例完整流程、失败恢复、时延和反馈来源，记录版本、样本分母、失败及原始证据。
-5. 配齐3–8分钟演示、设计说明、测试报告、使用截图、评测集和标注。视频工程演示与真实平台证据分开标注。
+```powershell
+py -3.11 -m venv .venv
+& .\.venv\Scripts\python.exe -m pip install --require-hashes -r requirements.lock
+& .\.venv\Scripts\python.exe -m pytest -q
+```
 
-本仓库内的相对链接用于准备期阅读；正式复制到官方Fork时须改成随包实际文件或精确提交链接，并再次核验。
+前端构建（需要 Node.js 18+）：
 
-## 提交状态与方式
+```powershell
+Push-Location web
+npm ci --no-audit --no-fund
+npm run typecheck
+npm run build
+Pop-Location
+```
 
-官方Fork中已有启动/过程材料。2026-11-27读取其main为 `1cf9655cc212d64876071617292a5e0721d103e7`，当时项目入口指向历史工程 `0918eded`。本轮工程仓库提交/推送不等于官方上游已合入。邀请接受、管理权限认可、过程仓库登记和CI认可仍缺主办方回执。
+## 运行自定义 MCP
 
-最终标题为 `[new agent] AI数字病人临床思维训练`，PR描述附课题1、实际模型/工具/知识配置、安装和导入步骤、自测结果及截图；官方维护者合入 `main` 后再附链接申请验收。正式发布前检查MIT兼容许可、数据来源和隐私。未达到上述条件时不把过程PR标为最终验收。
+工作目录 `backend`，设置 `MCP_SERVICE_TOKEN`（至少 16 字符）：
 
-教学模拟环境，非真实患者，不用于真实诊疗。评分和反馈仅供教学参考，以教师/医学专家意见为准。
+```powershell
+$env:MCP_SERVICE_TOKEN = '<至少16字符的共享令牌>'
+& .\.venv\Scripts\python.exe -m app.mcp_server
+```
+
+默认监听 `127.0.0.1:8765`，路径 `/mcp`（streamable-http）。平台容器内需使用可达地址并在 MCP 注册时携带 Bearer 令牌。
+
+## 导入 Nexent 智能体
+
+见 [`IMPORT.md`](./IMPORT.md)。核心要求：
+
+1. 在目标 Nexent 实例注册鉴权 MCP 并扫描工具。
+2. 创建/导入病人智能体，仅启用 `get_turn_context`、`submit_fact_selection`，不挂载知识库。
+3. 创建/导入反馈智能体，按协议启用 `get_sealed_review`、`search_teaching_basis`、`submit_feedback`（`review_tool`）或仅 `submit_feedback`（`compact`），挂载教学依据知识库。
+4. 由平台实际导出 `agent.json`，不是手写；脱敏后在干净实例重新绑定并验证。
+5. 设置环境变量后重启 API，运行五病例完整闭环验证。
+
+## 验证清单
+
+见 [`CHECKLIST.md`](./CHECKLIST.md)。当前离线可验证项已完成；需要平台授权或评审现场抽取的项明确标注为“待完成”。
+
+## 注意事项
+
+- 不得将 API Key、MCP 令牌、模型密钥、学生记录、带凭据的 URL 或个人字段提交到仓库。
+- 病例、量表与教学依据均为合成草稿，未经医学审核，不用于真实诊疗。
+- 评分与反馈仅供教学参考，以教师/医学专家意见为准。

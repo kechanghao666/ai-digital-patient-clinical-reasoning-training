@@ -1,0 +1,31 @@
+{
+  "_comment": "本文件为自定义 MCP 注册示例，不含凭据。目标实例导入时须替换为实际值。",
+  "name": "ai-digital-patient-trusted-tools",
+  "transport": "streamable-http",
+  "url": "http://<mcp-host>:8765/mcp",
+  "headers": {
+    "Authorization": "Bearer <MCP_SERVICE_TOKEN>"
+  },
+  "tools": [
+    {
+      "name": "get_turn_context",
+      "description": "读取本回合的学生提问和系统已授权、可用于回答的候选事实。"
+    },
+    {
+      "name": "submit_fact_selection",
+      "description": "提交本回合用于回答学生的事实ID列表（只能来自 get_turn_context 的 candidates，可为空）。"
+    },
+    {
+      "name": "get_sealed_review",
+      "description": "封存后反馈专用：读取已封存训练的评分快照、事件摘要和学生提交内容。分数只读。"
+    },
+    {
+      "name": "search_teaching_basis",
+      "description": "封存后反馈专用：检索教学依据条目。"
+    },
+    {
+      "name": "submit_feedback",
+      "description": "封存后反馈专用：提交分环节的评语与改进建议。"
+    }
+  ]
+}
