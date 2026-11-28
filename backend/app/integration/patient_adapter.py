@@ -64,9 +64,11 @@ class NexentPatientAdapter:
             raise
         current = self.turns.get(turn.turn_id)
         calls = self.turns.calls(turn.turn_id)
+        boundaries = self.turns.boundaries(turn.turn_id)
         trace = {
             "real_platform": True,
             "turn_id": turn.turn_id,
+            "request_id": turn.request_id,
             "conversation_id": run.conversation_id,
             "event_types": run.event_types,
             "first_event_ms": run.first_event_ms,
@@ -75,7 +77,17 @@ class NexentPatientAdapter:
             "total_ms": run.total_ms,
             "trusted_completion": run.trusted_completion,
             "trusted_completion_ms": run.trusted_completion_ms,
-            "tool_calls": [{"tool": c["tool"], "ok": c["ok"]} for c in calls],
+            "tool_calls": [{"tool": c["tool"], "ok": c["ok"], "at": c["at"]} for c in calls],
+            "boundaries": [
+                {
+                    "semantic": b["semantic"],
+                    "request_id": b["request_id"],
+                    "timing_source": b["timing_source"],
+                    "at": b["at"],
+                    "detail": b["detail"],
+                }
+                for b in boundaries
+            ],
         }
         if current.status == turn_states.SUBMITTED and self.turns.finalize(turn.turn_id):
             trace["finalize_ms"] = int((time.monotonic() - started) * 1000)

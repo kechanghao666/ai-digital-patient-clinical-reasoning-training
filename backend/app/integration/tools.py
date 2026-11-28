@@ -90,6 +90,25 @@ class TrustedToolService:
             audited = turn_id or exc.turn_id
             if audited:
                 self.turns.record_call(audited, tool, False, exc.code)
+                # request_id may not be available if binding failed; store empty string when unknown.
+                request_id = ""
+                try:
+                    if turn_id:
+                        turn = self.turns.get(turn_id)
+                        request_id = turn.request_id
+                except KeyError:
+                    pass
+                # Distinguish a duplicate/expired turn from other binding failures.
+                if tool == "submit_fact_selection" and exc.code == "turn_submitted":
+                    semantic = "submit_fact_selection_not_open"
+                elif tool == "submit_fact_selection" and exc.code == "turn_expired":
+                    semantic = "submit_fact_selection_not_open"
+                else:
+                    semantic = "submit_fact_selection_failed"
+                self.turns.record_boundary(
+                    audited, request_id, semantic,
+                    detail=f"{exc.code}: {str(exc)}",
+                )
             return _fail(exc.code, str(exc))
         detail = ""
         if not result.get("ok"):
@@ -126,13 +145,29 @@ class TrustedToolService:
     def submit_fact_selection(self, turn_token: str, fact_ids: list[str]) -> dict[str, Any]:
         def body(turn: Turn, state: SessionState, case: CaseDefinition) -> dict[str, Any]:
             if not isinstance(fact_ids, list) or not all(isinstance(item, str) for item in fact_ids):
+                self.turns.record_boundary(
+                    turn.turn_id, turn.request_id, "submit_fact_selection_rejected",
+                    detail="invalid_selection: fact_ids must be a list of strings",
+                )
                 return _fail("invalid_selection", "fact_ids must be a list of strings")
             unique = list(dict.fromkeys(fact_ids))
             allowed = set(turn.candidate_fact_ids)
             if any(item not in allowed for item in unique):
+                self.turns.record_boundary(
+                    turn.turn_id, turn.request_id, "submit_fact_selection_rejected",
+                    detail="unauthorized_fact: selection contains a fact that is not a candidate for this turn",
+                )
                 return _fail("unauthorized_fact", "selection contains a fact that is not a candidate for this turn")
             if not self.turns.submit(turn.turn_id, {"fact_ids": unique}):
+                self.turns.record_boundary(
+                    turn.turn_id, turn.request_id, "submit_fact_selection_not_open",
+                    detail="turn_not_open: selection was already submitted or the turn closed",
+                )
                 return _fail("turn_not_open", "selection was already submitted or the turn closed")
+            self.turns.record_boundary(
+                turn.turn_id, turn.request_id, "submit_fact_selection_committed",
+                detail=f"selected={len(unique)} fact_ids",
+            )
             return {
                 "ok": True,
                 "selected": unique,

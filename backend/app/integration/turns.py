@@ -122,6 +122,16 @@ CREATE TABLE IF NOT EXISTS turn_calls (
     at REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_turn_calls_turn ON turn_calls(turn_id);
+CREATE TABLE IF NOT EXISTS turn_boundaries (
+    boundary_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    turn_id TEXT NOT NULL,
+    request_id TEXT NOT NULL,
+    semantic TEXT NOT NULL,
+    timing_source TEXT NOT NULL,
+    at REAL NOT NULL,
+    detail TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_turn_boundaries_turn ON turn_boundaries(turn_id);
 """
 
 
@@ -373,6 +383,43 @@ class TurnStore:
                 "INSERT INTO turn_calls(turn_id, tool, ok, detail, at) VALUES (?,?,?,?,?)",
                 (turn_id, tool, 1 if ok else 0, detail[:200], time.time()),
             )
+
+    def record_boundary(
+        self,
+        turn_id: str,
+        request_id: str,
+        semantic: str,
+        timing_source: str = "mcp_process_wall_clock",
+        detail: str = "",
+        at: float | None = None,
+    ) -> None:
+        """Record a semantic boundary event for a turn (e.g. submit_fact_selection committed)."""
+        with self.lock, self._connect() as connection:
+            connection.execute(
+                "INSERT INTO turn_boundaries(turn_id, request_id, semantic, timing_source, at, detail) "
+                "VALUES (?,?,?,?,?,?)",
+                (turn_id, request_id, semantic, timing_source, at if at is not None else time.time(), detail[:200]),
+            )
+
+    def boundaries(self, turn_id: str) -> list[dict[str, Any]]:
+        with self.lock, self._connect() as connection:
+            rows = connection.execute(
+                "SELECT boundary_id, turn_id, request_id, semantic, timing_source, at, detail "
+                "FROM turn_boundaries WHERE turn_id=? ORDER BY boundary_id",
+                (turn_id,),
+            ).fetchall()
+        return [
+            {
+                "boundary_id": r["boundary_id"],
+                "turn_id": r["turn_id"],
+                "request_id": r["request_id"],
+                "semantic": r["semantic"],
+                "timing_source": r["timing_source"],
+                "at": r["at"],
+                "detail": r["detail"],
+            }
+            for r in rows
+        ]
 
     def calls(self, turn_id: str) -> list[dict[str, Any]]:
         with self.lock, self._connect() as connection:
