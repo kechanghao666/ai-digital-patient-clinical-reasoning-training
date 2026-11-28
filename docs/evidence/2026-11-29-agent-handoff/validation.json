@@ -26,6 +26,15 @@
       "push": "success",
       "pull_request": "success",
       "head_sha": "fbc9fcf275a8e508284b408caafd687ded346c2d"
+    },
+    "ci_after_push": {
+      "push": {"run_id": 46168964891, "conclusion": "success", "head_sha": "edefdc38689995d337acd8c61ccbbda783990362"},
+      "pull_request": {"run_id": 46168969301, "conclusion": "success", "head_sha": "edefdc38689995d337acd8c61ccbbda783990362"},
+      "pr_checks": {
+        "tests": "SUCCESS",
+        "web": "SUCCESS",
+        "dependency-audit": "SUCCESS"
+      }
     }
   },
   "changes_summary": {
