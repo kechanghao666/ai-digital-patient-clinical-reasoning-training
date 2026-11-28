@@ -1,0 +1,44 @@
+{
+  "date": "2026-12-01",
+  "base_commit": "77616e7a83f6278a22c238b1c921885bea8a55dd",
+  "branch": "codex/feedback-protocol-fix",
+  "environment": {
+    "os": "Windows-10-10.0.26300-SP0",
+    "python": "3.11.18",
+    "node": "v24.18.0",
+    "npm": "11.16.0",
+    "real_provider_calls": 0
+  },
+  "tasks": {
+    "nexent_delivery_package": {
+      "status": "structure_verified_offline",
+      "note": "agent.json 尚未从 Nexent 平台导出；README/IMPORT/CHECKLIST/mcp-config.example.json 已补齐；offline verify 报告见 delivery-verify-report.json",
+      "report": "docs/evidence/2026-12-01-demo-prep/delivery-verify-report.json"
+    },
+    "demo_preparation": {
+      "browser_demo": {
+        "result": "13/13",
+        "file": "docs/evidence/2026-12-01-demo-prep/browser-demo-run.json",
+        "detail_log": "local-only/2026-12-01-browser-demo/"
+      },
+      "engineering_samples": {
+        "result": "12/12",
+        "file": "docs/evidence/2026-12-01-demo-prep/engineering-summary.json",
+        "detail_log": "local-only/2026-12-01-engineering-samples/"
+      },
+      "random_sampling_plan": {
+        "file": "docs/evidence/2026-12-01-demo-prep/sampling-plan.md",
+        "note": "通用现场随机 ≥3 条与专项随机 1 个病例占位，待 12 月 9 日评审抽取后补录"
+      }
+    }
+  },
+  "open_blockers": {
+    "agent_json_export": "须从 Nexent 平台实际导出 agent.json 并脱敏",
+    "real_instance_import": "须在独立 Nexent 实例注册 MCP、导入智能体、重新发布并验证五病例闭环",
+    "random_demo_results": "待 12 月 9 日现场抽取",
+    "first_word_5s": "真实候选 0/3，需新预算复测",
+    "clinical_review": "未开展",
+    "student_expert_evaluation": "未开展",
+    "official_pr_merge": "未合入"
+  }
+}
